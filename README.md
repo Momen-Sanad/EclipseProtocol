@@ -37,79 +37,87 @@
 
 ```
 .
-├── assets
+├── LICENSE
+├── README.md
+├── conf.lua
+├── main.lua
+│
+├── assets/
 │   ├── background.png
-│   ├── sprites
+│   ├── sprites/
 │   │   ├── parrot.png
 │   │   ├── player/
-│   │   └── enemies/
-│   ├── audio
+│   │   ├── enemies/
+│   │   ├── items/
+│   │   └── ui/
+│   ├── audio/
 │   │   ├── music/
 │   │   └── sfx/
-│   └── ui/
+│   ├── fonts/
+│   └── shaders/
 │
-├── Docs
+├── Docs/
 │   ├── Dev Systems.md
 │   ├── Project goals.md
 │   ├── Systems Map.md
 │   └── Workload Divison.md
 │
-├── LICENSE
-├── README.md
-├── main.lua
-├── conf.lua          ← add this
+├── src/
+│   ├── core/
+│   │   ├── game.lua                 # Central loop helpers (optional)
+│   │   ├── stateManager.lua         # Game State Manager (Menu/Play/Pause/Over/Victory)
+│   │   ├── events.lua               # Event queue (push/consume helpers)
+│   │   ├── collision.lua            # AABB helpers (pure functions)
+│   │   └── timer.lua                # Cooldowns/timers helpers
+│   │
+│   ├── world/
+│   │   ├── world.lua                # WORLD DATA (the shared passive table)
+│   │   ├── map.lua                  # Room/map data representation
+│   │   ├── room_generator.lua       # Procedural room generation (writes room data)
+│   │   └── door_trigger.lua         # Door trigger definitions (data + helpers)
+│   │
+│   ├── states/
+│   │   ├── menu.lua                 # Start Menu state
+│   │   ├── play.lua                 # Central Orchestrator (owns world + systems list + order)
+│   │   ├── pause.lua                # Pause state
+│   │   ├── gameover.lua             # Game Over state
+│   │   └── victory.lua              # Victory state
+│   │
+│   ├── entities/
+│   │   ├── player.lua               # Player data factory/defaults
+│   │   ├── enemy_base.lua           # Shared enemy defaults
+│   │   ├── patrol_drone.lua         # Patrol Drone data factory
+│   │   ├── hunter_drone.lua         # Hunter Drone data factory (FSM fields)
+│   │   ├── energy_cell.lua          # Collectible item data factory
+│   │   └── power_node.lua           # Power node interactable data factory
+│   │
+│   ├── systems/
+│   │   ├── input_system.lua         # 1) Input System (writes intent)
+│   │   ├── ai_system.lua            # 2) AI System (FSM -> writes enemy intent/state)
+│   │   ├── movement_system.lua      # 3) Movement System (vel -> pos integration)
+│   │   ├── collision_system.lua     # 4) Collision System (AABB -> writes events/flags)
+│   │   ├── damage_system.lua        # 5) Damage & Invulnerability (reads collision events)
+│   │   ├── resource_system.lua      # 6) Resources (health/energy/time regen)
+│   │   ├── ability_system.lua       # 7) Dash (reads input intent + energy)
+│   │   ├── spawn_system.lua         # 8) Spawn (enemies/items create + cleanup)
+│   │   ├── roomgen_system.lua       # 9) Procedural Room Gen trigger (on transitions)
+│   │   ├── progression_system.lua   # 10) Power nodes / unlocking rules
+│   │   ├── difficulty_system.lua    # 11) Dynamic difficulty (low frequency)
+│   │   ├── evacuation_system.lua    # 12) Evacuation timer/progress
+│   │   ├── animation_system.lua     # 13) Animation (read-only gameplay)
+│   │   ├── hud_system.lua           # 14) UI/HUD (read-only gameplay)
+│   │   ├── audio_system.lua         # 15) Audio (reads events only)
+│   │   └── vfx_system.lua           # 16) Visual feedback (flicker/shake; read-only gameplay)
+│   │
+│   └── utils/
+│       ├── vector.lua               # Vector helpers
+│       ├── constants.lua            # Global constants/tunables
+│       └── math_utils.lua           # Small math helpers
 │
-├── src
-│   ├── input.lua     ← you already have this ✔
-│   │
-│   ├── core
-│   │   ├── game.lua
-│   │   ├── stateManager.lua
-│   │   ├── collision.lua
-│   │   └── timer.lua
-│   │
-│   ├── entities
-│   │   ├── player.lua
-│   │   ├── enemy_base.lua
-│   │   ├── patrol_drone.lua
-│   │   ├── hunter_drone.lua
-│   │   ├── energy_cell.lua
-│   │   └── power_node.lua
-│   │
-│   ├── systems
-│   │   ├── movement_system.lua
-│   │   ├── health_system.lua
-│   │   ├── energy_system.lua
-│   │   ├── ai_system.lua
-│   │   ├── collision_system.lua
-│   │   └── spawning_system.lua
-│   │
-│   ├── states
-│   │   ├── menu.lua
-│   │   ├── play.lua
-│   │   ├── pause.lua
-│   │   ├── gameover.lua
-│   │   └── victory.lua
-│   │
-│   ├── world
-│   │   ├── map.lua
-│   │   ├── room_generator.lua
-│   │   └── door_trigger.lua
-│   │
-│   ├── ui
-│   │   ├── hud.lua
-│   │   ├── health_bar.lua
-│   │   ├── energy_bar.lua
-│   │   └── messages.lua
-│   │
-│   └── utils
-│       ├── vector.lua
-│       ├── constants.lua
-│       └── math_utils.lua
-│
-└── tests
+└── tests/
     ├── collision_test.lua
-    └── ai_test.lua
+    ├── ai_test.lua
+    └── room_generation_test.lua
 ```
 
 ## Notes on implementation
