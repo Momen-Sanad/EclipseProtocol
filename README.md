@@ -37,87 +37,93 @@
 
 ```
 .
-├── LICENSE
-├── README.md
-├── conf.lua
-├── main.lua
+├── assets/                           # Game assets (images, audio, fonts, shaders)
+│   ├── audio/                        # Audio files used by audio_system
+│   │   ├── music/                    # Background music tracks
+│   │   └── sfx/                      # Sound effects (dash, hit, pickup, etc.)
+│   ├── background.png                # Background image (menu/game scenes)
+│   ├── fonts/                        # Font files for UI text
+│   ├── shaders/                      # GLSL shaders (optional visuals/lighting/post FX)
+│   ├── sprites/                      # All sprite textures
+│   │   ├── enemies/                  # Enemy sprites (patrol/hunter variants)
+│   │   ├── items/                    # Collectibles / power node / pickups sprites
+│   │   ├── parrot.png                # Placeholder sprite (temporary/prototyping)
+│   │   └── player/                   # Player animation frames / spritesheets
+│   └── ui/                           # UI images (icons, panels, bars, etc.)
 │
-├── assets/
-│   ├── background.png
-│   ├── sprites/
-│   │   ├── parrot.png
-│   │   ├── player/
-│   │   ├── enemies/
-│   │   ├── items/
-│   │   └── ui/
-│   ├── audio/
-│   │   ├── music/
-│   │   └── sfx/
-│   ├── fonts/
-│   └── shaders/
+├── conf.lua                          # Love2D config (window size, title, vsync, etc.)
+├── main.lua                          # Love2D entry point: loads state manager, delegates update/draw
+├── README.md                         # Project overview + how to run + architecture summary
+├── LICENSE                           # Repository license
 │
-├── Docs/
-│   ├── Dev Systems.md
-│   ├── Project goals.md
-│   ├── Systems Map.md
-│   └── Workload Divison.md
+├── Docs/                             # Project documentation (design + planning)
+│   ├── Dev Systems.md                # Dev notes on systems/modules responsibilities
+│   ├── Project goals.md              # Target gameplay goals + success criteria
+│   ├── Systems Map.md                # High-level architecture diagram/notes
+│   └── Workload Divison.md           # Task split (if team) / personal plan (if solo)
 │
-├── src/
-│   ├── core/
-│   │   ├── game.lua                 # Central loop helpers (optional)
-│   │   ├── stateManager.lua         # Game State Manager (Menu/Play/Pause/Over/Victory)
-│   │   ├── events.lua               # Event queue (push/consume helpers)
-│   │   ├── collision.lua            # AABB helpers (pure functions)
-│   │   └── timer.lua                # Cooldowns/timers helpers
+├── src/                              # Source code (Lua)
+│   ├── core/                         # Engine-like shared infrastructure (pure helpers / managers)
+│   │   ├── collision.lua             # Pure AABB helpers (overlap checks, rect utils)
+│   │   ├── events.lua                # Event queue helpers (push/consume gameplay events)
+│   │   ├── game.lua                  # Game bootstrap helpers (optional wrapper around play state)
+│   │   ├── stateManager.lua          # Global game state machine (menu/play/pause/over/victory)
+│   │   └── timer.lua                 # Timer/cooldown helpers (dash cooldown, invulnerability timers)
 │   │
-│   ├── world/
-│   │   ├── world.lua                # WORLD DATA (the shared passive table)
-│   │   ├── map.lua                  # Room/map data representation
-│   │   ├── room_generator.lua       # Procedural room generation (writes room data)
-│   │   └── door_trigger.lua         # Door trigger definitions (data + helpers)
+│   ├── world/                        # World data + procedural generation (shared passive state)
+│   │   ├── world.lua                 # Creates/holds the world table (player, enemies, rooms, flags)
+│   │   ├── map.lua                   # Room/map representation (grid, boundaries, walkable areas)
+│   │   ├── room_generator.lua        # Procedural room layout generation + door placement rules
+│   │   └── door_trigger.lua          # Door trigger zones + transition definitions (data + helpers)
 │   │
-│   ├── states/
-│   │   ├── menu.lua                 # Start Menu state
-│   │   ├── play.lua                 # Central Orchestrator (owns world + systems list + order)
-│   │   ├── pause.lua                # Pause state
-│   │   ├── gameover.lua             # Game Over state
-│   │   └── victory.lua              # Victory state
+│   ├── entities/                     # Entity “constructors” / defaults (data, hitboxes, stats)
+│   │   ├── player.lua                # Player data defaults (speed, health, energy, hitbox, anim)
+│   │   ├── enemy_base.lua            # Shared enemy defaults (hp, speed, hitbox helpers)
+│   │   ├── patrol_drone.lua          # Patrol drone factory (path points, patrol params)
+│   │   ├── hunter_drone.lua          # Hunter drone factory (FSM fields, detection range, chase params)
+│   │   ├── energy_cell.lua           # Energy pickup definition (value, collision box, sprite)
+│   │   └── power_node.lua            # Power node interactable (repair progress, unlock flags)
 │   │
-│   ├── entities/
-│   │   ├── player.lua               # Player data factory/defaults
-│   │   ├── enemy_base.lua           # Shared enemy defaults
-│   │   ├── patrol_drone.lua         # Patrol Drone data factory
-│   │   ├── hunter_drone.lua         # Hunter Drone data factory (FSM fields)
-│   │   ├── energy_cell.lua          # Collectible item data factory
-│   │   └── power_node.lua           # Power node interactable data factory
+│   ├── states/                       # High-level game states (activate systems, control flow)
+│   │   ├── menu.lua                  # Start menu state (start game, instructions, etc.)
+│   │   ├── play.lua                  # Central orchestrator: owns world + system list + update order
+│   │   ├── pause.lua                 # Pause state (freezes simulation, shows pause UI)
+│   │   ├── gameover.lua              # Game over state (restart/quit)
+│   │   └── victory.lua               # Victory state (final time/score, replay)
 │   │
-│   ├── systems/
-│   │   ├── input_system.lua         # 1) Input System (writes intent)
-│   │   ├── ai_system.lua            # 2) AI System (FSM -> writes enemy intent/state)
-│   │   ├── movement_system.lua      # 3) Movement System (vel -> pos integration)
-│   │   ├── collision_system.lua     # 4) Collision System (AABB -> writes events/flags)
-│   │   ├── damage_system.lua        # 5) Damage & Invulnerability (reads collision events)
-│   │   ├── resource_system.lua      # 6) Resources (health/energy/time regen)
-│   │   ├── ability_system.lua       # 7) Dash (reads input intent + energy)
-│   │   ├── spawn_system.lua         # 8) Spawn (enemies/items create + cleanup)
-│   │   ├── roomgen_system.lua       # 9) Procedural Room Gen trigger (on transitions)
-│   │   ├── progression_system.lua   # 10) Power nodes / unlocking rules
-│   │   ├── difficulty_system.lua    # 11) Dynamic difficulty (low frequency)
-│   │   ├── evacuation_system.lua    # 12) Evacuation timer/progress
-│   │   ├── animation_system.lua     # 13) Animation (read-only gameplay)
-│   │   ├── hud_system.lua           # 14) UI/HUD (read-only gameplay)
-│   │   ├── audio_system.lua         # 15) Audio (reads events only)
-│   │   └── vfx_system.lua           # 16) Visual feedback (flicker/shake; read-only gameplay)
+│   ├── systems/                      # Systems that update the world (logic) + presentation systems
+│   │   ├── input_system.lua          # Reads input -> writes player intent (moveDir, dashRequested)
+│   │   ├── ai_system.lua             # Enemy FSM transitions -> writes enemy intent/desiredVelocity
+│   │   ├── ability_system.lua        # Dash logic + cooldowns + energy cost -> writes velocity changes
+│   │   ├── movement_system.lua       # Integrates velocity -> position using dt (no collision)
+│   │   ├── collision_system.lua      # AABB checks/resolution -> writes events (enemyHit, doorTouched)
+│   │   ├── damage_system.lua         # Applies damage + invulnerability + knockback using events
+│   │   ├── health_system.lua         # Health rules (death flag, regen if any) using world data/events
+│   │   ├── energy_system.lua         # Energy regen/consumption + caps using world data/events
+│   │   ├── progression_system.lua    # Power node repair + unlocking logic -> writes progression flags
+│   │   ├── difficulty_system.lua     # Difficulty scaling (based on time/rooms) -> writes modifiers
+│   │   ├── spawn_system.lua          # Spawns enemies/items when entering rooms / scaling triggers
+│   │   ├── roomgen_system.lua        # Handles room transition: generates next room + safe spawn points
+│   │   ├── evacuation_system.lua     # Evacuation countdown + win trigger flag when active
+│   │   ├── animation_system.lua      # Updates animation frames from movement/action flags (read-only)
+│   │   ├── audio_system.lua          # Plays music/SFX based on events (read-only gameplay)
+│   │   └── vfx_system.lua            # Visual feedback (flicker/shake/flash) from events (read-only)
 │   │
-│   └── utils/
-│       ├── vector.lua               # Vector helpers
-│       ├── constants.lua            # Global constants/tunables
-│       └── math_utils.lua           # Small math helpers
+│   ├── ui/                           # UI components (drawing only, no gameplay mutations)
+│   │   ├── hud.lua                   # HUD layout renderer (calls bars + messages)
+│   │   ├── health_bar.lua            # Draws health bar from world.player.health
+│   │   ├── energy_bar.lua            # Draws energy bar from world.player.energy
+│   │   └── messages.lua              # Draws messages (cooldowns, alerts, game state text)
+│   │
+│   └── utils/                        # Small reusable helpers (no game state)
+│       ├── vector.lua                # Vector ops (normalize, length, add, scale)
+│       ├── math_utils.lua            # Clamp, lerp, random helpers, etc.
+│       └── constants.lua             # Tunables (speeds, detection ranges, costs, UI sizes)
 │
-└── tests/
-    ├── collision_test.lua
-    ├── ai_test.lua
-    └── room_generation_test.lua
+└── tests/                            # Lightweight tests/sim checks (optional but helpful)
+    ├── collision_test.lua            # Tests AABB overlap/resolution functions
+    ├── ai_test.lua                   # Tests FSM transitions for hunter/patrol behavior
+    └── room_generation_test.lua      # Tests procedural room generation outputs/constraints
 ```
 
 ## Notes on implementation
