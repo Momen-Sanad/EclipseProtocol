@@ -48,32 +48,6 @@ local function drawOutlinedText(font, text, x, y, color, outlineColor)
     love.graphics.print(text, x, y)
 end
 
-local function drawBolt(x1, y1, x2, y2, segments, amp, time)
-    local points = {}
-    local dx = x2 - x1
-    local dy = y2 - y1
-    local len = math.sqrt(dx * dx + dy * dy)
-    local nx = 0
-    local ny = 0
-    if len > 0 then
-        nx = -dy / len
-        ny = dx / len
-    end
-
-    for i = 0, segments do
-        local t = i / segments
-        local x = x1 + dx * t
-        local y = y1 + dy * t
-        local wave = math.sin(t * 12 + time * 5) * amp
-        local jitter = love.math.random(-amp * 0.2, amp * 0.2)
-        x = x + nx * (wave + jitter)
-        y = y + ny * (wave + jitter)
-        points[#points + 1] = x
-        points[#points + 1] = y
-    end
-    love.graphics.line(points)
-end
-
 function StartMenu:load(cfg)
     bg = cfg.bg
     bgScale = cfg.bgScale
@@ -124,10 +98,10 @@ function StartMenu:draw()
     setColor({ 0.06, 0.08, 0.10, 0.45 })
     love.graphics.rectangle("fill", 0, 0, windowWidth, windowHeight)
 
-    local panelX = 70
-    local panelY = 130
     local panelW = 440
     local panelH = 460
+    local panelX = math.floor((windowWidth - panelW) / 2)
+    local panelY = math.floor((windowHeight - panelH) / 2)
 
     setColor(COL.panel)
     love.graphics.rectangle("fill", panelX, panelY, panelW, panelH, 12, 12)
@@ -137,16 +111,14 @@ function StartMenu:draw()
     setColor(COL.panelGlow)
     love.graphics.rectangle("fill", panelX + 12, panelY + 12, panelW - 24, 6, 4, 4)
 
-    local titleX = 780
-    local titleY = 40
-    drawOutlinedText(titleFont, "ECLIPSE", titleX, titleY, COL.text, { 0.05, 0.09, 0.12, 0.9 })
-    drawOutlinedText(titleFont, "PROTOCOL", titleX, titleY + 48, COL.text, { 0.05, 0.09, 0.12, 0.9 })
-
-    local boltY = 560 + math.sin(anim.time * 2.3) * 6
-    setColor({ 0.20, 0.85, 0.95, 0.8 })
-    love.graphics.setLineWidth(2)
-    drawBolt(420, boltY, 1200, boltY - 30, 16, 10, anim.time)
-    love.graphics.setLineWidth(1)
+    local titleY = math.floor(panelY - (titleFont:getHeight() * 2) - 20)
+    if titleY < 20 then
+        titleY = 20
+    end
+    local titleX1 = math.floor((windowWidth - titleFont:getWidth("ECLIPSE")) / 2)
+    local titleX2 = math.floor((windowWidth - titleFont:getWidth("PROTOCOL")) / 2)
+    drawOutlinedText(titleFont, "ECLIPSE", titleX1, titleY, COL.text, { 0.05, 0.09, 0.12, 0.9 })
+    drawOutlinedText(titleFont, "PROTOCOL", titleX2, titleY + 48, COL.text, { 0.05, 0.09, 0.12, 0.9 })
 
     local startY = panelY + 130
     local gap = 70

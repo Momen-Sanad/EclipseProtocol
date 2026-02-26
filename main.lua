@@ -20,7 +20,7 @@ local BG_OFFSET_Y = 0
 local StartMenu = nil
 
 function love.load()
-    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT)
+    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, { fullscreen = true })
     love.graphics.setDefaultFilter("linear", "linear", 16)
     love.math.setRandomSeed(os.time())
 
