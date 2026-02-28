@@ -49,12 +49,15 @@ local function drawOutlinedText(font, text, x, y, color, outlineColor)
 end
 
 function StartMenu:load(cfg)
-    bg = cfg.bg
-    bgScale = cfg.bgScale
-    bgOffsetX = cfg.bgOffsetX
-    bgOffsetY = cfg.bgOffsetY
     windowWidth = cfg.windowWidth
     windowHeight = cfg.windowHeight
+
+    bg = love.graphics.newImage("assets/start menu.jpg")
+    local bgW = bg:getWidth()
+    local bgH = bg:getHeight()
+    bgScale = math.max(windowWidth / bgW, windowHeight / bgH)
+    bgOffsetX = (windowWidth - bgW * bgScale) / 2
+    bgOffsetY = (windowHeight - bgH * bgScale) / 2
 
     titleFont = love.graphics.newFont(46)
     menuFont = love.graphics.newFont(26)
@@ -94,9 +97,6 @@ end
 
 function StartMenu:draw()
     love.graphics.draw(bg, bgOffsetX, bgOffsetY, 0, bgScale, bgScale)
-
-    setColor({ 0.06, 0.08, 0.10, 0.45 })
-    love.graphics.rectangle("fill", 0, 0, windowWidth, windowHeight)
 
     local panelW = 440
     local panelH = 460
