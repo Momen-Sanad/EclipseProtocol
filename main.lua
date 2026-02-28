@@ -1,3 +1,6 @@
+local InputSystem = require("src/systems/input_system")
+local MovementSystem = require("src/systems/movement_system")
+
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
@@ -9,7 +12,6 @@ PLAYER_SIZE = 35
 local state = "menu"
 
 local Player = {}
-local Speed = 180
 
 local BG = nil
 local Parrot = nil
@@ -33,10 +35,20 @@ function love.load()
     BG_OFFSET_X = (WINDOW_WIDTH - bgW * BG_SCALE) / 2
     BG_OFFSET_Y = (WINDOW_HEIGHT - bgH * BG_SCALE) / 2
 
-    Player.x = WINDOW_WIDTH / 2
-    Player.y = WINDOW_HEIGHT / 2
-    Player.sprite = Parrot
 
+    Player = {
+        x = WINDOW_WIDTH / 2,
+        y = WINDOW_HEIGHT / 2,
+        speed = 300,
+        sprite = Parrot,
+        
+        quad = love.graphics.newQuad(
+            0, 0,              -- x, y inside the image
+            100, 100,          -- width, height of the rectangle
+            100,
+            100
+        )
+    }
     StartMenu = love.filesystem.load("assets/ui/Start menu.lua")()
     StartMenu:load({
         windowWidth = WINDOW_WIDTH,
@@ -52,22 +64,31 @@ function love.update(dt)
     if state == "menu" then
         StartMenu:update(dt)
     elseif state == "game" then
-        if love.keyboard.isDown("a") and Player.x > PLAYER_SIZE then
-            Player.x = Player.x - Speed * dt
-        end
-        if love.keyboard.isDown("d") and Player.x < WINDOW_WIDTH - PLAYER_SIZE then
-            Player.x = Player.x + Speed * dt
-        end
-        if love.keyboard.isDown("w") and Player.y > PLAYER_SIZE then
-            Player.y = Player.y - Speed * dt
-        end
-        if love.keyboard.isDown("s") and Player.y < WINDOW_HEIGHT - PLAYER_SIZE then
-            Player.y = Player.y + Speed * dt
-        end
+
+        MovementSystem.update(
+            Player,
+            InputSystem,
+            dt,
+            {
+                minX = 8,
+                minY = 8,
+                maxX = WINDOW_WIDTH - PLAYER_SIZE,
+                maxY = WINDOW_HEIGHT - PLAYER_SIZE
+            }
+        )
+
     end
+
+    InputSystem.update()
+end
+
+function love.keyreleased(key)
+    InputSystem.keyreleased(key)
 end
 
 function love.keypressed(key)
+
+     InputSystem.keypressed(key)
     if key == "escape" then
         if state == "game" then
             state = "menu"
@@ -78,18 +99,34 @@ function love.keypressed(key)
     end
 
     if state == "menu" then
-        local action = StartMenu:keypressed(key)
-        if action == "start" then
-            state = "game"
-        elseif action == "quit" then
-            love.event.quit()
+        if(StartMenu) then 
+            local action = StartMenu:keypressed(key)
+            if action == "start" then
+                state = "game"
+            elseif action == "quit" then
+                love.event.quit()
+            end
         end
     end
 end
 
 local function drawGame()
+    
+    love.graphics.setColor(1, 1, 1)    
     love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
-    love.graphics.draw(Player.sprite, Player.x, Player.y, 0, 0.5, 0.5, 65, 65)
+    
+    love.graphics.setColor(1, 1, 1)
+
+    love.graphics.draw(
+        Player.sprite,
+        Player.quad,
+        Player.x,
+        Player.y,
+        0,                 -- rotation
+        0.5, 0.5,              -- scale
+        25, 25             -- origin (center of the quad)
+    )
+
 end
 
 function love.draw()
