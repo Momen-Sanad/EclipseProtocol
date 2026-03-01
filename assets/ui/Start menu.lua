@@ -1,7 +1,8 @@
 local StartMenu = {}
 
 local bg = nil
-local bgScale = 1
+local bgScaleX = 1
+local bgScaleY = 1
 local bgOffsetX = 0
 local bgOffsetY = 0
 
@@ -49,15 +50,17 @@ local function drawOutlinedText(font, text, x, y, color, outlineColor)
 end
 
 function StartMenu:load(cfg)
-    windowWidth = cfg.windowWidth
-    windowHeight = cfg.windowHeight
+    local w, h = love.graphics.getDimensions()
+    windowWidth = w
+    windowHeight = h
 
     bg = love.graphics.newImage("assets/start menu.jpg")
     local bgW = bg:getWidth()
     local bgH = bg:getHeight()
-    bgScale = math.max(windowWidth / bgW, windowHeight / bgH)
-    bgOffsetX = (windowWidth - bgW * bgScale) / 2
-    bgOffsetY = (windowHeight - bgH * bgScale) / 2
+    bgScaleX = windowWidth / bgW
+    bgScaleY = windowHeight / bgH
+    bgOffsetX = 0
+    bgOffsetY = 0
 
     titleFont = love.graphics.newFont(46)
     menuFont = love.graphics.newFont(26)
@@ -96,7 +99,20 @@ function StartMenu:keypressed(key)
 end
 
 function StartMenu:draw()
-    love.graphics.draw(bg, bgOffsetX, bgOffsetY, 0, bgScale, bgScale)
+    local w, h = love.graphics.getDimensions()
+    if w ~= windowWidth or h ~= windowHeight then
+        windowWidth = w
+        windowHeight = h
+        local bgW = bg:getWidth()
+        local bgH = bg:getHeight()
+        bgScaleX = windowWidth / bgW
+        bgScaleY = windowHeight / bgH
+        bgOffsetX = 0
+        bgOffsetY = 0
+    end
+
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(bg, bgOffsetX, bgOffsetY, 0, bgScaleX, bgScaleY)
 
     local panelW = 440
     local panelH = 460
@@ -142,17 +158,6 @@ function StartMenu:draw()
         love.graphics.print(item, panelX + 80, y - 10)
     end
 
-    for y = 0, windowHeight, 4 do
-        setColor({ 0, 0, 0, 0.08 })
-        love.graphics.line(0, y, windowWidth, y)
-    end
-
-    for i = 1, 80 do
-        local x = love.math.random(0, windowWidth)
-        local y = love.math.random(0, windowHeight)
-        setColor({ 0.22, 0.60, 0.65, 0.18 })
-        love.graphics.rectangle("fill", x, y, 1, 1)
-    end
 end
 
 return StartMenu
