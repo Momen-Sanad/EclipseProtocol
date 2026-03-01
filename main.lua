@@ -70,6 +70,10 @@ function love.keyreleased(key)
     StateManager.keyreleased(key)
 end
 
+function love.mousepressed(x, y, button, istouch, presses)
+    StateManager.mousepressed(x, y, button, istouch, presses)
+end
+
 function love.draw()
     StateManager.draw()
 end

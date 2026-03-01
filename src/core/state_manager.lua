@@ -71,4 +71,10 @@ function StateManager.keyreleased(key)
     end
 end
 
+function StateManager.mousepressed(x, y, button, istouch, presses)
+    if StateManager.current and StateManager.current.mousepressed then
+        StateManager.current.mousepressed(x, y, button, istouch, presses, StateManager.context)
+    end
+end
+
 return StateManager

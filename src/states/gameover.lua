@@ -3,6 +3,14 @@ local StateManager = require("src/core/state_manager")
 
 local GameOverState = {}
 
+local bg = nil
+local bgScaleX = 1
+local bgScaleY = 1
+local bgOffsetX = 0
+local bgOffsetY = 0
+local windowWidth = 0
+local windowHeight = 0
+
 local font = nil
 local fadeTime = 0
 local fadeDuration = 1.0
@@ -11,6 +19,25 @@ local musicFadeTime = 0
 local musicFadeDuration = 1.0
 local musicTargetVolume = 0.8
 local soundPath = nil
+local retryScale = 3
+local retryYRatio = 0.86
+
+local function refreshBackground()
+    local w, h = love.graphics.getDimensions()
+    if w == windowWidth and h == windowHeight then
+        return
+    end
+    windowWidth = w
+    windowHeight = h
+    if bg then
+        local bw = bg:getWidth()
+        local bh = bg:getHeight()
+        bgScaleX = windowWidth / bw
+        bgScaleY = windowHeight / bh
+        bgOffsetX = 0
+        bgOffsetY = 0
+    end
+end
 
 local function ensureFont()
     if font then
@@ -22,8 +49,21 @@ local function ensureFont()
     promptFont:setFilter("nearest", "nearest")
 end
 
+local function getRetryBounds(w, h)
+    local label = "RETRY"
+    local labelW = promptFont:getWidth(label) * retryScale
+    local labelH = promptFont:getHeight() * retryScale
+    local x = math.floor((w - labelW) / 2)
+    local y = math.floor(h * retryYRatio)
+    return x, y, labelW, labelH
+end
+
 function GameOverState.enter(context)
     ensureFont()
+    if not bg then
+        bg = love.graphics.newImage("assets/Game Over.jpg")
+    end
+    refreshBackground()
     fadeTime = 0
     musicFadeTime = 0
     fadeDuration = (context and context.gameOverTextFadeDuration) or 1.0
@@ -60,32 +100,41 @@ function GameOverState.keypressed(key)
     end
 end
 
+function GameOverState.mousepressed(x, y, button)
+    if button ~= 1 then
+        return
+    end
+
+    ensureFont()
+    refreshBackground()
+    local w = windowWidth
+    local h = windowHeight
+    local bx, by, bw, bh = getRetryBounds(w, h)
+    if x >= bx and x <= (bx + bw) and y >= by and y <= (by + bh) then
+        StateManager.change("transition", "game")
+    end
+end
+
 function GameOverState.draw()
     ensureFont()
-    local w, h = love.graphics.getDimensions()
-    love.graphics.setColor(0, 0, 0, 1)
-    love.graphics.rectangle("fill", 0, 0, w, h)
+    refreshBackground()
+    local w = windowWidth
+    local h = windowHeight
+    love.graphics.setColor(1, 1, 1, 1)
+    if bg then
+        love.graphics.draw(bg, bgOffsetX, bgOffsetY, 0, bgScaleX, bgScaleY)
+    end
 
-    love.graphics.setFont(font)
     local alpha = 1.0
     if fadeDuration > 0 then
         alpha = math.max(0, math.min(1, fadeTime / fadeDuration))
     end
-    love.graphics.setColor(0.90, 0.20, 0.20, alpha)
-    local text = "GAME OVER"
-    local x = math.floor((w - font:getWidth(text)) / 2)
-    local y = math.floor((h - font:getHeight()) / 2)
-    love.graphics.print(text, x, y)
 
     love.graphics.setFont(promptFont)
-    love.graphics.setColor(0.78, 0.90, 0.95, alpha)
-    local prompt = "PRESS ENTER TO RETRY"
-    local px = math.floor((w - promptFont:getWidth(prompt)) / 2)
-    local py = y + font:getHeight() + 26
-    love.graphics.print(prompt, px, py)
-    local prompt2 = "ESC TO MAIN MENU"
-    local px2 = math.floor((w - promptFont:getWidth(prompt2)) / 2)
-    love.graphics.print(prompt2, px2, py + 24)
+    local label = "RETRY"
+    local lx, ly = getRetryBounds(w, h)
+    love.graphics.setColor(0.95, 0.25, 0.25, alpha)
+    love.graphics.print(label, lx, ly, 0, retryScale, retryScale)
 end
 
 return GameOverState
