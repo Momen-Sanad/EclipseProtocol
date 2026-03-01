@@ -145,4 +145,13 @@ function AudioSystem.getCurrentMusic()
     return musicPath
 end
 
+function AudioSystem.setCurrentMusicVolume(volume)
+    if volume == nil then
+        return
+    end
+    if musicSource then
+        musicSource:setVolume(math.max(0, math.min(1, volume)))
+    end
+end
+
 return AudioSystem

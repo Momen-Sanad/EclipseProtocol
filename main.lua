@@ -22,6 +22,79 @@ local BG_OFFSET_X = 0
 local BG_OFFSET_Y = 0
 local MENU_MUSIC_PATH = "assets/audio/music/StartMenu.mp3"
 local GAME_MUSIC_PATH = nil
+local TRANSITION_DURATION = 2.5
+local FADE_DURATION = 0.5
+local transitionTime = 0
+local transitionMusicStartVolume = 0.8
+
+local function startTransitionToGame()
+    transitionTime = TRANSITION_DURATION
+    state = "transition"
+    if AudioSystem.getMusicVolume then
+        transitionMusicStartVolume = AudioSystem.getMusicVolume()
+    end
+end
+
+local function updateTransition(dt)
+    transitionTime = transitionTime - dt
+    local elapsed = TRANSITION_DURATION - transitionTime
+    local fadeTime = math.min(FADE_DURATION, TRANSITION_DURATION / 2)
+    if fadeTime > 0 then
+        if elapsed <= fadeTime then
+            local t = math.min(1, elapsed / fadeTime)
+            AudioSystem.setCurrentMusicVolume(transitionMusicStartVolume * (1 - t))
+        else
+            AudioSystem.setCurrentMusicVolume(0)
+        end
+    end
+    if transitionTime <= 0 then
+        transitionTime = 0
+        state = "game"
+        AudioSystem.playMusic(GAME_MUSIC_PATH)
+    end
+end
+
+local function drawGame()
+    
+    love.graphics.setColor(1, 1, 1)    
+    love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
+    
+    love.graphics.setColor(1, 1, 1)
+
+    love.graphics.draw(
+        Player.sprite,
+        Player.quad,
+        Player.x,
+        Player.y,
+        0,                 -- rotation
+        0.5, 0.5,              -- scale
+        25, 25             -- origin (center of the quad)
+    )
+
+end
+
+local function drawTransition()
+    local w, h = love.graphics.getDimensions()
+    local elapsed = TRANSITION_DURATION - transitionTime
+    local fadeTime = math.min(FADE_DURATION, TRANSITION_DURATION / 2)
+    local holdTime = math.max(0, TRANSITION_DURATION - (fadeTime * 2))
+    local alpha = 1
+
+    if elapsed < fadeTime then
+        MenuState.draw()
+        alpha = elapsed / fadeTime
+    elseif elapsed < (fadeTime + holdTime) then
+        MenuState.draw()
+        alpha = 1
+    else
+        drawGame()
+        local t = (elapsed - fadeTime - holdTime) / fadeTime
+        alpha = 1 - t
+    end
+
+    love.graphics.setColor(0, 0, 0, alpha)
+    love.graphics.rectangle("fill", 0, 0, w, h)
+end
 
 function love.load()
     love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, { fullscreen = true })
@@ -69,6 +142,8 @@ end
 function love.update(dt)
     if state == "menu" then
         MenuState.update(dt)
+    elseif state == "transition" then
+        updateTransition(dt)
     elseif state == "game" then
 
         MovementSystem.update(
@@ -107,8 +182,7 @@ function love.keypressed(key)
         if MenuState then
             local action = MenuState.keypressed(key)
             if action == "start" then
-                state = "game"
-                AudioSystem.playMusic(GAME_MUSIC_PATH)
+                startTransitionToGame()
             elseif action == "quit" then
                 love.event.quit()
             end
@@ -116,28 +190,12 @@ function love.keypressed(key)
     end
 end
 
-local function drawGame()
-    
-    love.graphics.setColor(1, 1, 1)    
-    love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
-    
-    love.graphics.setColor(1, 1, 1)
-
-    love.graphics.draw(
-        Player.sprite,
-        Player.quad,
-        Player.x,
-        Player.y,
-        0,                 -- rotation
-        0.5, 0.5,              -- scale
-        25, 25             -- origin (center of the quad)
-    )
-
-end
 
 function love.draw()
     if state == "menu" then
         MenuState.draw()
+    elseif state == "transition" then
+        drawTransition()
     else
         drawGame()
     end

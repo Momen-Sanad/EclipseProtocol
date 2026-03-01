@@ -100,11 +100,13 @@
         
 2. **Game Screen Implementations**
     
-    - Start Menu UI
+    - Start Menu UI // done
         
     - Pause Screen
         
-    - Game Over Screen
+    - Game Over Screen 
+    
+    - Options Menu // done 
         
     - Victory Screen
         
