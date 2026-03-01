@@ -92,9 +92,9 @@
     
     - Health bar
         
-    - Energy bar
+    - Energy bar    
         
-    - Survival timer
+    - Survival timer    
         
     - Cooldown indicators
         
@@ -120,7 +120,7 @@
         
 4. **Animation System**
     
-    - Player animations (idle, move, dash)
+    - Player animations (idle, move, dash) 
         
     - Enemy animations
         

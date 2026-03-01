@@ -1,6 +1,7 @@
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
 local PlayerEntity = require("src/entities/player")
+local Hud = require("src/ui/hud")
 local StateManager = require("src/core/state_manager")
 
 local GameState = {}
@@ -44,7 +45,11 @@ local function ensurePlayer(context)
         speed = context.playerSpeed or 300,
         size = context.playerSize or 35,
         spritePath = context.playerSpritePath or "assets/sprites/player/Robot.png",
-        frameDuration = context.playerFrameDuration or 0.12
+        frameDuration = context.playerFrameDuration or 0.12,
+        maxHealth = context.playerMaxHealth or 100,
+        health = context.playerHealth or 100,
+        maxEnergy = context.playerMaxEnergy or 100,
+        energy = context.playerEnergy or 100
     })
 end
 
@@ -107,6 +112,7 @@ function GameState.draw(context)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
     PlayerEntity.draw(Player)
+    Hud.draw(Player)
 end
 
 return GameState
