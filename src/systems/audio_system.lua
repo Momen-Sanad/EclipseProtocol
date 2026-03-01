@@ -117,14 +117,28 @@ function AudioSystem.playSfx(path, opts)
 end
 
 function AudioSystem.setMusicVolume(volume)
-    musicVolume = volume
+    if volume == nil then
+        return
+    end
+    musicVolume = math.max(0, math.min(1, volume))
     if musicSource then
         musicSource:setVolume(musicVolume)
     end
 end
 
 function AudioSystem.setSfxVolume(volume)
-    sfxVolume = volume
+    if volume == nil then
+        return
+    end
+    sfxVolume = math.max(0, math.min(1, volume))
+end
+
+function AudioSystem.getMusicVolume()
+    return musicVolume
+end
+
+function AudioSystem.getSfxVolume()
+    return sfxVolume
 end
 
 function AudioSystem.getCurrentMusic()

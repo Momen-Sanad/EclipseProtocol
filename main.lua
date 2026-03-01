@@ -1,6 +1,7 @@
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
 local AudioSystem = require("src/systems/audio_system")
+local MenuState = require("src/states/menu")
 
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
@@ -21,8 +22,6 @@ local BG_OFFSET_X = 0
 local BG_OFFSET_Y = 0
 local MENU_MUSIC_PATH = "assets/audio/music/StartMenu.mp3"
 local GAME_MUSIC_PATH = nil
-
-local StartMenu = nil
 
 function love.load()
     love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, { fullscreen = true })
@@ -57,8 +56,7 @@ function love.load()
             100
         )
     }
-    StartMenu = love.filesystem.load("assets/ui/Start menu.lua")()
-    StartMenu:load({
+    MenuState.load({
         windowWidth = WINDOW_WIDTH,
         windowHeight = WINDOW_HEIGHT,
         bg = BG,
@@ -70,7 +68,7 @@ end
 
 function love.update(dt)
     if state == "menu" then
-        StartMenu:update(dt)
+        MenuState.update(dt)
     elseif state == "game" then
 
         MovementSystem.update(
@@ -101,15 +99,13 @@ function love.keypressed(key)
         if state == "game" then
             state = "menu"
             AudioSystem.playMusic(MENU_MUSIC_PATH)
-        else
-            love.event.quit()
+            return
         end
-        return
     end
 
     if state == "menu" then
-        if(StartMenu) then 
-            local action = StartMenu:keypressed(key)
+        if MenuState then
+            local action = MenuState.keypressed(key)
             if action == "start" then
                 state = "game"
                 AudioSystem.playMusic(GAME_MUSIC_PATH)
@@ -141,7 +137,7 @@ end
 
 function love.draw()
     if state == "menu" then
-        StartMenu:draw()
+        MenuState.draw()
     else
         drawGame()
     end
