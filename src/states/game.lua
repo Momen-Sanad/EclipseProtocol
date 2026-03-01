@@ -58,13 +58,15 @@ function GameState.preload(context)
     ensurePlayer(context)
 end
 
-function GameState.enter(context)
+function GameState.enter(context, prevName)
     loadAssets(context)
     ensurePlayer(context)
-    Player.x = (context.windowWidth or windowWidth) / 2
-    Player.y = (context.windowHeight or windowHeight) / 2
-    Player.frameIndex = 1
-    Player.frameTimer = 0
+    if prevName ~= "pause" then
+        Player.x = (context.windowWidth or windowWidth) / 2
+        Player.y = (context.windowHeight or windowHeight) / 2
+        Player.frameIndex = 1
+        Player.frameTimer = 0
+    end
 
     if InputSystem.keysHeld then
         InputSystem.keysHeld = {}
@@ -95,7 +97,7 @@ end
 
 function GameState.keypressed(key)
     if key == "escape" then
-        StateManager.change("menu")
+        StateManager.change("pause")
         return
     end
     InputSystem.keypressed(key)

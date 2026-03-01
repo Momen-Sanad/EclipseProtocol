@@ -102,7 +102,7 @@
     
     - Start Menu UI // done
         
-    - Pause Screen
+    - Pause Screen // done
         
     - Game Over Screen 
     
