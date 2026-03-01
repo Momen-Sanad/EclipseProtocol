@@ -1,5 +1,6 @@
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
+local AudioSystem = require("src/systems/audio_system")
 
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
@@ -18,6 +19,8 @@ local Parrot = nil
 local BG_SCALE = 1
 local BG_OFFSET_X = 0
 local BG_OFFSET_Y = 0
+local MENU_MUSIC_PATH = "assets/audio/music/StartMenu.mp3"
+local GAME_MUSIC_PATH = nil
 
 local StartMenu = nil
 
@@ -28,6 +31,11 @@ function love.load()
 
     BG = love.graphics.newImage("assets/background.png")
     Parrot = love.graphics.newImage("assets/sprites/parrot.png")
+    AudioSystem.init({
+        music = MENU_MUSIC_PATH,
+        musicVolume = 0.8,
+        sfxVolume = 0.9
+    })
 
     local bgW = BG:getWidth()
     local bgH = BG:getHeight()
@@ -92,6 +100,7 @@ function love.keypressed(key)
     if key == "escape" then
         if state == "game" then
             state = "menu"
+            AudioSystem.playMusic(MENU_MUSIC_PATH)
         else
             love.event.quit()
         end
@@ -103,6 +112,7 @@ function love.keypressed(key)
             local action = StartMenu:keypressed(key)
             if action == "start" then
                 state = "game"
+                AudioSystem.playMusic(GAME_MUSIC_PATH)
             elseif action == "quit" then
                 love.event.quit()
             end
