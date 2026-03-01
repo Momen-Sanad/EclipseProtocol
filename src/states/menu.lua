@@ -1,4 +1,5 @@
 local AudioSystem = require("src/systems/audio_system")
+local StateManager = require("src/core/state_manager")
 
 local MenuState = {}
 
@@ -15,6 +16,7 @@ local titleFont = nil
 local menuFont = nil
 local hudFont = nil
 
+local loaded = false
 local view = "main"
 
 local menu = {
@@ -76,10 +78,12 @@ local function setMusicVolume(value)
     AudioSystem.setMusicVolume(musicVolume)
 end
 
-function MenuState.load(cfg)
-    local _ = cfg
-    refreshDimensions()
+local function ensureLoaded()
+    if loaded then
+        return
+    end
 
+    refreshDimensions()
     bg = love.graphics.newImage("assets/start menu.jpg")
     refreshDimensions()
 
@@ -92,8 +96,20 @@ function MenuState.load(cfg)
     menuFont:setFilter("nearest", "nearest")
     hudFont:setFilter("nearest", "nearest")
 
+    loaded = true
+end
+
+function MenuState.enter(context)
+    ensureLoaded()
+    view = "main"
+    menu.selected = 1
+
     if AudioSystem.getMusicVolume then
         musicVolume = AudioSystem.getMusicVolume()
+    end
+
+    if context and context.menuMusicPath then
+        AudioSystem.playMusic(context.menuMusicPath)
     end
 end
 
@@ -116,11 +132,11 @@ function MenuState.keypressed(key)
         elseif key == "return" or key == "kpenter" then
             local choice = menu.items[menu.selected]
             if choice == "Start" then
-                return "start"
+                StateManager.change("transition", "game")
             elseif choice == "Options" then
                 view = "options"
             elseif choice == "Quit" then
-                return "quit"
+                love.event.quit()
             end
         end
         return nil
