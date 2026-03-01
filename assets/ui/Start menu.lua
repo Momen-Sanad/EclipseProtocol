@@ -62,9 +62,10 @@ function StartMenu:load(cfg)
     bgOffsetX = 0
     bgOffsetY = 0
 
-    titleFont = love.graphics.newFont(46)
-    menuFont = love.graphics.newFont(26)
-    hudFont = love.graphics.newFont(14)
+    local fontPath = "assets/fonts/Minecraftia-Regular.ttf"
+    titleFont = love.graphics.newFont(fontPath, 46)
+    menuFont = love.graphics.newFont(fontPath, 26)
+    hudFont = love.graphics.newFont(fontPath, 14)
 
     titleFont:setFilter("nearest", "nearest")
     menuFont:setFilter("nearest", "nearest")
@@ -134,7 +135,7 @@ function StartMenu:draw()
     local titleX1 = math.floor((windowWidth - titleFont:getWidth("ECLIPSE")) / 2)
     local titleX2 = math.floor((windowWidth - titleFont:getWidth("PROTOCOL")) / 2)
     drawOutlinedText(titleFont, "ECLIPSE", titleX1, titleY, COL.text, { 0.05, 0.09, 0.12, 0.9 })
-    drawOutlinedText(titleFont, "PROTOCOL", titleX2, titleY + 48, COL.text, { 0.05, 0.09, 0.12, 0.9 })
+    drawOutlinedText(titleFont, "PROTOCOL", titleX2, titleY + 80, COL.text, { 0.05, 0.09, 0.12, 0.9 })
 
     local startY = panelY + 130
     local gap = 70
