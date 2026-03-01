@@ -10,7 +10,7 @@ WINDOW_HEIGHT = 720
 VIRTUAL_WIDTH = 2
 VIRTUAL_HEIGHT = 1
 
-PLAYER_SIZE = 35
+PLAYER_SIZE = 600
 
 local MENU_MUSIC_PATH = "assets/audio/music/StartMenu.mp3"
 local GAME_MUSIC_PATH = nil
