@@ -90,11 +90,11 @@
 
 1. **UI & HUD System**
     
-    - Health bar
+    - Health bar // done
         
-    - Energy bar    
+    - Energy bar  // done
         
-    - Survival timer    
+    - Survival timer   
         
     - Cooldown indicators
         
