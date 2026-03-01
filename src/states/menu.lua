@@ -30,6 +30,9 @@ local anim = {
 
 local musicVolume = 0.8
 local volumeStep = 0.05
+local musicFadeTime = 0
+local musicFadeDuration = 1.0
+local musicTargetVolume = 0.8
 
 local COL = {
     panel = { 0.10, 0.13, 0.17, 0.92 },
@@ -103,18 +106,29 @@ function MenuState.enter(context)
     ensureLoaded()
     view = "main"
     menu.selected = 1
+    musicFadeTime = 0
+    musicFadeDuration = (context and context.menuMusicFadeDuration) or 1.0
 
     if AudioSystem.getMusicVolume then
         musicVolume = AudioSystem.getMusicVolume()
     end
 
     if context and context.menuMusicPath then
-        AudioSystem.playMusic(context.menuMusicPath)
+        musicTargetVolume = musicVolume
+        AudioSystem.playMusic(context.menuMusicPath, { loop = true, volume = 0 })
     end
 end
 
 function MenuState.update(dt)
     anim.time = anim.time + dt
+    if musicFadeTime < musicFadeDuration then
+        musicFadeTime = math.min(musicFadeDuration, musicFadeTime + dt)
+        local t = 1.0
+        if musicFadeDuration > 0 then
+            t = musicFadeTime / musicFadeDuration
+        end
+        AudioSystem.setCurrentMusicVolume(musicTargetVolume * t)
+    end
 end
 
 function MenuState.keypressed(key)

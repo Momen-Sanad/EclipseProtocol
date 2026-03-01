@@ -1,5 +1,6 @@
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
+local AudioSystem = require("src/systems/audio_system")
 local PlayerEntity = require("src/entities/player")
 local Hud = require("src/ui/hud")
 local StateManager = require("src/core/state_manager")
@@ -66,6 +67,14 @@ function GameState.enter(context, prevName)
         Player.y = (context.windowHeight or windowHeight) / 2
         Player.frameIndex = 1
         Player.frameTimer = 0
+    end
+
+    if prevName == "gameover" then
+        if context.gameMusicPath and context.gameMusicPath ~= "" then
+            AudioSystem.playMusic(context.gameMusicPath)
+        else
+            AudioSystem.stopMusic()
+        end
     end
 
     if InputSystem.keysHeld then

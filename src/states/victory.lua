@@ -18,7 +18,7 @@ end
 
 function VictoryState.keypressed(key)
     local _ = key
-    StateManager.change("menu")
+    StateManager.change("transition", "menu")
 end
 
 function VictoryState.draw()

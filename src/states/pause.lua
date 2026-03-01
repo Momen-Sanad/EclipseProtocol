@@ -97,7 +97,7 @@ end
 function PauseState.keypressed(key)
     if view == "main" then
         if key == "escape" then
-            StateManager.change("game")
+            StateManager.change("transition", "game")
             return nil
         end
         if key == "up" or key == "w" then
@@ -113,7 +113,7 @@ function PauseState.keypressed(key)
         elseif key == "return" or key == "kpenter" then
             local choice = menu.items[menu.selected]
             if choice == "Resume" then
-                StateManager.change("game")
+                StateManager.change("transition", "game")
             elseif choice == "Options" then
                 view = "options"
             elseif choice == "Victory" then
@@ -121,7 +121,7 @@ function PauseState.keypressed(key)
             elseif choice == "Game Over" then
                 StateManager.change("gameover")
             elseif choice == "Main Menu" then
-                StateManager.change("menu")
+                StateManager.change("transition", "menu")
             end
         end
         return nil
