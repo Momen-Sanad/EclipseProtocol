@@ -9,7 +9,7 @@ local function ensureFont()
     if font then
         return
     end
-    font = love.graphics.newFont(12)
+    font = love.graphics.newFont("assets/fonts/Minecraftia-Regular.ttf", 14)
     font:setFilter("nearest", "nearest")
 end
 
@@ -22,17 +22,13 @@ function Hud.draw(player)
     love.graphics.setFont(font)
 
     local padding = 24
-    local barW = 260
-    local barH = 16
+    local barW = 360
+    local barH = 34
 
-    HealthBar.draw(padding, padding, barW, barH, player.health, player.maxHealth)
-    love.graphics.setColor(0.78, 0.90, 0.95, 1.0)
-    love.graphics.print("HP", padding + barW + 10, padding - 2)
+    HealthBar.draw(padding, padding, barW, barH, player.health, player.maxHealth, "HEALTH")
 
-    local energyY = padding + barH + 12
-    EnergyBar.draw(padding, energyY, barW, barH, player.energy, player.maxEnergy)
-    love.graphics.setColor(0.78, 0.90, 0.95, 1.0)
-    love.graphics.print("EN", padding + barW + 10, energyY - 2)
+    local energyY = padding + barH + 14
+    EnergyBar.draw(padding, energyY, barW, barH, player.energy, player.maxEnergy, "ENERGY")
 end
 
 return Hud
