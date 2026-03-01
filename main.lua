@@ -2,6 +2,7 @@ local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
 local AudioSystem = require("src/systems/audio_system")
 local MenuState = require("src/states/menu")
+local SpriteSheet = require("src/utils/sprite_sheet")
 
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
@@ -16,7 +17,8 @@ local state = "menu"
 local Player = {}
 
 local BG = nil
-local Parrot = nil
+local PlayerSprite = nil
+local PlayerFrames = nil
 local BG_SCALE = 1
 local BG_OFFSET_X = 0
 local BG_OFFSET_Y = 0
@@ -60,16 +62,22 @@ local function drawGame()
     love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
     
     love.graphics.setColor(1, 1, 1)
-
-    love.graphics.draw(
-        Player.sprite,
-        Player.quad,
-        Player.x,
-        Player.y,
-        0,                 -- rotation
-        0.5, 0.5,              -- scale
-        25, 25             -- origin (center of the quad)
-    )
+    local frame = Player.frames and Player.frames[Player.frameIndex]
+    if frame then
+        love.graphics.draw(
+            Player.sprite,
+            frame.quad,
+            Player.x,
+            Player.y,
+            0,
+            Player.scale,
+            Player.scale,
+            frame.w / 2,
+            frame.h / 2
+        )
+    else
+        love.graphics.draw(Player.sprite, Player.x, Player.y)
+    end
 
 end
 
@@ -102,7 +110,9 @@ function love.load()
     love.math.setRandomSeed(os.time())
 
     BG = love.graphics.newImage("assets/background.png")
-    Parrot = love.graphics.newImage("assets/sprites/parrot.png")
+    local sheet = SpriteSheet.buildFrames("assets/sprites/player/Robot.png")
+    PlayerSprite = sheet.image
+    PlayerFrames = sheet.frames
     AudioSystem.init({
         music = MENU_MUSIC_PATH,
         musicVolume = 0.8,
@@ -115,19 +125,29 @@ function love.load()
     BG_OFFSET_X = (WINDOW_WIDTH - bgW * BG_SCALE) / 2
     BG_OFFSET_Y = (WINDOW_HEIGHT - bgH * BG_SCALE) / 2
 
+    local maxW = 0
+    local maxH = 0
+    for _, frame in ipairs(PlayerFrames) do
+        if frame.w > maxW then
+            maxW = frame.w
+        end
+        if frame.h > maxH then
+            maxH = frame.h
+        end
+    end
+    local baseSize = math.max(1, math.max(maxW, maxH))
+    local drawScale = PLAYER_SIZE / baseSize
 
     Player = {
         x = WINDOW_WIDTH / 2,
         y = WINDOW_HEIGHT / 2,
         speed = 300,
-        sprite = Parrot,
-        
-        quad = love.graphics.newQuad(
-            0, 0,              -- x, y inside the image
-            100, 100,          -- width, height of the rectangle
-            100,
-            100
-        )
+        sprite = PlayerSprite,
+        frames = PlayerFrames,
+        frameIndex = 1,
+        frameTimer = 0,
+        frameDuration = 0.12,
+        scale = drawScale
     }
     MenuState.load({
         windowWidth = WINDOW_WIDTH,
@@ -158,6 +178,13 @@ function love.update(dt)
             }
         )
 
+        if Player.frames and #Player.frames > 1 then
+            Player.frameTimer = Player.frameTimer + dt
+            if Player.frameTimer >= Player.frameDuration then
+                Player.frameTimer = Player.frameTimer - Player.frameDuration
+                Player.frameIndex = (Player.frameIndex % #Player.frames) + 1
+            end
+        end
     end
 
     InputSystem.update()
