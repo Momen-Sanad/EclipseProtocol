@@ -4,6 +4,8 @@ local MenuState = require("src/states/menu")
 local GameState = require("src/states/game")
 local TransitionState = require("src/states/transition")
 local PauseState = require("src/states/pause")
+local VictoryState = require("src/states/victory")
+local GameOverState = require("src/states/gameover")
 
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
@@ -46,6 +48,8 @@ function love.load()
     StateManager.register("game", GameState)
     StateManager.register("transition", TransitionState)
     StateManager.register("pause", PauseState)
+    StateManager.register("victory", VictoryState)
+    StateManager.register("gameover", GameOverState)
 
     StateManager.change("menu")
 end

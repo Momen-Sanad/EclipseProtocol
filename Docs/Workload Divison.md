@@ -159,7 +159,7 @@
         
 9. **Score & Stats Display**
     
-    - End screen breakdown
+    - End screen breakdown 
         
     - Survival stats formatting
         

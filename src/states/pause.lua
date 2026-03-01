@@ -13,7 +13,7 @@ local hudFont = nil
 local loaded = false
 local view = "main"
 local menu = {
-    items = { "Resume", "Options", "Main Menu" },
+    items = { "Resume", "Options", "Victory", "Game Over", "Main Menu" },
     selected = 1
 }
 
@@ -116,6 +116,10 @@ function PauseState.keypressed(key)
                 StateManager.change("game")
             elseif choice == "Options" then
                 view = "options"
+            elseif choice == "Victory" then
+                StateManager.change("victory")
+            elseif choice == "Game Over" then
+                StateManager.change("gameover")
             elseif choice == "Main Menu" then
                 StateManager.change("menu")
             end
@@ -145,7 +149,7 @@ function PauseState.draw()
     love.graphics.rectangle("fill", 0, 0, windowWidth, windowHeight)
 
     local panelW = 440
-    local panelH = 420
+    local panelH = 500
     local panelX = math.floor((windowWidth - panelW) / 2)
     local panelY = math.floor((windowHeight - panelH) / 2)
 
@@ -165,8 +169,8 @@ function PauseState.draw()
     drawOutlinedText(titleFont, "PAUSED", titleX, titleY, COL.text, { 0.05, 0.09, 0.12, 0.9 })
 
     if view == "main" then
-        local startY = panelY + 110
-        local gap = 64
+        local startY = panelY + 90
+        local gap = 58
         love.graphics.setFont(menuFont)
 
         for i, item in ipairs(menu.items) do
