@@ -211,6 +211,7 @@ function MenuState.draw()
         love.graphics.setFont(hudFont)
         love.graphics.print("Controls", contentX, contentY + 36)
         love.graphics.print("W/A/S/D - Move", contentX, contentY + 58)
+        love.graphics.print("Space - Dash", contentX, contentY + 78)
 
         love.graphics.setFont(menuFont)
         setColor(COL.text)
