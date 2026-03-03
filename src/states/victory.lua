@@ -22,6 +22,15 @@ local soundPath = nil
 local retryScale = 3
 local retryYRatio = 0.86
 
+local BUTTON_COL = { 0.30, 0.82, 1.00, 1.0 }
+local BUTTON_EDGE = { 0.55, 0.92, 1.00, 0.95 }
+local BUTTON_GLOW = { 0.12, 0.45, 0.75, 0.35 }
+local BUTTON_SHADOW = { 0.02, 0.06, 0.12, 0.85 }
+
+local function setColor(col, alpha)
+    love.graphics.setColor(col[1], col[2], col[3], (col[4] or 1) * (alpha or 1))
+end
+
 local function refreshBackground()
     local w, h = love.graphics.getDimensions()
     if w == windowWidth and h == windowHeight then
@@ -50,7 +59,7 @@ local function ensureFont()
 end
 
 local function getRetryBounds(w, h)
-    local label = "RETRY"
+    local label = "Continue"
     local labelW = promptFont:getWidth(label) * retryScale
     local labelH = promptFont:getHeight() * retryScale
     local x = math.floor((w - labelW) / 2)
@@ -69,7 +78,7 @@ function GameOverState.enter(context)
     fadeDuration = (context and context.gameOverTextFadeDuration) or 1.0
     musicFadeDuration = (context and context.gameOverMusicFadeDuration) or 1.0
     musicTargetVolume = (AudioSystem.getMusicVolume and AudioSystem.getMusicVolume()) or 0.8
-    soundPath = (context and context.gameOverSoundPath) or "assets/audio/sfx/Game Over.mp3"
+    soundPath = (context and context.victorySoundPath) or "assets/audio/sfx/Victory.mp3"
 
     AudioSystem.playMusic(soundPath, { loop = true, volume = 0 })
 end
@@ -131,9 +140,11 @@ function GameOverState.draw()
     end
 
     love.graphics.setFont(promptFont)
-    local label = "RETRY"
+    local label = "Continue"
     local lx, ly = getRetryBounds(w, h)
-    love.graphics.setColor(0.95, 0.25, 0.25, alpha)
+    setColor(BUTTON_SHADOW, alpha)
+    love.graphics.print(label, lx + 2, ly + 2, 0, retryScale, retryScale)
+    setColor(BUTTON_COL, alpha)
     love.graphics.print(label, lx, ly, 0, retryScale, retryScale)
 end
 

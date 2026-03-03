@@ -48,6 +48,7 @@ function love.load()
         gameMusicPath = GAME_MUSIC_PATH,
         menuMusicFadeDuration = 1.0,
         gameOverSoundPath = "assets/audio/sfx/Game Over.mp3",
+        victorySoundPath = "assets/audio/sfx/Victory.mp3",
         gameOverMusicFadeDuration = 1.0,
         gameOverTextFadeDuration = 1.0,
         transitionDuration = TRANSITION_DURATION,
