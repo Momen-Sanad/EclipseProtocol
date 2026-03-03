@@ -25,6 +25,10 @@ function InputSystem.getMoveDir()
     return x, y
 end
 
+function InputSystem.dashPressed()
+    return InputSystem.keysPressed["space"] == true
+end
+
 function InputSystem.quitRequested()
     return InputSystem.keysPressed["escape"] == true
 end
