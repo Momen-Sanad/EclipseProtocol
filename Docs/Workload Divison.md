@@ -91,44 +91,45 @@
 1. **UI & HUD System**
     
     - Health bar // done
-        
+
     - Energy bar  // done
-        
-    - Survival timer   
-        
+
+    - Survival timer  
+
     - Cooldown indicators
-        
-2. **Game Screen Implementations**
+
+2. **Game Screen Implementations** 
     
     - Start Menu UI // done
-        
+
     - Pause Screen // done
         
-    - Game Over Screen 
+    - Game Over Screen // done
     
     - Options Menu // done 
         
-    - Victory Screen
+    - Victory Screen // done
+
         
 3. **Audio System**
     
     - Background music integration
         
-    - Sound effects playback
+    - Sound effects playback 
         
-    - Volume control
+    - Volume control // done
         
 4. **Animation System**
     
     - Player animations (idle, move, dash) 
         
-    - Enemy animations
+    - Enemy animations 
         
     - Frame timing
         
 5. **Enemy Variants (Data & Assembly)**
     
-    - Patrol Drone setup
+    - Patrol Drone setup 
         
     - Hunter Drone setup
         

@@ -16,6 +16,7 @@ local windowWidth = 0
 local windowHeight = 0
 
 local Player = nil
+local elapsedTime = 0
 
 local function loadAssets(context)
     if loaded then
@@ -82,6 +83,7 @@ function GameState.enter(context, prevName)
         Player.y = (context.windowHeight or windowHeight) / 2
         Player.frameIndex = 1
         Player.frameTimer = 0
+        elapsedTime = 0
     end
 
     if prevName == "gameover" then
@@ -117,6 +119,8 @@ function GameState.update(dt, context)
 
     PlayerEntity.update(Player, dt)
     InputSystem.update()
+
+    elapsedTime = elapsedTime + dt
 end
 
 function GameState.keypressed(key)
@@ -138,7 +142,7 @@ function GameState.draw(context)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
     PlayerEntity.draw(Player)
-    Hud.draw(Player)
+    Hud.draw(Player, elapsedTime)
 end
 
 return GameState
