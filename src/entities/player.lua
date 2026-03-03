@@ -138,7 +138,7 @@ function Player.new(config)
         speed = cfg.speed or 300,
         dashSpeed = cfg.dashSpeed or ((cfg.speed or 300) * 2.5),
         dashDuration = cfg.dashDuration or 0.18,
-        dashCooldown = cfg.dashCooldown or 0.35,
+        dashCooldown = cfg.dashCooldown or 5.0,
         dashTimer = 0,
         dashCooldownTimer = 0,
         isDashing = false,

@@ -33,7 +33,7 @@ function love.load()
     StateManager.init({
         windowWidth = WINDOW_WIDTH,
         windowHeight = WINDOW_HEIGHT,
-        backgroundPath = "assets/background.png",
+        backgroundPath = "assets/ui/background.png",
         playerSpritePath = "assets/sprites/player/Robot.png",
         playerSize = PLAYER_SIZE,
         playerSpeed = 300,
@@ -43,7 +43,7 @@ function love.load()
         playerStateRows = { idle = 1, run = 2, dash = 3 },
         playerDashSpeed = 650,
         playerDashDuration = 0.18,
-        playerDashCooldown = 0.35,
+        playerDashCooldown = 5.0,
         menuMusicPath = MENU_MUSIC_PATH,
         gameMusicPath = GAME_MUSIC_PATH,
         menuMusicFadeDuration = 1.0,

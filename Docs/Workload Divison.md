@@ -94,9 +94,9 @@
 
     - Energy bar  // done
 
-    - Survival timer  
+    - Survival timer  // done
 
-    - Cooldown indicators
+    - Cooldown indicators // done
 
 2. **Game Screen Implementations** 
     
@@ -109,7 +109,6 @@
     - Options Menu // done 
         
     - Victory Screen // done
-
         
 3. **Audio System**
     

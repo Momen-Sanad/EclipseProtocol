@@ -70,7 +70,7 @@ end
 function GameOverState.enter(context)
     ensureFont()
     if not bg then
-        bg = love.graphics.newImage("assets/Victory.jpg")
+        bg = love.graphics.newImage("assets/ui/Victory.jpg")
     end
     refreshBackground()
     fadeTime = 0

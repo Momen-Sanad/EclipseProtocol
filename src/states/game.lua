@@ -26,7 +26,7 @@ local function loadAssets(context)
     windowWidth = context.windowWidth or 1280
     windowHeight = context.windowHeight or 720
 
-    BG = love.graphics.newImage(context.backgroundPath or "assets/background.png")
+    BG = love.graphics.newImage(context.backgroundPath or "assets/ui/background.png")
     local bgW = BG:getWidth()
     local bgH = BG:getHeight()
     BG_SCALE = math.max(windowWidth / bgW, windowHeight / bgH)

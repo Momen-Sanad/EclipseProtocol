@@ -87,7 +87,7 @@ local function ensureLoaded()
     end
 
     refreshDimensions()
-    bg = love.graphics.newImage("assets/start menu.jpg")
+    bg = love.graphics.newImage("assets/ui/start menu.jpg")
     refreshDimensions()
 
     local fontPath = "assets/fonts/Minecraftia-Regular.ttf"
