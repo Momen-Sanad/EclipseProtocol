@@ -17,6 +17,42 @@ local windowHeight = 0
 
 local Player = nil
 local elapsedTime = 0
+local Cells = {}
+local CellsCollected = 0
+local CELL_COUNT = 10
+local CELL_SIZE = 300
+local CellSprite = nil
+
+local function ensureCellSprite()
+    if CellSprite then
+        return
+    end
+    CellSprite = love.graphics.newImage("assets/ui/Cell.png")
+end
+
+local function spawnCell(context)
+    local w = context.windowWidth or windowWidth
+    local h = context.windowHeight or windowHeight
+    local cell = {
+        x = love.math.random(0, math.max(0, w - CELL_SIZE)),
+        y = love.math.random(0, math.max(0, h - CELL_SIZE)),
+        width = CELL_SIZE,
+        height = CELL_SIZE
+    }
+    table.insert(Cells, cell)
+end
+
+local function resetCells(context)
+    Cells = {}
+    CellsCollected = 0
+    for _ = 1, CELL_COUNT do
+        spawnCell(context)
+    end
+end
+
+local function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2)
+    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
+end
 
 local function loadAssets(context)
     if loaded then
@@ -85,6 +121,8 @@ function GameState.enter(context, prevName)
         Player.frameIndex = 1
         Player.frameTimer = 0
         elapsedTime = 0
+        ensureCellSprite()
+        resetCells(context)
     end
 
     if prevName == "gameover" then
@@ -122,6 +160,17 @@ function GameState.update(dt, context)
     InputSystem.update()
 
     elapsedTime = elapsedTime + dt
+
+    for i = #Cells, 1, -1 do
+        local cell = Cells[i]
+        if checkCollision(
+            Player.x, Player.y, context.playerSize or 35, context.playerSize or 35,
+            cell.x, cell.y, cell.width, cell.height
+        ) then
+            table.remove(Cells, i)
+            CellsCollected = CellsCollected + 1
+        end
+    end
 end
 
 function GameState.keypressed(key)
@@ -143,7 +192,18 @@ function GameState.draw(context)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
     PlayerEntity.draw(Player)
-    Hud.draw(Player, elapsedTime)
+    for _, cell in ipairs(Cells) do
+        if CellSprite then
+            local scale = CELL_SIZE / math.max(CellSprite:getWidth(), CellSprite:getHeight())
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(CellSprite, cell.x, cell.y, 0, scale, scale)
+        else
+            love.graphics.setColor(0.7, 0.9, 1.0, 1)
+            love.graphics.rectangle("fill", cell.x, cell.y, cell.width, cell.height)
+        end
+    end
+
+    Hud.draw(Player, elapsedTime, CellsCollected)
 end
 
 return GameState

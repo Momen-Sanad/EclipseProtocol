@@ -68,7 +68,7 @@ local function drawDashCooldown(x, y, radius, remaining, total, font)
     love.graphics.setLineWidth(1)
 end
 
-function Hud.draw(player, elapsedTime)
+function Hud.draw(player, elapsedTime, score)
     if not player then
         return
     end
@@ -93,10 +93,15 @@ function Hud.draw(player, elapsedTime)
         love.graphics.setColor(0.78, 0.90, 0.95, 1.0)
         love.graphics.print(label, w - textW - padding, padding)
 
+        local fpsLabel = "FPS " .. tostring(love.timer.getFPS())
+        local fpsW = font:getWidth(fpsLabel)
+        love.graphics.setColor(0.70, 0.82, 0.88, 1.0)
+        love.graphics.print(fpsLabel, w - fpsW - padding, padding + font:getHeight() + 6)
+
         if player.dashCooldown and dashIcon then
             local iconW = dashIcon:getWidth()
             local iconH = dashIcon:getHeight()
-            local iconTarget = 200
+            local iconTarget = 300
             local iconScale = iconTarget / math.max(iconW, iconH)
             local drawW = iconW * iconScale
             local drawH = iconH * iconScale
@@ -116,6 +121,12 @@ function Hud.draw(player, elapsedTime)
             local cy = iy + drawH / 2
             drawDashCooldown(cx, cy, radius, player.dashCooldownTimer or 0, player.dashCooldown, font)
         end
+    end
+
+    if score ~= nil then
+        local scoreLabel = "CELLS " .. tostring(score)
+        love.graphics.setColor(0.90, 0.92, 0.96, 1.0)
+        love.graphics.print(scoreLabel, padding, energyY + barH + 12)
     end
 end
 

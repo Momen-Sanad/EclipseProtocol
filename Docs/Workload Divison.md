@@ -124,7 +124,7 @@
         
     - Enemy animations 
         
-    - Frame timing
+    - Frame timing 
         
 5. **Enemy Variants (Data & Assembly)**
     
@@ -137,7 +137,7 @@
 
 6. **Item & Pickup System**
     
-    - Energy cell pickups
+    - Energy cell pickups 
         
     - Visual indicators
         
