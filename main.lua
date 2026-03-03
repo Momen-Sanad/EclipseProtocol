@@ -44,6 +44,7 @@ function love.load()
         playerDashSpeed = 650,
         playerDashDuration = 0.18,
         playerDashCooldown = 5.0,
+        dashSoundPath = "assets/audio/sfx/Dash.wav",
         menuMusicPath = MENU_MUSIC_PATH,
         gameMusicPath = GAME_MUSIC_PATH,
         menuMusicFadeDuration = 1.0,

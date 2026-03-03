@@ -1,3 +1,5 @@
+local AudioSystem = require("src/systems/audio_system")
+
 local MovementSystem = {}
 
 function MovementSystem.update(player, input, dt, bounds)
@@ -33,6 +35,7 @@ function MovementSystem.update(player, input, dt, bounds)
                 player.dashDirX = dirX
                 player.dashDirY = dirY
                 player.dashCooldownTimer = player.dashCooldown or 0.35
+                AudioSystem.playSfx(player.dashSoundPath or "assets/audio/sfx/Dash.mp3")
             end
         end
     end

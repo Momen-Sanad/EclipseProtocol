@@ -112,9 +112,9 @@
         
 3. **Audio System**
     
-    - Background music integration
+    - Background music integration 
         
-    - Sound effects playback 
+    - Sound effects playback // done
         
     - Volume control // done
         

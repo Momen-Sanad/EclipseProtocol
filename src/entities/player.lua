@@ -142,6 +142,7 @@ function Player.new(config)
         dashTimer = 0,
         dashCooldownTimer = 0,
         isDashing = false,
+        dashSoundPath = cfg.dashSoundPath or "assets/audio/sfx/Dash.wav",
         maxHealth = cfg.maxHealth or 100,
         health = cfg.health or 100,
         maxEnergy = cfg.maxEnergy or 100,

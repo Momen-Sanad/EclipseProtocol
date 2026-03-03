@@ -48,6 +48,7 @@ local function ensurePlayer(context)
         dashSpeed = context.playerDashSpeed,
         dashDuration = context.playerDashDuration,
         dashCooldown = context.playerDashCooldown,
+        dashSoundPath = context.dashSoundPath,
         size = context.playerSize or 35,
         spritePath = context.playerSpritePath or "assets/sprites/player/Robot.png",
         frameDuration = context.playerFrameDuration or 0.12,
