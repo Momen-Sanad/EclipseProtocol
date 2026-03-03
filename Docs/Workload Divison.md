@@ -137,25 +137,25 @@
 
 6. **Item & Pickup System**
     
-    - Energy cell pickups 
+    - Energy cell pickups // done
         
-    - Visual indicators
+    - Visual indicators 
         
-    - Collection feedback
+    - Collection feedback 
         
 7. **Visual Feedback Effects**
     
     - Damage flicker
         
-    - Screen flashes
+    - Screen flashes 
         
     - Hit feedback
         
 8. **Difficulty Presentation**
     
-    - On-screen warnings
+    - On-screen warnings    
         
-    - Visual escalation cues
+    - Visual escalation cues 
         
 9. **Score & Stats Display**
     
@@ -170,7 +170,6 @@
     - Controls & screenshots
         
     - Project description polish
-        
 
 ---
 

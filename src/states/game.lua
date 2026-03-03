@@ -1,5 +1,6 @@
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
+local CollisionSystem = require("src/systems/collision_system")
 local AudioSystem = require("src/systems/audio_system")
 local PlayerEntity = require("src/entities/player")
 local Hud = require("src/ui/hud")
@@ -48,10 +49,6 @@ local function resetCells(context)
     for _ = 1, CELL_COUNT do
         spawnCell(context)
     end
-end
-
-local function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2)
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
 
 local function loadAssets(context)
@@ -161,15 +158,9 @@ function GameState.update(dt, context)
 
     elapsedTime = elapsedTime + dt
 
-    for i = #Cells, 1, -1 do
-        local cell = Cells[i]
-        if checkCollision(
-            Player.x, Player.y, context.playerSize or 35, context.playerSize or 35,
-            cell.x, cell.y, cell.width, cell.height
-        ) then
-            table.remove(Cells, i)
-            CellsCollected = CellsCollected + 1
-        end
+    local collected = CollisionSystem.collectCells(Player, Cells, context.playerSize or 35)
+    if collected > 0 then
+        CellsCollected = CellsCollected + collected
     end
 end
 
