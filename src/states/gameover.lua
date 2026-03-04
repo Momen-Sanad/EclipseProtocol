@@ -32,10 +32,11 @@ local function refreshBackground()
     if bg then
         local bw = bg:getWidth()
         local bh = bg:getHeight()
-        bgScaleX = windowWidth / bw
-        bgScaleY = windowHeight / bh
-        bgOffsetX = 0
-        bgOffsetY = 0
+        local scale = math.max(windowWidth / bw, windowHeight / bh)
+        bgScaleX = scale
+        bgScaleY = scale
+        bgOffsetX = math.floor((windowWidth - bw * scale) / 2)
+        bgOffsetY = math.floor((windowHeight - bh * scale) / 2)
     end
 end
 
