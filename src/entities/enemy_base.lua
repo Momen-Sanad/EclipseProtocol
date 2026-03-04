@@ -35,11 +35,11 @@ function EnemyBase:onCollision(player)
     if not player then return end
 
     player.health = tonumber(player.health) or 0
-    player.invulnerable = player.invulnerable or false
     player.invulTimer = tonumber(player.invulTimer) or 0
+    player.hitThisFrame = player.hitThisFrame or false
 
     -- only apply damage if player is not currently invulnerable
-    if not player.invulnerable or player.invulTimer <= 0 then
+    if player.invulTimer <= 0 and not player.hitThisFrame then
         -- apply damage
         player.health = player.health - self.damage
         if player.health < 0 then player.health = 0 end
@@ -47,6 +47,7 @@ function EnemyBase:onCollision(player)
         -- set invulnerability
         player.invulnerable = true
         player.invulTimer = self.invulDuration
+        player.hitThisFrame = true
 
         -- optional callback (spawn VFX, play sound, etc.)
         if type(self.onHit) == "function" then
@@ -55,17 +56,15 @@ function EnemyBase:onCollision(player)
     end
 end
 
--- Helper: tick down player's invulnerability timer.
--- Call this once per frame from your main update (e.g. in states/game.lua).
--- Example: EnemyBase.updatePlayerInvul(Player, dt)
+-- tick down player's invulnerability timer.
 function EnemyBase.updatePlayerInvul(player, dt)
     if not player then return end
-    if player.invulnerable then
-        player.invulTimer = (player.invulTimer or 0) - (dt or 0)
-        if player.invulTimer <= 0 then
-            player.invulTimer = 0
-            player.invulnerable = false
-        end
+    player.invulTimer = (player.invulTimer or 0) - (dt or 0)
+    if player.invulTimer <= 0 then
+        player.invulTimer = 0
+        player.invulnerable = false
+    else
+        player.invulnerable = true
     end
 end
 

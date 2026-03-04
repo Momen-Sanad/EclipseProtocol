@@ -41,11 +41,158 @@ local function ensureFrameSize(cfg, image, stateCounts, stateRows)
     return frameW, frameH
 end
 
+local function buildSegments(imageData, isRow, alphaCutoff, emptyThreshold)
+    local w, h = imageData:getDimensions()
+    local segments = {}
+    local major = isRow and h or w
+    local minor = isRow and w or h
+    local start = nil
+
+    for i = 0, major - 1 do
+        local transparent = 0
+        for j = 0, minor - 1 do
+            local x = isRow and j or i
+            local y = isRow and i or j
+            local _, _, _, a = imageData:getPixel(x, y)
+            if a <= alphaCutoff then
+                transparent = transparent + 1
+            end
+        end
+
+        local empty = (transparent / minor) >= emptyThreshold
+        if not empty and start == nil then
+            start = i
+        elseif empty and start ~= nil then
+            table.insert(segments, { start, i - 1 })
+            start = nil
+        end
+    end
+
+    if start ~= nil then
+        table.insert(segments, { start, major - 1 })
+    end
+
+    return segments
+end
+
+local function buildRowFrames(imageData, rowSeg, alphaCutoff, emptyThreshold)
+    local w = imageData:getWidth()
+    local frames = {}
+    local rowHeight = rowSeg[2] - rowSeg[1] + 1
+    local start = nil
+
+    for x = 0, w - 1 do
+        local transparent = 0
+        for y = rowSeg[1], rowSeg[2] do
+            local _, _, _, a = imageData:getPixel(x, y)
+            if a <= alphaCutoff then
+                transparent = transparent + 1
+            end
+        end
+
+        local empty = (transparent / rowHeight) >= emptyThreshold
+        if not empty and start == nil then
+            start = x
+        elseif empty and start ~= nil then
+            table.insert(frames, { start, x - 1 })
+            start = nil
+        end
+    end
+
+    if start ~= nil then
+        table.insert(frames, { start, w - 1 })
+    end
+
+    return frames
+end
+
+local function setupStateScanAnimation(player, cfg, image)
+    local spritePath = cfg.spritePath or "assets/sprites/player/Robot.png"
+    local imageData = love.image.newImageData(spritePath)
+    local imageW = imageData:getWidth()
+    local imageH = imageData:getHeight()
+
+    local alphaCutoff = cfg.alphaCutoff or 0.05
+    local rowEmpty = cfg.rowEmptyThreshold or 0.98
+    local colEmpty = cfg.colEmptyThreshold or 0.98
+
+    local rowSegments = buildSegments(imageData, true, alphaCutoff, rowEmpty)
+    if #rowSegments == 0 then
+        return false
+    end
+
+    local stateOrder = cfg.stateOrder or { "idle", "run", "dash" }
+    local stateRows = cfg.stateRows or {}
+    local stateCounts = cfg.stateFrameCounts or {}
+    local durations = cfg.stateFrameDurations or {}
+    local defaultDuration = cfg.frameDuration or 0.12
+
+    local maxW, maxH = 0, 0
+    player.sprite = image
+    player.animMode = "state"
+    player.animations = {}
+
+    for index, stateName in ipairs(stateOrder) do
+        local rowIndex = stateRows[stateName] or index
+        local rowSeg = rowSegments[rowIndex]
+        if not rowSeg then
+            return false
+        end
+
+        local colSegments = buildRowFrames(imageData, rowSeg, alphaCutoff, colEmpty)
+        local expected = stateCounts[stateName]
+        if expected and #colSegments < expected then
+            return false
+        end
+        if #colSegments == 0 then
+            return false
+        end
+
+        if expected and #colSegments > expected then
+            local trimmed = {}
+            for i = 1, expected do
+                trimmed[#trimmed + 1] = colSegments[i]
+            end
+            colSegments = trimmed
+        end
+
+        local frames = {}
+        for _, colSeg in ipairs(colSegments) do
+            local x = colSeg[1]
+            local y = rowSeg[1]
+            local w = colSeg[2] - colSeg[1] + 1
+            local h = rowSeg[2] - rowSeg[1] + 1
+            local quad = love.graphics.newQuad(x, y, w, h, imageW, imageH)
+            frames[#frames + 1] = { quad = quad, w = w, h = h }
+            if w > maxW then maxW = w end
+            if h > maxH then maxH = h end
+        end
+
+        local duration = durations[stateName] or defaultDuration
+        player.animations[stateName] = Anim8.newAnimation(frames, duration)
+    end
+
+    player.anim = player.animations.idle or player.animations.run or player.animations.dash
+
+    local baseSize = math.max(1, math.max(maxW, maxH))
+    local size = cfg.size or 35
+    player.scale = size / baseSize
+    player.frameW = maxW
+    player.frameH = maxH
+    player.pixelPerfect = cfg.pixelPerfect ~= false
+
+    return true
+end
+
 local function setupGridAnimation(player, cfg)
     local image = love.graphics.newImage(cfg.spritePath or "assets/sprites/player/Robot.png")
+    image:setFilter("nearest", "nearest")
     local animMode = cfg.animMode or "directional"
 
     if animMode == "state" then
+        if setupStateScanAnimation(player, cfg, image) then
+            return true
+        end
         local stateRows = cfg.stateRows or { idle = 1, run = 2, dash = 3 }
         local stateCounts = cfg.stateFrameCounts or { idle = 5, run = 6, dash = 4 }
         local frameW, frameH = ensureFrameSize(cfg, image, stateCounts, stateRows)
@@ -82,6 +229,7 @@ local function setupGridAnimation(player, cfg)
         local baseSize = math.max(frameW, frameH)
         local size = cfg.size or 35
         player.scale = size / baseSize
+        player.pixelPerfect = cfg.pixelPerfect ~= false
 
         return true
     end
@@ -126,6 +274,7 @@ local function setupGridAnimation(player, cfg)
     local baseSize = math.max(cfg.frameWidth, cfg.frameHeight)
     local size = cfg.size or 35
     player.scale = size / baseSize
+    player.pixelPerfect = cfg.pixelPerfect ~= false
 
     return true
 end
@@ -172,11 +321,13 @@ function Player.new(config)
     local scale = size / baseSize
 
     player.sprite = sheet.image
+    player.sprite:setFilter("nearest", "nearest")
     player.frames = frames
     player.frameIndex = 1
     player.frameTimer = 0
     player.frameDuration = cfg.frameDuration or 0.12
     player.scale = scale
+    player.pixelPerfect = cfg.pixelPerfect ~= false
 
     return player
 end
@@ -249,6 +400,13 @@ function Player.draw(player)
         return
     end
 
+    local drawX = player.x
+    local drawY = player.y
+    if player.pixelPerfect then
+        drawX = math.floor(drawX + 0.5)
+        drawY = math.floor(drawY + 0.5)
+    end
+
     love.graphics.setColor(1, 1, 1)
     if player.anim then
         local frame = player.anim:getFrame()
@@ -258,7 +416,7 @@ function Player.draw(player)
             ox = frame.w / 2
             oy = frame.h / 2
         end
-        player.anim:draw(player.sprite, player.x, player.y, 0, player.scale, player.scale, ox, oy)
+        player.anim:draw(player.sprite, drawX, drawY, 0, player.scale, player.scale, ox, oy)
         return
     end
 
@@ -267,8 +425,8 @@ function Player.draw(player)
         love.graphics.draw(
             player.sprite,
             frame.quad,
-            player.x,
-            player.y,
+            drawX,
+            drawY,
             0,
             player.scale,
             player.scale,
@@ -276,7 +434,7 @@ function Player.draw(player)
             frame.h / 2
         )
     else
-        love.graphics.draw(player.sprite, player.x, player.y)
+        love.graphics.draw(player.sprite, drawX, drawY)
     end
 end
 

@@ -13,7 +13,7 @@ WINDOW_HEIGHT = 720
 VIRTUAL_WIDTH = 2
 VIRTUAL_HEIGHT = 1
 
-PLAYER_SIZE = 600
+PLAYER_SIZE = 100
 
 local MENU_MUSIC_PATH = "assets/audio/music/StartMenu.mp3"
 local GAME_MUSIC_PATH = nil
@@ -41,7 +41,7 @@ function love.load()
         playerAnimMode = "state",
         playerStateFrameCounts = { idle = 5, run = 6, dash = 4 },
         playerStateRows = { idle = 1, run = 2, dash = 3 },
-        playerDashSpeed = 650,
+        playerDashSpeed = 200,
         playerDashDuration = 0.18,
         playerDashCooldown = 5.0,
         dashSoundPath = "assets/audio/sfx/Dash.wav",
