@@ -45,8 +45,8 @@ function EnemyBase:onCollision(player)
         if player.health < 0 then player.health = 0 end
 
         -- set invulnerability
-        -- player.invulnerable = true
-        -- player.invulTimer = self.invulDuration
+        player.invulnerable = true
+        player.invulTimer = self.invulDuration or 1.0
         player.hitThisFrame = true
 
         -- optional callback (spawn VFX, play sound, etc.)

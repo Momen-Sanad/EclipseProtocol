@@ -225,6 +225,9 @@ function GameState.update(dt, context)
         drone:update(dt)
         local playerSize = context.playerSize or 35
         
+        -- if CollisionSystem.playerEnemyOverlap(Player, drone, playerSize) then
+        --     drone:onCollision(Player)
+        -- end
     end
 
     for _, hunter in ipairs(Hunters) do
@@ -233,10 +236,13 @@ function GameState.update(dt, context)
         hunter.prevY = hunter.y
         hunter:update(Player, dt, playerSize)
         
+        -- if CollisionSystem.playerEnemyOverlap(Player, hunter, playerSize) then
+        --     hunter:onCollision(Player)
+        -- end
     end
 
-    CollisionSystem.stopPlayerOnEnemies(Player, Drones, context.playerSize or 35)
-    CollisionSystem.stopPlayerOnEnemies(Player, Hunters, context.playerSize or 35)
+    CollisionSystem.stopPlayerOnEnemies(Drones, Player, context.playerSize or 35)
+    CollisionSystem.stopPlayerOnEnemies(Hunters, Player, context.playerSize or 35)
     CollisionSystem.stopEnemiesOnPlayer(Drones, Player, context.playerSize or 35)
     CollisionSystem.stopEnemiesOnPlayer(Hunters, Player, context.playerSize or 35)
 
