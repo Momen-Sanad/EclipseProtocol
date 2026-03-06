@@ -57,7 +57,16 @@ function PatrolDrone:setPatrolPoints(x1, y1, x2, y2)
 end
 
 function PatrolDrone:update(dt)
+    
     dt = dt or 0
+    if self.pauseTimer and self.pauseTimer > 0 then
+        self.pauseTimer = self.pauseTimer - (dt or 0)
+        -- keep enemy stationary while paused
+        self.vx = 0
+        self.vy = 0
+        self.chasing = false
+        return
+    end
 
     if self.pauseTimer and self.pauseTimer > 0 then
         self.pauseTimer = math.max(0, self.pauseTimer - dt)

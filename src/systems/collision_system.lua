@@ -21,52 +21,93 @@ function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
     )
 end
 
-function CollisionSystem.stopPlayerOnEnemies(player, enemies, playerSize)
-    if not player or not enemies then
+function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
+    if not enemies or not player then
         return false
     end
     local size = playerSize or 35
     local blocked = false
+
     for _, enemy in ipairs(enemies) do
         if CollisionSystem.playerEnemyOverlap(player, enemy, size) then
             blocked = true
-            local prevX = player.prevX
-            local prevY = player.prevY
-            local resolved = false
-            if prevX ~= nil then
-                local testX = prevX
-                local testY = player.y
-                if not CollisionSystem.overlaps(
-                    testX, testY, size, size,
-                    enemy.x or 0, enemy.y or 0, enemy.width or 0, enemy.height or 0
-                ) then
-                    player.x = testX
-                    resolved = true
+
+            local px = player.x
+            local py = player.y
+            local ex = enemy.x or 0
+            local ey = enemy.y or 0
+            local ew = enemy.width or 0
+            local eh = enemy.height or 0
+
+            local overlapX = math.min(px + size, ex + ew) - math.max(px, ex)
+            local overlapY = math.min(py + size, ey + eh) - math.max(py, ey)
+
+            -- resolve overlap (MTV) so the player is not stuck inside the enemy
+            if overlapX < overlapY then
+                if px < ex then
+                    player.x = player.x - overlapX
+                else
+                    player.x = player.x + overlapX
+                end
+            else
+                if py < ey then
+                    player.y = player.y - overlapY
+                else
+                    player.y = player.y + overlapY
                 end
             end
 
-            if not resolved and prevY ~= nil then
-                local testX = player.x
-                local testY = prevY
-                if not CollisionSystem.overlaps(
-                    testX, testY, size, size,
-                    enemy.x or 0, enemy.y or 0, enemy.width or 0, enemy.height or 0
-                ) then
-                    player.y = testY
-                    resolved = true
+            -- Only apply damage/knockback if the player is NOT currently invulnerable
+            if not player.invulTimer or player.invulTimer <= 0 then
+                -- 1) apply damage directly (so we know it happens)
+                if enemy.damage and player.health then
+                    player.health = player.health - (enemy.damage or 0)
                 end
+
+                -- 2) call enemy:onCollision for sounds/particles
+                if enemy.onCollision then
+                    enemy:onCollision(player)
+                end
+
+                -- 3) knockback via velocity impulse (smooth)
+                local cx = player.x + (size / 2)
+                local cy = player.y + (size / 2)
+                local ex_c = ex + (ew / 2)
+                local ey_c = ey + (eh / 2)
+                local dx = cx - ex_c
+                local dy = cy - ey_c
+                local len = math.sqrt(dx * dx + dy * dy)
+                if len == 0 then
+                    dx, dy = 0, -1
+                    len = 1
+                end
+                dx = dx / len
+                dy = dy / len
+
+                -- use velocity knockback so the movement system handles collisions & walls
+                player.vx = (player.vx or 0) + (enemy.knockbackVelX or (dx * (enemy.knockback or 300)))
+                player.vy = (player.vy or 0) + (enemy.knockbackVelY or (dy * (enemy.knockback or 300)))
+
+                -- 4) set invulnerability using the enemy's configured duration
+                player.invulTimer = enemy.invulDuration or 1.0
+                player.invulnerable = true
+                player.hitThisFrame = true
             end
 
-            if not resolved then
-                if prevX ~= nil then
-                    player.x = prevX
-                end
-                if prevY ~= nil then
-                    player.y = prevY
-                end
-            end
+            -- rewind enemy to previous pos (prevents tunneling) and pause it briefly
+            if enemy.prevX ~= nil then enemy.x = enemy.prevX end
+            if enemy.prevY ~= nil then enemy.y = enemy.prevY end
+
+            enemy.vx = 0
+            enemy.vy = 0
+
+            -- pause the enemy so they don't immediately try to re-enter the player.
+            -- We'll decrement this in the enemy update. Default to invulDuration as pause length.
+            enemy.pauseTimer = enemy.invulDuration or 0.6
+            enemy.chasing = false
         end
     end
+
     return blocked
 end
 
@@ -87,6 +128,10 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
             end
             enemy.vx = 0
             enemy.vy = 0
+
+            -- set a short pause so enemy won't immediately chase again
+            enemy.pauseTimer = enemy.invulDuration or 0.6
+            enemy.chasing = false
         end
     end
     return blocked

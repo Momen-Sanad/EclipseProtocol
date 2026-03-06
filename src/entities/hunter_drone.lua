@@ -53,8 +53,22 @@ function HunterDrone.new(opts)
 end
 
 function HunterDrone:update(player, dt, playerSize)
+    
     dt = dt or 0
+
+    if self.pauseTimer and self.pauseTimer > 0 then
+        self.pauseTimer = self.pauseTimer - (dt or 0)
+        -- keep enemy stationary while paused
+        self.vx = 0
+        self.vy = 0
+        self.chasing = false
+        return
+    end
+
     local size = playerSize or 35
+
+    self.prevX = self.x
+    self.prevY = self.y
 
     local px = (player and player.x or 0) + size / 2
     local py = (player and player.y or 0) + size / 2
@@ -79,12 +93,18 @@ function HunterDrone:update(player, dt, playerSize)
         self.vy = 0
     end
 
+    
     if self.vx ~= 0 or self.vy ~= 0 then
         local nx, ny = normalize(self.vx, self.vy)
         if nx ~= 0 or ny ~= 0 then
             self.lookX = nx
             self.lookY = ny
         end
+    end
+    if self.chasing and dist < 40 then
+        self.vx = 0
+        self.vy = 0
+        return
     end
 
     self.x = self.x + self.vx * dt
