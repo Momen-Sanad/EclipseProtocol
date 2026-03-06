@@ -1,5 +1,4 @@
 --[[ 
-    HunterDrone.lua
     A specialized enemy that inherits from EnemyBase. 
     Features:
       - Vision cone with adjustable range and angle

@@ -1,69 +1,82 @@
--- Generic enemy base with player-damage + invulnerability behavior.
--- EnemyBase.updatePlayerInvul(player, dt) decrements player's invulnerability timer
+--[[
+    Generic base class for enemies in the game.
+    Features:
+      - Player collision handling
+      - Damage application
+      - Player invulnerability timer management
+      - Optional onHit callback for VFX, SFX, or other effects
+--]]
 
 local EnemyBase = {}
 EnemyBase.__index = EnemyBase
 
--- constructor
+-- Constructor
 function EnemyBase.new(opts)
     opts = opts or {}
     local self = setmetatable({}, EnemyBase)
 
+    -- Position and size
     self.x = opts.x or 0
     self.y = opts.y or 0
     self.width  = opts.width  or opts.size or 32
     self.height = opts.height or opts.size or 32
 
-    -- how much damage this enemy deals to the player on contact
-    self.damage = opts.damage or 10
+    -- Damage properties
+    self.damage = opts.damage or 10             -- damage dealt to player on collision
+    self.invulDuration = opts.invulDuration or 1.0  -- seconds of invulnerability after hit
 
-    -- how long (seconds) the player should be invulnerable after being hit
-    self.invulDuration = opts.invulDuration or 1.0
-
-    -- called when a hit is applied
+    -- Optional callback when enemy hits the player
     self.onHit = opts.onHit
 
-    -- meta flags
+    -- Meta flags for gameplay logic
     self.isEnemy = true
 
     return self
 end
 
---  - reduce player health
---  - set player.invulnerable = true and player.invulTimer = self.invulDuration
+-- Collision Handling
+-- Applies damage to player if not currently invulnerable
+-- Sets player's invulnerability timer and triggers optional onHit callback
 function EnemyBase:onCollision(player)
     if not player then return end
 
+    -- ensure numerical values
     player.health = tonumber(player.health) or 0
     player.invulTimer = tonumber(player.invulTimer) or 0
     player.hitThisFrame = player.hitThisFrame or false
 
-    -- only apply damage if player is not currently invulnerable
+    -- only apply damage if player is currently vulnerable
     if player.invulTimer <= 0 and not player.hitThisFrame then
-        -- apply damage
+        -- reduce health
         player.health = player.health - self.damage
         if player.health < 0 then player.health = 0 end
 
-        -- set invulnerability
+        -- start invulnerability
         player.invulnerable = true
         player.invulTimer = self.invulDuration or 1.0
         player.hitThisFrame = true
 
-        -- optional callback (spawn VFX, play sound, etc.)
+        -- call optional onHit callback (VFX, SFX, etc.)
         if type(self.onHit) == "function" then
             pcall(self.onHit, self, player)
         end
     end
 end
 
--- tick down player's invulnerability timer.
+
+-- Player Invulnerability Tick
+-- Decrements the player's invulnerability timer and resets flags when expired
 function EnemyBase.updatePlayerInvul(player, dt)
     if not player then return end
+
     player.invulTimer = (player.invulTimer or 0) - (dt or 0)
+
     if player.invulTimer <= 0 then
+        -- invulnerability expired
         player.invulTimer = 0
         player.invulnerable = false
     else
+        -- still invulnerable
         player.invulnerable = true
     end
 end
