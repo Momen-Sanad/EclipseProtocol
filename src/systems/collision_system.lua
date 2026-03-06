@@ -85,8 +85,19 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 dy = dy / len
 
                 -- use velocity knockback so the movement system handles collisions & walls
-                player.vx = (player.vx or 0) + (enemy.knockbackVelX or (dx * (enemy.knockback or 300)))
-                player.vy = (player.vy or 0) + (enemy.knockbackVelY or (dy * (enemy.knockback or 300)))
+                local knockback = enemy.knockback or 300      -- impulse magnitude (pixels/sec)
+                local immediate = enemy.immediateKnockback or 8 -- small immediate positional nudge (pixels)
+
+                -- 1) add to impulse components (movement system integrates + decays these)
+                player.vx_impulse = (player.vx_impulse or 0) + dx * knockback
+                player.vy_impulse = (player.vy_impulse or 0) + dy * knockback
+
+                -- 2) small immediate position nudge so knockback is visible this frame
+                player.x = player.x + dx * immediate
+                player.y = player.y + dy * immediate
+
+                -- debug print for knockback values
+                print(("KNOCK: dx=%.2f dy=%.2f imp=(%.1f,%.1f) immediate=%.1f"):format(dx,dy, player.vx_impulse, player.vy_impulse, immediate))
 
                 -- 4) set invulnerability using the enemy's configured duration
                 player.invulTimer = enemy.invulDuration or 1.0
