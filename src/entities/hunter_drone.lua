@@ -135,8 +135,7 @@ function HunterDrone:update(player, dt, playerSize)
         end
 
         -- update look vector from spinAngle
-        self.lookX = math.cos(self.spinAngle)
-        self.lookY = math.sin(self.spinAngle)
+        self.lookX, self.lookY = rotate(1, 0, self.spinAngle)
     end
 
     -- Ensure look vector follows movement
