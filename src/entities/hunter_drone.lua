@@ -87,10 +87,30 @@ function HunterDrone:update(player, dt, playerSize)
         self.chasing = true
         self.vx = dirX * (self.speed or 0)
         self.vy = dirY * (self.speed or 0)
+
+
+        -- snap look vector to player
+        self.lookX = dirX
+        self.lookY = dirY
+
+        -- also update spinAngle to match look vector
+        self.spinAngle = math.atan(self.lookY, self.lookX)
     else
         self.chasing = false
         self.vx = 0
         self.vy = 0
+
+        -- initialize spinAngle if missing
+        self.spinAngle = self.spinAngle or math.atan(self.lookY or 0, self.lookX or 1)
+
+        -- rotate continuously
+        local spinSpeed = self.spinSpeed or math.pi/4 -- radians/sec
+        self.spinAngle = self.spinAngle + spinSpeed * dt
+        if self.spinAngle > math.pi*2 then self.spinAngle = self.spinAngle - math.pi*2 end
+
+        -- update look vector from spinAngle
+        self.lookX = math.cos(self.spinAngle)
+        self.lookY = math.sin(self.spinAngle)
     end
 
     
@@ -112,48 +132,43 @@ function HunterDrone:update(player, dt, playerSize)
 end
 
 function HunterDrone:draw(player, playerSize)
-    if not love or not love.graphics then
-        return
-    end
+    if not love or not love.graphics then return end
 
     local size = playerSize or 35
-    local cx = self.x + (self.width or 0) / 2
-    local cy = self.y + (self.height or 0) / 2
+    local cx = self.x + (self.width or 0)/2
+    local cy = self.y + (self.height or 0)/2
 
-    local range = self.visionRange or 0
-    local threshold = self.dotThreshold or 0.5
-    local angle = math.acos(math.max(-1, math.min(1, threshold)))
-    local leftX, leftY = rotate(self.lookX, self.lookY, -angle)
-    local rightX, rightY = rotate(self.lookX, self.lookY, angle)
+    local coneColor = self.coneColor or {0.2,0.8,1.0,0.15}
 
-    local coneColor = self.coneColor or { 0.2, 0.8, 1.0, 0.15 }
+    local halfAngle = 1.1 -- radians, ~125 degrees total cone
+
+    local orientation = self.spinAngle or math.atan(self.lookY, self.lookX)
+
+    local range = self.visionRange -20 or 400
+
+    -- draw cone
     love.graphics.setColor(coneColor[1], coneColor[2], coneColor[3], coneColor[4] or 1)
-    love.graphics.polygon(
-        "fill",
-        cx,
-        cy,
-        cx + leftX * range,
-        cy + leftY * range,
-        cx + rightX * range,
-        cy + rightY * range
-    )
+    love.graphics.arc("fill", "pie", cx, cy, range, orientation - halfAngle, orientation + halfAngle)
 
-    local lookColor = self.lookColor or { 0.3, 0.9, 1.0, 0.8 }
-    love.graphics.setColor(lookColor[1], lookColor[2], lookColor[3], lookColor[4] or 1)
-    love.graphics.line(cx, cy, cx + self.lookX * range, cy + self.lookY * range)
+    -- DEBUGGING: draw look line
+    -- local lookColor = self.lookColor or {0.3,0.9,1.0,0.8}
+    -- love.graphics.setColor(lookColor[1], lookColor[2], lookColor[3], lookColor[4] or 1)
+    -- love.graphics.line(cx, cy, cx + self.lookX*range, cy + self.lookY*range)
 
-    if player then
-        local px = player.x + size / 2
-        local py = player.y + size / 2
-        local lineColor = self.lineColor or { 0.9, 0.9, 1.0, 0.6 }
-        love.graphics.setColor(lineColor[1], lineColor[2], lineColor[3], lineColor[4] or 1)
-        love.graphics.line(cx, cy, px, py)
-    end
+    -- DEBUGGING: line to player
+    -- if player then
+    --     local px = player.x + size/2
+    --     local py = player.y + size/2
+    --     local lineColor = self.lineColor or {0.9,0.9,1.0,0.6}
+    --     love.graphics.setColor(lineColor[1], lineColor[2], lineColor[3], lineColor[4] or 1)
+    --     love.graphics.line(cx, cy, px, py)
+    -- end
 
-    local color = self.color or { 1, 1, 1, 1 }
-    love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+    -- draw drone body (rectangle for now)
+    local color = self.color or {1,1,1,1}
+    love.graphics.setColor(color[1],color[2],color[3],color[4] or 1)
     love.graphics.rectangle("fill", self.x, self.y, self.width or 32, self.height or 32)
-    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setColor(1,1,1,1)
 end
 
 return HunterDrone

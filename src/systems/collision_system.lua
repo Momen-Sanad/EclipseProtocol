@@ -97,7 +97,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 player.y = player.y + dy * immediate
 
                 -- debug print for knockback values
-                print(("KNOCK: dx=%.2f dy=%.2f imp=(%.1f,%.1f) immediate=%.1f"):format(dx,dy, player.vx_impulse, player.vy_impulse, immediate))
+                -- print(("KNOCK: dx=%.2f dy=%.2f imp=(%.1f,%.1f) immediate=%.1f"):format(dx,dy, player.vx_impulse, player.vy_impulse, immediate))
 
                 -- 4) set invulnerability using the enemy's configured duration
                 player.invulTimer = enemy.invulDuration or 1.0
