@@ -15,12 +15,160 @@ local PatrolDrone = {}
 PatrolDrone.__index = PatrolDrone
 setmetatable(PatrolDrone, { __index = EnemyBase }) -- inherit EnemyBase
 
+local SPRITE_CACHE = {}
+
 local function normalize(dx, dy)
     local len = math.sqrt(dx * dx + dy * dy)
     if len == 0 then
         return 0, 0, 0
     end
     return dx / len, dy / len, len
+end
+
+local function hasSupportedImageExtension(filenameLower)
+    return filenameLower:match("%.png$") or filenameLower:match("%.jpg$") or filenameLower:match("%.jpeg$")
+end
+
+local function detectDirectionFromName(filenameLower)
+    if filenameLower:find("up", 1, true) then
+        return "up"
+    end
+    if filenameLower:find("down", 1, true) then
+        return "down"
+    end
+    if filenameLower:find("left", 1, true) then
+        return "left"
+    end
+    if filenameLower:find("right", 1, true) then
+        return "right"
+    end
+    return nil
+end
+
+local function loadDirectionalFrames(spriteDir)
+    local frames = {
+        up = {},
+        down = {},
+        left = {},
+        right = {}
+    }
+
+    if not love or not love.filesystem or not love.graphics then
+        return frames, false
+    end
+
+    if not love.filesystem.getInfo(spriteDir, "directory") then
+        return frames, false
+    end
+
+    local items = love.filesystem.getDirectoryItems(spriteDir)
+    table.sort(items)
+    local genericFrames = {}
+
+    for _, name in ipairs(items) do
+        local lower = string.lower(name)
+        if hasSupportedImageExtension(lower) then
+            local fullPath = spriteDir .. "/" .. name
+            local ok, imgOrErr = pcall(love.graphics.newImage, fullPath)
+            if ok and imgOrErr then
+                imgOrErr:setFilter("nearest", "nearest")
+                local dir = detectDirectionFromName(lower)
+                if dir then
+                    frames[dir][#frames[dir] + 1] = imgOrErr
+                else
+                    genericFrames[#genericFrames + 1] = imgOrErr
+                end
+            end
+        end
+    end
+
+    for _, dir in ipairs({ "up", "down", "left", "right" }) do
+        if #frames[dir] == 0 and #genericFrames > 0 then
+            for _, img in ipairs(genericFrames) do
+                frames[dir][#frames[dir] + 1] = img
+            end
+        end
+    end
+
+    local firstDirectionalSet = nil
+    for _, dir in ipairs({ "up", "down", "left", "right" }) do
+        if #frames[dir] > 0 then
+            firstDirectionalSet = frames[dir]
+            break
+        end
+    end
+
+    if firstDirectionalSet then
+        for _, dir in ipairs({ "up", "down", "left", "right" }) do
+            if #frames[dir] == 0 then
+                frames[dir] = firstDirectionalSet
+            end
+        end
+        return frames, true
+    end
+
+    return frames, false
+end
+
+local function getDirectionalFrames(spriteDir)
+    local cached = SPRITE_CACHE[spriteDir]
+    if cached then
+        return cached.frames, cached.hasDirectionalSprites
+    end
+
+    local frames, hasDirectionalSprites = loadDirectionalFrames(spriteDir)
+    SPRITE_CACHE[spriteDir] = {
+        frames = frames,
+        hasDirectionalSprites = hasDirectionalSprites
+    }
+    return frames, hasDirectionalSprites
+end
+
+local function directionFromVelocity(vx, vy, fallback)
+    local absX = math.abs(vx or 0)
+    local absY = math.abs(vy or 0)
+    if absX == 0 and absY == 0 then
+        return fallback or "right"
+    end
+
+    if absX >= absY then
+        if (vx or 0) >= 0 then
+            return "right"
+        end
+        return "left"
+    end
+
+    if (vy or 0) >= 0 then
+        return "down"
+    end
+    return "up"
+end
+
+local function updateAnimationState(self, dt)
+    if not self.hasDirectionalSprites then
+        return
+    end
+
+    local newDirection = directionFromVelocity(self.vx, self.vy, self.animDirection)
+    if newDirection ~= self.animDirection then
+        self.animDirection = newDirection
+        self.animFrameIndex = 1
+        self.animTimer = 0
+    end
+
+    local frames = self.framesByDirection[self.animDirection] or {}
+    if #frames <= 1 or ((self.vx or 0) == 0 and (self.vy or 0) == 0) then
+        self.animFrameIndex = 1
+        self.animTimer = 0
+        return
+    end
+
+    self.animTimer = (self.animTimer or 0) + (dt or 0)
+    local frameDuration = 1 / math.max(1, self.animFps or 8)
+    while self.animTimer >= frameDuration do
+        self.animTimer = self.animTimer - frameDuration
+        self.animFrameIndex = (self.animFrameIndex % #frames) + 1
+    end
 end
 
 -- Determine current patrol target based on direction
@@ -65,6 +213,14 @@ function PatrolDrone.new(opts)
     self.color = opts.color or { 1, 1, 1, 1 }
     self.scale = opts.scale or 1
 
+    -- Direction-based sprite animation config
+    self.spriteDir = opts.spriteDir or "assets/sprites/patrol_drone"
+    self.animFps = opts.animFps or 8
+    self.animTimer = 0
+    self.animFrameIndex = 1
+    self.animDirection = "right"
+    self.framesByDirection, self.hasDirectionalSprites = getDirectionalFrames(self.spriteDir)
+
     return self
 end
 
@@ -85,6 +241,7 @@ function PatrolDrone:update(dt)
         self.vx = 0
         self.vy = 0
         self.chasing = false
+        updateAnimationState(self, dt)
         return
     end
 
@@ -111,6 +268,7 @@ function PatrolDrone:update(dt)
         if (self.pauseDuration or 0) > 0 then
             self.pauseTimer = self.pauseDuration
         end
+        updateAnimationState(self, dt)
         return
     end
 
@@ -124,6 +282,7 @@ function PatrolDrone:update(dt)
         if (self.pauseDuration or 0) > 0 then
             self.pauseTimer = self.pauseDuration
         end
+        updateAnimationState(self, dt)
         return
     end
 
@@ -132,6 +291,7 @@ function PatrolDrone:update(dt)
     self.vy = ny * speed
     self.x = self.x + self.vx * dt
     self.y = self.y + self.vy * dt
+    updateAnimationState(self, dt)
 end
 
 function PatrolDrone:draw()
@@ -139,19 +299,33 @@ function PatrolDrone:draw()
         return
     end
 
-    -- Set color
-    local color = self.color or { 1, 1, 1, 1 }
-    love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
-
     if self.sprite then
         -- Draw sprite with scaling
         local sprite = self.sprite
         local scale = self.scale or 1
+        love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(sprite, self.x, self.y, 0, scale, scale)
+    elseif self.hasDirectionalSprites then
+        local frames = self.framesByDirection[self.animDirection] or {}
+        local frame = frames[self.animFrameIndex] or frames[1]
+        if frame then
+            local targetW = self.width or frame:getWidth()
+            local targetH = self.height or frame:getHeight()
+            local sx = targetW / frame:getWidth()
+            local sy = targetH / frame:getHeight()
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(frame, self.x, self.y, 0, sx, sy)
+        else
+            local color = self.color or { 1, 1, 1, 1 }
+            love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+            love.graphics.rectangle("fill", self.x, self.y, self.width or 32, self.height or 32)
+        end
     else
         -- Draw placeholder rectangle if no sprite
         local w = self.width or 32
         local h = self.height or 32
+        local color = self.color or { 1, 1, 1, 1 }
+        love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
         love.graphics.rectangle("fill", self.x, self.y, w, h)
     end
 
