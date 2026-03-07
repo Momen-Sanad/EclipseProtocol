@@ -10,6 +10,7 @@ local EnemySystem = require("src/systems/enemy_system")
 local CellSystem = require("src/systems/cell_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
 local EnergySystem = require("src/systems/energy_system")
+local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
 local StateManager = require("src/core/state_manager")
@@ -22,6 +23,9 @@ local DEFAULT_CELL_SIZE = 300
 local DEFAULT_CELL_ENERGY_RESTORE = 25
 local DEFAULT_DRONE_SIZE = 90
 local DEFAULT_HUNTER_SIZE = 90
+local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
+local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
+local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 
 local function getPlayAreaSize(context)
     return PlayfieldSystem.getPlayAreaSize(
@@ -39,6 +43,7 @@ end
 local function resetRun(context)
     local player, w, h = ensureRuntime(context)
     PlayerSystem.resetForRun(context, w, h)
+    ScreenFlashSystem.reset()
     elapsedTime = 0
 
     CellSystem.reset(w, h, {
@@ -91,6 +96,7 @@ function GameState.update(dt, context)
     local player, w, h = ensureRuntime(context)
     local playerSize = context.playerSize or 35
 
+    ScreenFlashSystem.update(dt)
     player.hitThisFrame = false
     EnemyBase.updatePlayerInvul(player, dt)
     Kinematics.capturePreviousPosition(player)
@@ -110,6 +116,13 @@ function GameState.update(dt, context)
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
     EnemySystem.resolvePlayerCollisions(player, playerSize)
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
+    if player.hitThisFrame then
+        ScreenFlashSystem.trigger(
+            context.damageFlashColor or DEFAULT_DAMAGE_FLASH_COLOR,
+            context.damageFlashAlpha or DEFAULT_DAMAGE_FLASH_ALPHA,
+            context.damageFlashDuration or DEFAULT_DAMAGE_FLASH_DURATION
+        )
+    end
 
     Kinematics.clampPosition(player, bounds)
 
@@ -171,6 +184,11 @@ function GameState.draw(context)
     end
 
     Hud.draw(player, elapsedTime, CellSystem.getCollectedTotal())
+    ScreenFlashSystem.draw()
+end
+
+function GameState.exit()
+    ScreenFlashSystem.reset()
 end
 
 return GameState

@@ -16,7 +16,7 @@
         
 2. **Game State Manager**
     
-    - Menu / Playing / Pause / Game Over / Victory
+    - Menu / Playing / Pause / Game Over / Victory // done
         
     - State transitions & persistence // done
         
@@ -36,7 +36,7 @@
         
 5. **Player Controller & Movement Logic**
     
-    - Input handling 
+    - Input handling // done
         
     - Dash mechanics & cooldown // done
         
@@ -48,7 +48,7 @@
         
     - Transition rules 
         
-    - Shared enemy behaviors
+    - Shared enemy behaviors // done
         
 7. **Procedural Room Generation**
     
@@ -56,7 +56,7 @@
         
     - Door placement
         
-    - Safe spawn points
+    - Safe spawn points 
         
 8. **Progression Logic**
     
@@ -112,7 +112,7 @@
         
 3. **Audio System**
     
-    - Background music integration 
+    - Background music integration // done
         
     - Sound effects playback // done
         
@@ -139,13 +139,13 @@
     
     - Energy cell pickups // done
         
-    - Visual indicators 
+    - Visual indicators // done
         
     - Collection feedback // done
         
 7. **Visual Feedback Effects**
     
-    - Damage flicker 
+    - Damage flicker //done
         
     - Screen flashes 
         
