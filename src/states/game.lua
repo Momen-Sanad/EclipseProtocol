@@ -5,6 +5,7 @@ local CollisionSystem = require("src/systems/collision_system")
 local AudioSystem = require("src/systems/audio_system")
 local PlayerEntity = require("src/entities/player")
 local EnemyBase = require("src/entities/enemy_base")
+local EnergyCell = require("src/entities/energy_cell")
 local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
 local Hud = require("src/ui/hud")
@@ -27,7 +28,6 @@ local Cells = {}
 local CellsCollected = 0
 local CELL_COUNT = 10
 local CELL_SIZE = 300
-local CellSprite = nil
 local PatrolDroneSprite = nil
 local Drones = {}
 local DRONE_SIZE = 90
@@ -68,14 +68,6 @@ local function getPlayAreaSize(context)
     return w, h
 end
 
-local function ensureCellSprite()
-    -- Pickups reuse one shared image instead of reloading per cell instance.
-    if CellSprite then
-        return
-    end
-    CellSprite = love.graphics.newImage("assets/ui/Cell.png")
-end
-
 local function ensurePatrolDroneSprite(context)
     if PatrolDroneSprite then
         return
@@ -87,25 +79,18 @@ local function ensurePatrolDroneSprite(context)
     end
 end
 
-local function spawnCell(context)
-    -- Cells are scattered randomly within the visible play bounds.
-    local w, h = getPlayAreaSize(context)
-    local cell = {
-        x = love.math.random(0, math.max(0, w - CELL_SIZE)),
-        y = love.math.random(0, math.max(0, h - CELL_SIZE)),
-        width = CELL_SIZE,
-        height = CELL_SIZE
-    }
-    table.insert(Cells, cell)
-end
-
 local function resetCells(context)
     -- Called on fresh game starts to rebuild the pickup set from scratch.
-    Cells = {}
+    local w, h = getPlayAreaSize(context)
+    local cellSize = (context and context.cellSize) or CELL_SIZE
+    local cellPath = (context and context.cellSpritePath) or "assets/ui/Cell.png"
+    Cells = EnergyCell.reset(CELL_COUNT, {
+        playWidth = w,
+        playHeight = h,
+        size = cellSize,
+        spritePath = cellPath
+    })
     CellsCollected = 0
-    for _ = 1, CELL_COUNT do
-        spawnCell(context)
-    end
 end
 
 local function resetDrones(context)
@@ -237,7 +222,6 @@ function GameState.enter(context, prevName)
         Player.invulnerable = false
         Player.hitThisFrame = false
         elapsedTime = 0
-        ensureCellSprite()
         resetCells(context)
         resetDrones(context)
     end
@@ -311,7 +295,7 @@ function GameState.update(dt, context)
 
     elapsedTime = elapsedTime + dt
 
-    local collected = CollisionSystem.collectCells(Player, Cells, context.playerSize or 35)
+    local collected = EnergyCell.collect(Player, Cells, context.playerSize or 35)
     if collected > 0 then
         CellsCollected = CellsCollected + collected
     end
@@ -344,16 +328,10 @@ function GameState.draw(context)
         hunter:draw(Player, (context.playerSize or 35)/2)
     end
     PlayerEntity.draw(Player)
-    for _, cell in ipairs(Cells) do
-        if CellSprite then
-            local scale = CELL_SIZE / math.max(CellSprite:getWidth(), CellSprite:getHeight())
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(CellSprite, cell.x, cell.y, 0, scale, scale)
-        else
-            love.graphics.setColor(0.7, 0.9, 1.0, 1)
-            love.graphics.rectangle("fill", cell.x, cell.y, cell.width, cell.height)
-        end
-    end
+    EnergyCell.drawAll(Cells, {
+        size = (context and context.cellSize) or CELL_SIZE,
+        spritePath = (context and context.cellSpritePath) or "assets/ui/Cell.png"
+    })
 
     Hud.draw(Player, elapsedTime, CellsCollected)
 end
