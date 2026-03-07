@@ -176,6 +176,8 @@ function HunterDrone.new(opts)
 
     -- Visual properties
     self.coneColor = opts.coneColor or { 0.25, 0.8, 1.0, 0.15 }
+    self.detectedRingColor = opts.detectedRingColor or { 1.0, 0.25, 0.25, 0.95 }
+    self.detectedFillColor = opts.detectedFillColor or { 1.0, 0.15, 0.15, 0.12 }
     self.lineColor = opts.lineColor or { 0.9, 0.9, 1.0, 0.6 }
     self.lookColor = opts.lookColor or { 0.3, 0.9, 1.0, 0.8 }
     self.color = opts.color or { 0.2, 0.8, 1.0, 1.0 }
@@ -203,6 +205,7 @@ function HunterDrone.new(opts)
     self.vx = 0
     self.vy = 0
     self.chasing = false
+    self.detectedPlayer = false
 
     return self
 end
@@ -235,7 +238,12 @@ function HunterDrone:update(player, dt, playerSize)
     -- Determine if player is within vision range and facing
     local inRange = dist <= self.visionRange
     local facing = dot(self.lookX, self.lookY, dirX, dirY) >= self.dotThreshold
-    local shouldChase = inRange and facing
+    if inRange and facing then
+        self.detectedPlayer = true
+    elseif not inRange then
+        self.detectedPlayer = false
+    end
+    local shouldChase = inRange and self.detectedPlayer
 
     if shouldChase then
         self.chasing = true
@@ -286,14 +294,26 @@ function HunterDrone:draw(player, playerSize)
     local cx = self.x + (self.width or 0) / 2
     local cy = self.y + (self.height or 0) / 2
 
-    -- Draw vision cone
-    local coneColor = self.coneColor or { 0.2, 0.8, 1.0, 0.15 }
-    local halfAngle = 1.05
-    local orientation = self.spinAngle or math.atan(self.lookY, self.lookX)
-    local range = self.visionRange - 20 or 400
-
-    love.graphics.setColor(coneColor[1], coneColor[2], coneColor[3], coneColor[4] or 1)
-    love.graphics.arc("fill", "pie", cx, cy, range, orientation - halfAngle, orientation + halfAngle)
+    if self.detectedPlayer then
+        -- Once detected, show a full alert radius instead of the directional cone.
+        local fill = self.detectedFillColor or { 1.0, 0.15, 0.15, 0.12 }
+        local ring = self.detectedRingColor or { 1.0, 0.25, 0.25, 0.95 }
+        local radius = self.visionRange -20 or 400
+        love.graphics.setColor(fill[1], fill[2], fill[3], fill[4] or 1)
+        love.graphics.circle("fill", cx, cy, radius)
+        love.graphics.setLineWidth(3)
+        love.graphics.setColor(ring[1], ring[2], ring[3], ring[4] or 1)
+        love.graphics.circle("line", cx, cy, radius)
+        love.graphics.setLineWidth(1)
+    else
+        -- Draw vision cone while searching.
+        local coneColor = self.coneColor or { 0.2, 0.8, 1.0, 0.15 }
+        local halfAngle = 1.05
+        local orientation = self.spinAngle or math.atan(self.lookY, self.lookX)
+        local range = self.visionRange - 20 or 400
+        love.graphics.setColor(coneColor[1], coneColor[2], coneColor[3], coneColor[4] or 1)
+        love.graphics.arc("fill", "pie", cx, cy, range, orientation - halfAngle, orientation + halfAngle)
+    end
 
     --[[
     -- DEBUGGING: draw look vector
