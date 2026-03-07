@@ -55,6 +55,7 @@ function HunterDrone.new(opts)
     self.lookColor = opts.lookColor or { 0.3, 0.9, 1.0, 0.8 }  -- debug look vector
     self.color = opts.color or { 0.2, 0.8, 1.0, 1.0 }          -- drone body
     self.scale = opts.scale or 1
+    self.sprite = opts.sprite
 
     -- Initial look vector
     local lookX = opts.lookX or 1
@@ -184,7 +185,13 @@ function HunterDrone:draw(player, playerSize)
     end
     --]]
 
-    -- Draw drone body (currently a rectangle)
+    -- Draw drone body (sprite preferred, rectangle fallback).
+    if self.sprite then
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(self.sprite, self.x, self.y, 0, self.scale or 1, self.scale or 1)
+        return
+    end
+
     local color = self.color or {1,1,1,1}
     love.graphics.setColor(color[1],color[2],color[3],color[4] or 1)
     love.graphics.rectangle("fill", self.x, self.y, self.width or 32, self.height or 32)

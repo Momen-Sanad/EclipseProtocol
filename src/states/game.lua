@@ -29,6 +29,7 @@ local CellsCollected = 0
 local CELL_COUNT = 10
 local CELL_SIZE = 300
 local PatrolDroneSprite = nil
+local HunterDroneSprite = nil
 local Drones = {}
 local DRONE_SIZE = 90
 local Hunters = {}
@@ -73,9 +74,22 @@ local function ensurePatrolDroneSprite(context)
         return
     end
 
-    local spritePath = (context and context.patrolDroneSpritePath) or "assets/ui/Patrol Drone.png"
+    local spritePath = (context and context.patrolDroneSpritePath) or "assets/sprites/player/Patrol Drone.png"
     if love.filesystem.getInfo(spritePath) then
         PatrolDroneSprite = love.graphics.newImage(spritePath)
+        PatrolDroneSprite:setFilter("nearest", "nearest")
+    end
+end
+
+local function ensureHunterDroneSprite(context)
+    if HunterDroneSprite then
+        return
+    end
+
+    local spritePath = (context and context.hunterDroneSpritePath) or "assets/sprites/player/Hunter Drone.png"
+    if love.filesystem.getInfo(spritePath) then
+        HunterDroneSprite = love.graphics.newImage(spritePath)
+        HunterDroneSprite:setFilter("nearest", "nearest")
     end
 end
 
@@ -98,6 +112,7 @@ local function resetDrones(context)
     Drones = {}
     Hunters = {}
     ensurePatrolDroneSprite(context)
+    ensureHunterDroneSprite(context)
 
     local w, h = getPlayAreaSize(context)
     local margin = DRONE_SIZE + 40
@@ -107,8 +122,12 @@ local function resetDrones(context)
     local x2 = math.max(margin, w - margin)
     local y2 = y1
     local patrolScale = 1
+    local hunterScale = 1
     if PatrolDroneSprite then
         patrolScale = DRONE_SIZE / math.max(PatrolDroneSprite:getWidth(), PatrolDroneSprite:getHeight())
+    end
+    if HunterDroneSprite then
+        hunterScale = HUNTER_SIZE / math.max(HunterDroneSprite:getWidth(), HunterDroneSprite:getHeight())
     end
 
     local drone = PatrolDrone.new({
@@ -137,6 +156,8 @@ local function resetDrones(context)
         dotThreshold = 0.5,
         damage = 15,
         invulDuration = 1.5,
+        sprite = HunterDroneSprite,
+        scale = hunterScale,
         color = { 0.2, 0.85, 1.0, 1.0 },
         coneColor = { 0.2, 0.8, 1.0, 0.18 },
         lineColor = { 0.9, 0.9, 1.0, 0.7 },
@@ -210,6 +231,7 @@ function GameState.enter(context, prevName)
     loadAssets(context)
     ensurePlayer(context)
     ensurePatrolDroneSprite(context)
+    ensureHunterDroneSprite(context)
     local w, h = getPlayAreaSize(context)
     if prevName ~= "pause" then
         Player.x = w / 2
