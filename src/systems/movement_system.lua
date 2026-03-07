@@ -89,6 +89,23 @@ function MovementSystem.update(player, input, dt, bounds)
     -- Ensure input velocity and impulse velocity can be composed into one body velocity.
     Kinematics.ensureCompositeVelocity(player)
 
+    -- Hit-reaction lock: player blinks/invulnerable and cannot move during this window.
+    if (player.damageLockTimer or 0) > 0 then
+        Kinematics.setInputVelocity(player, 0, 0)
+        player.vx_impulse = 0
+        player.vy_impulse = 0
+        Kinematics.stop(player)
+        player.isDashing = false
+        player.dashTimer = 0
+        player.moveHeldTime = 0
+        player.moveX = 0
+        player.moveY = 0
+        player.isMoving = false
+        player.standStillTimer = 0
+        updateFootsteps(player)
+        return
+    end
+
     local prevX = player.x or 0
     local prevY = player.y or 0
 

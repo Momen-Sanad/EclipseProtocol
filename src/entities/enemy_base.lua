@@ -68,8 +68,12 @@ end
 -- Decrements the player's invulnerability timer and resets flags when expired
 function EnemyBase.updatePlayerInvul(player, dt)
     if not player then return end
+    local step = dt or 0
 
-    player.invulTimer = (player.invulTimer or 0) - (dt or 0)
+    player.damageFlickerTimer = math.max(0, (player.damageFlickerTimer or 0) - step)
+    player.damageLockTimer = math.max(0, (player.damageLockTimer or 0) - step)
+
+    player.invulTimer = (player.invulTimer or 0) - step
 
     if player.invulTimer <= 0 then
         -- invulnerability expired

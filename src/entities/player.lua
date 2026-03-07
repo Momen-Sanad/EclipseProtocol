@@ -404,7 +404,13 @@ function Player.new(config)
         maxHealth = cfg.maxHealth or 100,
         health = cfg.health or 100,
         maxEnergy = cfg.maxEnergy or 100,
-        energy = cfg.energy or 100
+        energy = cfg.energy or 100,
+
+        -- brief hit-reaction state (movement lock + blink)
+        damageFlickerCount = math.max(1, math.floor(cfg.damageFlickerCount or 2)),
+        damageFlickerDuration = math.max(0.01, cfg.damageFlickerDuration or 0.4),
+        damageFlickerTimer = 0,
+        damageLockTimer = 0
     }
 
     -- Try to set up Anim8-driven animations (grid or state scanning). If successful, return player.
@@ -522,6 +528,20 @@ end
 function Player.draw(player)
     if not player then
         return
+    end
+
+    local flickerTimer = player.damageFlickerTimer or 0
+    if flickerTimer > 0 then
+        local duration = math.max(0.01, player.damageFlickerDuration or 0.4)
+        local flickerCount = math.max(1, math.floor(player.damageFlickerCount or 2))
+        local phaseCount = flickerCount * 2
+        local progress = 1 - (flickerTimer / duration)
+        progress = math.max(0, math.min(1, progress))
+        local phase = math.floor(progress * phaseCount)
+        if (phase % 2) == 1 then
+            love.graphics.setColor(1, 1, 1, 1)
+            return
+        end
     end
 
     local drawX = player.x

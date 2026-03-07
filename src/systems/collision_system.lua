@@ -65,14 +65,17 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
 
             -- Only apply damage/knockback if the player is NOT currently invulnerable
             if not player.invulTimer or player.invulTimer <= 0 then
+                local reactionDuration = math.max(0.01, player.damageFlickerDuration or 0.4)
+                local hitInvulDuration = enemy.invulDuration or 1.0
+
                 -- 1) apply damage directly (so we know it happens)
                 if enemy.damage and player.health then
-                    player.health = player.health - (enemy.damage or 0)
+                    player.health = math.max(0, player.health - (enemy.damage or 0))
                 end
 
-                -- 2) call enemy:onCollision for sounds/particles
-                if enemy.onCollision then
-                    enemy:onCollision(player)
+                -- 2) trigger optional hit callback (VFX/SFX hooks)
+                if type(enemy.onHit) == "function" then
+                    pcall(enemy.onHit, enemy, player)
                 end
 
                 -- 3) knockback via velocity impulse (smooth)
@@ -102,8 +105,10 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 -- debug print for knockback values
                 -- print(("KNOCK: dx=%.2f dy=%.2f imp=(%.1f,%.1f) immediate=%.1f"):format(dx,dy, player.vx_impulse, player.vy_impulse, immediate))
 
-                -- 4) set invulnerability using the enemy's configured duration
-                player.invulTimer = enemy.invulDuration or 1.0
+                -- 4) start the brief hit reaction (blink + movement lock) and invulnerability.
+                player.damageFlickerTimer = math.max(player.damageFlickerTimer or 0, reactionDuration)
+                player.damageLockTimer = math.max(player.damageLockTimer or 0, reactionDuration)
+                player.invulTimer = math.max(player.invulTimer or 0, hitInvulDuration, reactionDuration)
                 player.invulnerable = true
                 player.hitThisFrame = true
             end

@@ -58,6 +58,8 @@ function PlayerSystem.resetForRun(context, playWidth, playHeight)
     p.invulTimer = 0
     p.invulnerable = false
     p.hitThisFrame = false
+    p.damageFlickerTimer = 0
+    p.damageLockTimer = 0
     return p
 end
 
