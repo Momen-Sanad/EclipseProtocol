@@ -71,6 +71,59 @@ local function drawDashCooldown(x, y, radius, remaining, total, font)
     love.graphics.setLineWidth(1)
 end
 
+local function drawStunGunPanel(player, x, y, w, h)
+    local cost = math.max(0, math.floor(player.stunGunEnergyCost or 0))
+    local cooldownTotal = math.max(0, player.stunGunCooldown or 0)
+    local cooldownLeft = math.max(0, player.stunGunCooldownTimer or 0)
+    local hasEnergy = (player.energy or 0) >= cost
+    local onCooldown = cooldownLeft > 0
+    local ready = (not onCooldown) and hasEnergy
+
+    local panelCol = { 0.10, 0.13, 0.18, 0.85 }
+    local edgeCol = { 0.28, 0.34, 0.42, 0.95 }
+    local textCol = { 0.88, 0.92, 0.98, 1.0 }
+    local readyCol = { 0.30, 0.92, 0.45, 1.0 }
+    local waitCol = { 0.95, 0.78, 0.26, 1.0 }
+    local blockedCol = { 1.0, 0.35, 0.35, 1.0 }
+
+    love.graphics.setColor(panelCol)
+    love.graphics.rectangle("fill", x, y, w, h, 8, 8)
+    love.graphics.setColor(edgeCol)
+    love.graphics.rectangle("line", x, y, w, h, 8, 8)
+
+    love.graphics.setColor(textCol)
+    love.graphics.print("STUN GUN (Q)", x + 10, y + 6)
+    love.graphics.print("COST " .. tostring(cost) .. " EN", x + 10, y + 22)
+
+    local statusLabel = "READY"
+    local statusCol = readyCol
+    if onCooldown then
+        statusLabel = string.format("COOLDOWN %.1fs", cooldownLeft)
+        statusCol = waitCol
+    elseif not hasEnergy then
+        statusLabel = "NOT ENOUGH ENERGY"
+        statusCol = blockedCol
+    end
+
+    love.graphics.setColor(statusCol)
+    love.graphics.print(statusLabel, x + 10, y + 36)
+
+    local barX = x + 10
+    local barY = y + h - 10
+    local barW = w - 20
+    local barH = 6
+    love.graphics.setColor(0.14, 0.18, 0.24, 1.0)
+    love.graphics.rectangle("fill", barX, barY, barW, barH, 2, 2)
+
+    local cooldownFill = 1
+    if cooldownTotal > 0 then
+        cooldownFill = 1 - (cooldownLeft / cooldownTotal)
+    end
+    cooldownFill = math.max(0, math.min(1, cooldownFill))
+    love.graphics.setColor(statusCol[1], statusCol[2], statusCol[3], 0.95)
+    love.graphics.rectangle("fill", barX, barY, barW * cooldownFill, barH, 2, 2)
+end
+
 function Hud.draw(player, elapsedTime, score)
     -- The HUD reads player state only; it does not mutate gameplay state.
     if not player then
@@ -89,6 +142,13 @@ function Hud.draw(player, elapsedTime, score)
 
     local energyY = padding + barH + 14
     EnergyBar.draw(padding, energyY, barW, barH, player.energy, player.maxEnergy, "ENERGY")
+    if player.stunGunCooldown ~= nil or player.stunGunEnergyCost ~= nil then
+        local panelW = 230
+        local panelH = 62
+        local px = love.graphics.getWidth() - panelW - padding
+        local py = love.graphics.getHeight() - panelH - padding
+        drawStunGunPanel(player, px, py, panelW, panelH)
+    end
         -- The timer and score are drawn after the bars so they appear on top. They read from the same player state but do not affect it, so they can be safely rendered in any order.
     if elapsedTime ~= nil then
         local w = love.graphics.getWidth()

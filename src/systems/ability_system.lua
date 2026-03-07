@@ -129,6 +129,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
         return false
     end
 
+    player.stunGunEnergyCost = energyCost
     player.stunGunCooldown = cooldown
     player.stunGunCooldownTimer = cooldownTimer
 
