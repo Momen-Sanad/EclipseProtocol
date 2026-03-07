@@ -1,8 +1,11 @@
 -- Energy cell pickup entity helpers (spawn, collect, and rendering).
 local EnergyCell = {}
+local AudioSystem = require("src/systems/audio_system")
 
 local DEFAULT_SIZE = 300
 local DEFAULT_SPRITE_PATH = "assets/ui/Cell.png"
+local DEFAULT_PICKUP_SFX_PATH = "assets/audio/sfx/Pickup.mp3"
+local DEFAULT_PICKUP_SFX_VOLUME = 0.35
 
 local sprite = nil
 local spritePath = nil
@@ -49,11 +52,12 @@ function EnergyCell.reset(count, opts)
     return cells
 end
 
-function EnergyCell.collect(player, cells, playerSize)
+function EnergyCell.collect(player, cells, playerSize, opts)
     if not player or not cells then
         return 0
     end
 
+    local cfg = opts or {}
     local size = playerSize or 35
     local collected = 0
     for i = #cells, 1, -1 do
@@ -63,6 +67,13 @@ function EnergyCell.collect(player, cells, playerSize)
             collected = collected + 1
         end
     end
+
+    if collected > 0 and not cfg.muteSfx then
+        local soundPath = cfg.pickupSoundPath or DEFAULT_PICKUP_SFX_PATH
+        local volume = cfg.pickupSoundVolume or DEFAULT_PICKUP_SFX_VOLUME
+        AudioSystem.playSfx(soundPath, { volume = volume })
+    end
+
     return collected
 end
 

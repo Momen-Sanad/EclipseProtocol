@@ -61,6 +61,7 @@ function love.load()
         playerDashCooldown = 5.0,
         -- Audio settings are passed through the shared state context.
         dashSoundPath = "assets/audio/sfx/Dash.wav",
+        cellPickupSoundPath = "assets/audio/sfx/Pickup.mp3",
         menuMusicPath = MENU_MUSIC_PATH,
         gameMusicPath = GAME_MUSIC_PATH,
         menuMusicFadeDuration = 1.0,

@@ -295,7 +295,9 @@ function GameState.update(dt, context)
 
     elapsedTime = elapsedTime + dt
 
-    local collected = EnergyCell.collect(Player, Cells, context.playerSize or 35)
+    local collected = EnergyCell.collect(Player, Cells, context.playerSize or 35, {
+        pickupSoundPath = (context and context.cellPickupSoundPath) or "assets/audio/sfx/Pickup.mp3"
+    })
     if collected > 0 then
         CellsCollected = CellsCollected + collected
     end
