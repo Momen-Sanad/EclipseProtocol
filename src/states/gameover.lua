@@ -11,6 +11,7 @@ local bgOffsetX = 0
 local bgOffsetY = 0
 local windowWidth = 0
 local windowHeight = 0
+local lastBg = nil
 
 local font = nil
 local fadeTime = 0
@@ -26,7 +27,8 @@ local retryYRatio = 0.86
 local function refreshBackground()
     -- Keep the image covering the full window even if the display size changes.
     local w, h = love.graphics.getDimensions()
-    if w == windowWidth and h == windowHeight then
+    local bgChanged = bg ~= lastBg
+    if w == windowWidth and h == windowHeight and not bgChanged then
         return
     end
     windowWidth = w
@@ -40,6 +42,7 @@ local function refreshBackground()
         bgOffsetX = math.floor((windowWidth - bw * scale) / 2)
         bgOffsetY = math.floor((windowHeight - bh * scale) / 2)
     end
+    lastBg = bg
 end
 
 local function ensureFont()

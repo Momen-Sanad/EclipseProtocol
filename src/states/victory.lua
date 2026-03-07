@@ -11,6 +11,7 @@ local bgOffsetX = 0
 local bgOffsetY = 0
 local windowWidth = 0
 local windowHeight = 0
+local lastBg = nil
 
 local font = nil
 local fadeTime = 0
@@ -35,7 +36,8 @@ end
 local function refreshBackground()
     -- Victory art stretches to the current window dimensions.
     local w, h = love.graphics.getDimensions()
-    if w == windowWidth and h == windowHeight then
+    local bgChanged = bg ~= lastBg
+    if w == windowWidth and h == windowHeight and not bgChanged then
         return
     end
     windowWidth = w
@@ -48,6 +50,7 @@ local function refreshBackground()
         bgOffsetX = 0
         bgOffsetY = 0
     end
+    lastBg = bg
 end
 
 local function ensureFont()

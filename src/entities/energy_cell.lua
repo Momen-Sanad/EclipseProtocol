@@ -16,6 +16,10 @@ local function ensureSprite(path)
     return sprite
 end
 
+local function overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
+    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
+end
+
 function EnergyCell.new(opts)
     opts = opts or {}
     local width = math.max(1, math.floor(opts.width or opts.size or 300))
@@ -44,6 +48,25 @@ function EnergyCell.spawnRandom(playWidth, playHeight, size, opts)
         height = cellSize,
         spritePath = opts.spritePath
     })
+end
+
+function EnergyCell.collect(player, cells, playerSize)
+    if not player or not cells then
+        return 0
+    end
+
+    local size = playerSize or 35
+    local collected = 0
+    for i = #cells, 1, -1 do
+        local cell = cells[i]
+        local cellW = cell.width or 0
+        local cellH = cell.height or 0
+        if overlaps(player.x, player.y, size, size, cell.x or 0, cell.y or 0, cellW, cellH) then
+            table.remove(cells, i)
+            collected = collected + 1
+        end
+    end
+    return collected
 end
 
 function EnergyCell.draw(cell)
