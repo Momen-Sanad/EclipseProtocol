@@ -50,6 +50,12 @@ function love.load()
         playerDashSpeed = 400,
         playerDashDuration = 0.35,
         playerDashCooldown = 5.0,
+        playerDashEnergyCost = 20,
+        energyCellRestore = 15,
+        powerNodeSize = 120,
+        powerNodeCount = 3,
+        powerNodeInteractRange = 170,
+        powerNodeRepairDuration = 5.0,
         -- Audio settings are passed through the shared state context.
         dashSoundPath = "assets/audio/sfx/Dash.wav",
         menuMusicPath = MENU_MUSIC_PATH,

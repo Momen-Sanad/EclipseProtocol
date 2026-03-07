@@ -31,6 +31,10 @@ function InputSystem.dashPressed()
     return InputSystem.keysPressed["space"] == true
 end
 
+function InputSystem.interactPressed()
+    return InputSystem.keysPressed["return"] == true or InputSystem.keysPressed["kpenter"] == true
+end
+
 function InputSystem.quitRequested()
     return InputSystem.keysPressed["escape"] == true
 end

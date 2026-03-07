@@ -113,7 +113,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
 
             -- pause the enemy so they don't immediately try to re-enter the player.
             -- We'll decrement this in the enemy update. Default to invulDuration as pause length.
-            enemy.pauseTimer = enemy.invulDuration or 0.6
+            enemy.pauseTimer = 1.0
             enemy.chasing = false
         end
     end
@@ -135,10 +135,85 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
             Kinematics.stop(enemy)
 
             -- set a short pause so enemy won't immediately chase again
-            enemy.pauseTimer = enemy.invulDuration or 0.6
+            enemy.pauseTimer = 1.0
             enemy.chasing = false
         end
     end
+    return blocked
+end
+
+function CollisionSystem.resolveEntityOnObstacle(entity, entityW, entityH, obstacle)
+    -- Resolve overlap between one axis-aligned entity and one axis-aligned obstacle.
+    if not entity or not obstacle then
+        return false
+    end
+
+    local ex = entity.x or 0
+    local ey = entity.y or 0
+    local ew = entityW or 0
+    local eh = entityH or 0
+    local ox = obstacle.x or 0
+    local oy = obstacle.y or 0
+    local ow = obstacle.width or 0
+    local oh = obstacle.height or 0
+
+    if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
+        return false
+    end
+
+    local overlapX = math.min(ex + ew, ox + ow) - math.max(ex, ox)
+    local overlapY = math.min(ey + eh, oy + oh) - math.max(ey, oy)
+    if overlapX <= 0 or overlapY <= 0 then
+        return false
+    end
+
+    local entityCenterX = ex + (ew / 2)
+    local entityCenterY = ey + (eh / 2)
+    local obstacleCenterX = ox + (ow / 2)
+    local obstacleCenterY = oy + (oh / 2)
+
+    if overlapX < overlapY then
+        if entityCenterX < obstacleCenterX then
+            Kinematics.translate(entity, -overlapX, 0)
+        else
+            Kinematics.translate(entity, overlapX, 0)
+        end
+    else
+        if entityCenterY < obstacleCenterY then
+            Kinematics.translate(entity, 0, -overlapY)
+        else
+            Kinematics.translate(entity, 0, overlapY)
+        end
+    end
+
+    return true
+end
+
+function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
+    -- Rewind enemies on obstacle overlap to keep static obstacles solid.
+    if not enemies or not obstacle then
+        return false
+    end
+
+    local ox = obstacle.x or 0
+    local oy = obstacle.y or 0
+    local ow = obstacle.width or 0
+    local oh = obstacle.height or 0
+    local pause = pauseDuration or 0.2
+    local blocked = false
+
+    for _, enemy in ipairs(enemies) do
+        local ew = enemy.width or 0
+        local eh = enemy.height or 0
+        if aabb(enemy.x or 0, enemy.y or 0, ew, eh, ox, oy, ow, oh) then
+            blocked = true
+            Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
+            Kinematics.stop(enemy)
+            enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pause)
+            enemy.chasing = false
+        end
+    end
+
     return blocked
 end
 

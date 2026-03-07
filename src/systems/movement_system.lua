@@ -62,8 +62,15 @@ function MovementSystem.update(player, input, dt, bounds)
         player.dashCooldownTimer = math.max(0, player.dashCooldownTimer - dt)
     end
 
+    local dashEnergyCost = math.max(0, player.dashEnergyCost or 0)
+    local hasTrackedEnergy = type(player.energy) == "number"
+    local hasDashEnergy = true
+    if hasTrackedEnergy then
+        hasDashEnergy = player.energy >= dashEnergyCost
+    end
+
     -- start dash if requested and available
-    if dashPressed and not player.isDashing and (player.dashCooldownTimer or 0) <= 0 then
+    if dashPressed and not player.isDashing and (player.dashCooldownTimer or 0) <= 0 and hasDashEnergy then
         local dirX, dirY = moveX, moveY
         if dirX == 0 and dirY == 0 then
             dirX = player.lastMoveX or 0
@@ -71,6 +78,9 @@ function MovementSystem.update(player, input, dt, bounds)
         end
         if dirX ~= 0 or dirY ~= 0 then
             dirX, dirY = Kinematics.normalize(dirX, dirY)
+            if hasTrackedEnergy and dashEnergyCost > 0 then
+                player.energy = math.max(0, player.energy - dashEnergyCost)
+            end
             player.isDashing = true
             player.dashTimer = player.dashDuration or 0.18
             player.dashDirX = dirX

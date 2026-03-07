@@ -366,6 +366,7 @@ end
 -- config options (commonly used):
 --  - x, y: initial position
 --  - speed, moveStartSpeed, moveRampDuration, dashSpeed, dashDuration, dashCooldown
+--  - dashEnergyCost: energy spent when a dash starts
 --  - dashSoundPath: path to dash SFX (string)
 --  - maxHealth/health, maxEnergy/energy
 --  - spritePath, animMode, frameWidth/frameHeight (see setupGridAnimation)
@@ -386,6 +387,7 @@ function Player.new(config)
         dashSpeed = cfg.dashSpeed or ((cfg.speed or 300) * 2.5),
         dashDuration = cfg.dashDuration or 0.18,
         dashCooldown = cfg.dashCooldown or 5.0,
+        dashEnergyCost = cfg.dashEnergyCost or 20,
         dashTimer = 0,
         dashCooldownTimer = 0,
         isDashing = false,

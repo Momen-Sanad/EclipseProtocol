@@ -5,6 +5,7 @@ local CollisionSystem = require("src/systems/collision_system")
 local AudioSystem = require("src/systems/audio_system")
 local PlayerEntity = require("src/entities/player")
 local EnemyBase = require("src/entities/enemy_base")
+local PowerNode = require("src/entities/power_node")
 local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
 local Hud = require("src/ui/hud")
@@ -32,6 +33,8 @@ local Drones = {}
 local DRONE_SIZE = 90
 local Hunters = {}
 local HUNTER_SIZE = 90
+local DEFAULT_CELL_ENERGY_RESTORE = 25
+local PowerNodes = {}
 
 local function refreshBackground()
     if not BG then
@@ -143,6 +146,16 @@ local function resetDrones(context)
     table.insert(Hunters, hunter)
 end
 
+local function resetPowerNodes(context)
+    local w, h = getPlayAreaSize(context)
+    PowerNodes = PowerNode.buildGrid(w, h, {
+        size = context.powerNodeSize or context.nodeSize,
+        count = context.powerNodeCount or context.nodeCount,
+        interactRange = context.powerNodeInteractRange or context.nodeInteractRange,
+        repairDuration = context.powerNodeRepairDuration or context.nodeRepairDuration
+    })
+end
+
 local function loadAssets(context)
     -- Background sizing is cached because it is stable across one game session.
     if loaded then
@@ -172,6 +185,7 @@ local function ensurePlayer(context)
         dashSpeed = context.playerDashSpeed,
         dashDuration = context.playerDashDuration,
         dashCooldown = context.playerDashCooldown,
+        dashEnergyCost = context.playerDashEnergyCost,
         -- Forward the shared audio path so player movement can play the dash cue.
         dashSoundPath = context.dashSoundPath,
         size = context.playerSize or 35,
@@ -221,6 +235,7 @@ function GameState.enter(context, prevName)
         ensureCellSprite()
         resetCells(context)
         resetDrones(context)
+        resetPowerNodes(context)
     end
 
     if prevName == "gameover" then
@@ -274,10 +289,26 @@ function GameState.update(dt, context)
         hunter:update(Player, dt, playerSize)
     end
 
+    if PowerNodes and #PowerNodes > 0 then
+        for _, node in ipairs(PowerNodes) do
+            CollisionSystem.resolveEntityOnObstacle(Player, playerSize, playerSize, node)
+            CollisionSystem.stopEnemiesOnObstacle(Drones, node)
+            CollisionSystem.stopEnemiesOnObstacle(Hunters, node)
+        end
+    end
+
     CollisionSystem.stopPlayerOnEnemies(Drones, Player, context.playerSize or 35)
     CollisionSystem.stopPlayerOnEnemies(Hunters, Player, context.playerSize or 35)
     CollisionSystem.stopEnemiesOnPlayer(Drones, Player, context.playerSize or 35)
     CollisionSystem.stopEnemiesOnPlayer(Hunters, Player, context.playerSize or 35)
+
+    if PowerNodes and #PowerNodes > 0 then
+        for _, node in ipairs(PowerNodes) do
+            CollisionSystem.resolveEntityOnObstacle(Player, playerSize, playerSize, node)
+            CollisionSystem.stopEnemiesOnObstacle(Drones, node)
+            CollisionSystem.stopEnemiesOnObstacle(Hunters, node)
+        end
+    end
 
     -- Collision nudges can push the player outside bounds after movement integration.
     Kinematics.clampPosition(Player, bounds)
@@ -285,6 +316,32 @@ function GameState.update(dt, context)
     if Player.health and Player.health <= 0 then
         StateManager.change("transition", "gameover")
         return
+    end
+
+    if PowerNodes and #PowerNodes > 0 then
+        local playerStill = PowerNode.isPlayerStationarySinceLastFrame(Player)
+        local activeNode = PowerNode.getActive(PowerNodes)
+
+        if not activeNode and playerStill and InputSystem.interactPressed() then
+            local candidateNode = PowerNode.getNearestInRange(Player, PowerNodes, context.playerSize or 35)
+            if candidateNode then
+                PowerNode.startRepair(candidateNode)
+                activeNode = candidateNode
+            end
+        end
+
+        if activeNode then
+            if not playerStill then
+                PowerNode.cancelRepair(activeNode)
+            else
+                PowerNode.updateRepair(activeNode, dt)
+            end
+        end
+
+        if PowerNode.allRepaired(PowerNodes) then
+            StateManager.change("transition", "victory")
+            return
+        end
     end
 
     PlayerEntity.update(Player, dt)
@@ -295,6 +352,12 @@ function GameState.update(dt, context)
     local collected = CollisionSystem.collectCells(Player, Cells, context.playerSize or 35)
     if collected > 0 then
         CellsCollected = CellsCollected + collected
+        if type(Player.energy) == "number" then
+            local energyPerCell = math.max(0, context.energyCellRestore or DEFAULT_CELL_ENERGY_RESTORE)
+            local maxEnergy = Player.maxEnergy or Player.energy
+            local restoredEnergy = collected * energyPerCell
+            Player.energy = math.min(maxEnergy, Player.energy + restoredEnergy)
+        end
     end
 end
 
@@ -325,6 +388,13 @@ function GameState.draw(context)
         hunter:draw(Player, (context.playerSize or 35)/2)
     end
     PlayerEntity.draw(Player)
+
+    if PowerNodes and #PowerNodes > 0 then
+        for _, node in ipairs(PowerNodes) do
+            PowerNode.draw(node)
+        end
+    end
+
     for _, cell in ipairs(Cells) do
         if CellSprite then
             local scale = CELL_SIZE / math.max(CellSprite:getWidth(), CellSprite:getHeight())
@@ -333,6 +403,17 @@ function GameState.draw(context)
         else
             love.graphics.setColor(0.7, 0.9, 1.0, 1)
             love.graphics.rectangle("fill", cell.x, cell.y, cell.width, cell.height)
+        end
+    end
+
+    if PowerNodes and #PowerNodes > 0 then
+        local promptText = PowerNode.getPrompt(Player, PowerNodes, context.playerSize or 35)
+        local w = love.graphics.getWidth()
+        local h = love.graphics.getHeight()
+        if promptText then
+            love.graphics.setColor(0.9, 0.96, 1.0, 0.95)
+            local textW = love.graphics.getFont():getWidth(promptText)
+            love.graphics.print(promptText, (w - textW) / 2, h - 56)
         end
     end
 

@@ -161,7 +161,7 @@ function HunterDrone:draw(player, playerSize)
 
     -- Draw vision cone
     local coneColor = self.coneColor or {0.2,0.8,1.0,0.15}
-    local halfAngle = 1.1 -- radians (~125 degrees total)
+    local halfAngle = 1.05 -- radians (~121 degrees total)
     local orientation = self.spinAngle or math.atan(self.lookY, self.lookX)
     local range = self.visionRange - 20 or 400
 
