@@ -85,6 +85,15 @@ function AudioSystem.stopMusic()
     end
 end
 
+function AudioSystem.stopAll()
+    -- Ensure transition screens can hard-cut all active audio, including cloned SFX.
+    if love and love.audio and love.audio.stop then
+        love.audio.stop()
+    end
+    musicSource = nil
+    musicPath = nil
+end
+
 function AudioSystem.playSfx(path, opts)
     -- Reuse a cached template so repeated SFX can overlap without reloading from disk.
     local template = sfxCache[path]
