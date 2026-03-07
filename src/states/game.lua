@@ -32,6 +32,26 @@ local DRONE_SIZE = 90
 local Hunters = {}
 local HUNTER_SIZE = 90
 
+local function refreshBackground()
+    if not BG then
+        return
+    end
+
+    local w, h = love.graphics.getDimensions()
+    if w == windowWidth and h == windowHeight then
+        return
+    end
+
+    windowWidth = w
+    windowHeight = h
+
+    local bgW = BG:getWidth()
+    local bgH = BG:getHeight()
+    BG_SCALE = math.max(windowWidth / bgW, windowHeight / bgH)
+    BG_OFFSET_X = (windowWidth - bgW * BG_SCALE) / 2
+    BG_OFFSET_Y = (windowHeight - bgH * BG_SCALE) / 2
+end
+
 local function ensureCellSprite()
     -- Pickups reuse one shared image instead of reloading per cell instance.
     if CellSprite then
@@ -113,19 +133,12 @@ end
 local function loadAssets(context)
     -- Background sizing is cached because it is stable across one game session.
     if loaded then
+        refreshBackground()
         return
     end
 
-    windowWidth = context.windowWidth or 1280
-    windowHeight = context.windowHeight or 720
-
     BG = love.graphics.newImage(context.backgroundPath or "assets/ui/background.png")
-    local bgW = BG:getWidth()
-    local bgH = BG:getHeight()
-    BG_SCALE = math.max(windowWidth / bgW, windowHeight / bgH)
-    BG_OFFSET_X = (windowWidth - bgW * BG_SCALE) / 2
-    BG_OFFSET_Y = (windowHeight - bgH * BG_SCALE) / 2
-
+    refreshBackground()
     loaded = true
 end
 
@@ -285,6 +298,7 @@ end
 function GameState.draw(context)
     -- Render world layers back-to-front: background, enemies, player, pickups, HUD.
     loadAssets(context)
+    refreshBackground()
     ensurePlayer(context)
 
     love.graphics.setColor(1, 1, 1)
