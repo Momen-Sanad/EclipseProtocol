@@ -28,6 +28,7 @@ local CellsCollected = 0
 local CELL_COUNT = 10
 local CELL_SIZE = 300
 local CellSprite = nil
+local PatrolDroneSprite = nil
 local Drones = {}
 local DRONE_SIZE = 90
 local Hunters = {}
@@ -60,8 +61,8 @@ local function getPlayAreaSize(context)
     local h = windowHeight
 
     if w <= 0 or h <= 0 then
-        w = (context and context.windowWidth) or 1280
-        h = (context and context.windowHeight) or 720
+        w = (context and context.windowWidth) or 1920
+        h = (context and context.windowHeight) or 1080
     end
 
     return w, h
@@ -73,6 +74,17 @@ local function ensureCellSprite()
         return
     end
     CellSprite = love.graphics.newImage("assets/ui/Cell.png")
+end
+
+local function ensurePatrolDroneSprite(context)
+    if PatrolDroneSprite then
+        return
+    end
+
+    local spritePath = (context and context.patrolDroneSpritePath) or "assets/ui/Patrol Drone.png"
+    if love.filesystem.getInfo(spritePath) then
+        PatrolDroneSprite = love.graphics.newImage(spritePath)
+    end
 end
 
 local function spawnCell(context)
@@ -100,6 +112,7 @@ local function resetDrones(context)
     -- Spawns one patrol drone and one hunter drone using the current window size.
     Drones = {}
     Hunters = {}
+    ensurePatrolDroneSprite(context)
 
     local w, h = getPlayAreaSize(context)
     local margin = DRONE_SIZE + 40
@@ -108,6 +121,10 @@ local function resetDrones(context)
     local y1 = math.floor(h * 0.3)
     local x2 = math.max(margin, w - margin)
     local y2 = y1
+    local patrolScale = 1
+    if PatrolDroneSprite then
+        patrolScale = DRONE_SIZE / math.max(PatrolDroneSprite:getWidth(), PatrolDroneSprite:getHeight())
+    end
 
     local drone = PatrolDrone.new({
         x = x1,
@@ -120,7 +137,8 @@ local function resetDrones(context)
         speed = 180,
         damage = 12,
         invulDuration = 1.5,
-        color = { 0.95, 0.4, 0.25, 1.0 }
+        sprite = PatrolDroneSprite,
+        scale = patrolScale
     })
 
     table.insert(Drones, drone)
@@ -206,6 +224,7 @@ function GameState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
     loadAssets(context)
     ensurePlayer(context)
+    ensurePatrolDroneSprite(context)
     local w, h = getPlayAreaSize(context)
     if prevName ~= "pause" then
         Player.x = w / 2

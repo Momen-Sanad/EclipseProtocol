@@ -8,8 +8,8 @@ local PauseState = require("src/states/pause")
 local VictoryState = require("src/states/victory")
 local GameOverState = require("src/states/gameover")
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
+WINDOW_WIDTH = 1920
+WINDOW_HEIGHT = 1080
 
 VIRTUAL_WIDTH = 2
 VIRTUAL_HEIGHT = 1
@@ -24,7 +24,15 @@ local FADE_DURATION = 0.5
 
 function love.load()
     -- Build global runtime configuration once, then let states pull from StateManager.context.
-    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, { fullscreen = true })
+    local desktopWidth, desktopHeight = love.window.getDesktopDimensions()
+    WINDOW_WIDTH = desktopWidth or WINDOW_WIDTH
+    WINDOW_HEIGHT = desktopHeight or WINDOW_HEIGHT
+
+    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, {
+        fullscreen = true,
+        fullscreentype = "desktop",
+        resizable = false
+    })
     love.graphics.setDefaultFilter("linear", "linear", 16)
     love.math.setRandomSeed(os.time())
 
@@ -38,6 +46,7 @@ function love.load()
         windowWidth = WINDOW_WIDTH,
         windowHeight = WINDOW_HEIGHT,
         backgroundPath = "assets/ui/background.png",
+        patrolDroneSpritePath = "assets/ui/Patrol Drone.png",
         playerSpritePath = "assets/sprites/player/Robot.png",
         playerSize = PLAYER_SIZE,
         playerSpeed = 300,

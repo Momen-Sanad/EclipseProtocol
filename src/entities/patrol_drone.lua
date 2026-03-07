@@ -4,7 +4,7 @@
       - Adjustable patrol points (x1,y1 -> x2,y2)
       - Pausing at patrol points
       - Smooth movement with arrival threshold
-      - Optional sprite drawing or default rectangle
+      - Drawing from a single image asset
 --]]
 
 -- Base enemy class
@@ -62,7 +62,6 @@ function PatrolDrone.new(opts)
 
     -- Visuals
     self.sprite = opts.sprite
-    self.color = opts.color or { 1, 1, 1, 1 }
     self.scale = opts.scale or 1
 
     return self
@@ -135,28 +134,13 @@ function PatrolDrone:update(dt)
 end
 
 function PatrolDrone:draw()
-    if not love or not love.graphics then
+    if not love or not love.graphics or not self.sprite then
         return
     end
 
-    -- Set color
-    local color = self.color or { 1, 1, 1, 1 }
-    love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
-
-    if self.sprite then
-        -- Draw sprite with scaling
-        local sprite = self.sprite
-        local scale = self.scale or 1
-        love.graphics.draw(sprite, self.x, self.y, 0, scale, scale)
-    else
-        -- Draw placeholder rectangle if no sprite
-        local w = self.width or 32
-        local h = self.height or 32
-        love.graphics.rectangle("fill", self.x, self.y, w, h)
-    end
-
-    -- Reset color
+    local scale = self.scale or 1
     love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(self.sprite, self.x, self.y, 0, scale, scale)
 end
 
 return PatrolDrone
