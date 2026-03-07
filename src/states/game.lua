@@ -52,6 +52,20 @@ local function refreshBackground()
     BG_OFFSET_Y = (windowHeight - bgH * BG_SCALE) / 2
 end
 
+local function getPlayAreaSize(context)
+    refreshBackground()
+
+    local w = windowWidth
+    local h = windowHeight
+
+    if w <= 0 or h <= 0 then
+        w = (context and context.windowWidth) or 1280
+        h = (context and context.windowHeight) or 720
+    end
+
+    return w, h
+end
+
 local function ensureCellSprite()
     -- Pickups reuse one shared image instead of reloading per cell instance.
     if CellSprite then
@@ -62,8 +76,7 @@ end
 
 local function spawnCell(context)
     -- Cells are scattered randomly within the visible play bounds.
-    local w = context.windowWidth or windowWidth
-    local h = context.windowHeight or windowHeight
+    local w, h = getPlayAreaSize(context)
     local cell = {
         x = love.math.random(0, math.max(0, w - CELL_SIZE)),
         y = love.math.random(0, math.max(0, h - CELL_SIZE)),
@@ -87,8 +100,7 @@ local function resetDrones(context)
     Drones = {}
     Hunters = {}
 
-    local w = context.windowWidth or windowWidth or 1280
-    local h = context.windowHeight or windowHeight or 720
+    local w, h = getPlayAreaSize(context)
     local margin = DRONE_SIZE + 40
 
     local x1 = margin
@@ -148,9 +160,11 @@ local function ensurePlayer(context)
         return
     end
 
+    local w, h = getPlayAreaSize(context)
+
     Player = PlayerEntity.new({
-        x = (context.windowWidth or 1280) / 2,
-        y = (context.windowHeight or 720) / 2,
+        x = w / 2,
+        y = h / 2,
         speed = context.playerSpeed or 300,
         dashSpeed = context.playerDashSpeed,
         dashDuration = context.playerDashDuration,
@@ -189,9 +203,10 @@ function GameState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
     loadAssets(context)
     ensurePlayer(context)
+    local w, h = getPlayAreaSize(context)
     if prevName ~= "pause" then
-        Player.x = (context.windowWidth or windowWidth) / 2
-        Player.y = (context.windowHeight or windowHeight) / 2
+        Player.x = w / 2
+        Player.y = h / 2
         Player.frameIndex = 1
         Player.frameTimer = 0
         Player.health = Player.maxHealth or (context.playerMaxHealth or 100)
@@ -224,6 +239,7 @@ function GameState.update(dt, context)
     if not Player then
         ensurePlayer(context)
     end
+    local w, h = getPlayAreaSize(context)
     Player.hitThisFrame = false
     EnemyBase.updatePlayerInvul(Player, dt)
     Player.prevX = Player.x
@@ -232,8 +248,8 @@ function GameState.update(dt, context)
     local bounds = {
         minX = 8,
         minY = 8,
-        maxX = (context.windowWidth or windowWidth) - (context.playerSize or 35),
-        maxY = (context.windowHeight or windowHeight) - (context.playerSize or 35)
+        maxX = w - (context.playerSize or 35),
+        maxY = h - (context.playerSize or 35)
     }
 
     MovementSystem.update(
