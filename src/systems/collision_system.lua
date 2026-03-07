@@ -1,5 +1,6 @@
 -- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
 local Kinematics = require("src/utils/kinematics")
+local EnergyCell = require("src/entities/energy_cell")
 
 local CollisionSystem = {}
 
@@ -218,26 +219,8 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
 end
 
 function CollisionSystem.collectCells(player, cells, playerSize)
-    -- Remove pickups in-place so the caller can track how many were collected this frame.
-    if not player or not cells then
-        return 0
-    end
-
-    local size = playerSize or 35
-    local collected = 0
-
-    for i = #cells, 1, -1 do
-        local cell = cells[i]
-        if aabb(
-            player.x, player.y, size, size,
-            cell.x, cell.y, cell.width, cell.height
-        ) then
-            table.remove(cells, i)
-            collected = collected + 1
-        end
-    end
-
-    return collected
+    -- Backward-compatible wrapper; energy-cell logic now lives in src/entities/energy_cell.lua.
+    return EnergyCell.collect(player, cells, playerSize)
 end
 
 return CollisionSystem

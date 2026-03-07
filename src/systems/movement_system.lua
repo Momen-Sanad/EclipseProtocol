@@ -7,12 +7,16 @@ local MovementSystem = {}
 -- tweakables
 local IMPULSE_DECAY_RATE = 6.0    -- higher = knockback decays faster (per second)
 local IMPULSE_EPSILON = 1.0       -- below this value we zero the impulse
+local STAND_STILL_TIMEOUT = 0.5
+local MOVE_EPSILON = 0.001
 
 local function syncMoveFlags(player)
     local moveX, moveY, speed = Kinematics.normalize(player.vx or 0, player.vy or 0)
     player.moveX = moveX
     player.moveY = moveY
-    player.isMoving = speed > 0 or player.isDashing
+    if player.isMoving == nil then
+        player.isMoving = speed > 0 or player.isDashing
+    end
 end
 
 local function getWalkSpeed(player, baseSpeed, dt, hasInput)
@@ -34,6 +38,49 @@ local function getWalkSpeed(player, baseSpeed, dt, hasInput)
     return startSpeed + ((baseSpeed - startSpeed) * t)
 end
 
+local function ensureFootstepSource(player)
+    if player.footstepSource and player.footstepSourcePath == player.footstepSoundPath then
+        return player.footstepSource
+    end
+
+    player.footstepSource = nil
+    player.footstepSourcePath = nil
+    local soundPath = player.footstepSoundPath or "assets/audio/sfx/Footsteps.mp3"
+    if not (love and love.filesystem and love.filesystem.getInfo(soundPath)) then
+        return nil
+    end
+
+    local ok, source = pcall(love.audio.newSource, soundPath, "static")
+    if not ok or not source then
+        return nil
+    end
+
+    source:setLooping(false)
+    player.footstepSource = source
+    player.footstepSourcePath = soundPath
+    return source
+end
+
+local function updateFootsteps(player)
+    local source = ensureFootstepSource(player)
+    if not source then
+        return
+    end
+
+    local sfxMix = (AudioSystem.getSfxVolume and AudioSystem.getSfxVolume()) or 1
+    local stepVolume = math.max(0, math.min(1, (player.footstepVolume or 0.35) * sfxMix))
+    source:setVolume(stepVolume)
+
+    if player.isMoving and not player.isDashing then
+        -- Keep footsteps going while moving: if one clip ends, restart it.
+        if not source:isPlaying() then
+            source:play()
+        end
+    elseif source:isPlaying() then
+        source:stop()
+    end
+end
+
 function MovementSystem.update(player, input, dt, bounds)
     -- Combines live input with temporary impulses, then clamps the result to the play area.
     if not player then return end
@@ -41,6 +88,9 @@ function MovementSystem.update(player, input, dt, bounds)
 
     -- Ensure input velocity and impulse velocity can be composed into one body velocity.
     Kinematics.ensureCompositeVelocity(player)
+
+    local prevX = player.x or 0
+    local prevY = player.y or 0
 
     -- read move input
     local moveX, moveY = 0, 0
@@ -129,6 +179,22 @@ function MovementSystem.update(player, input, dt, bounds)
     Kinematics.decayImpulse(player, IMPULSE_DECAY_RATE, dt, IMPULSE_EPSILON)
     Kinematics.composeVelocity(player)
     syncMoveFlags(player)
+
+    local movedX = math.abs((player.x or 0) - prevX)
+    local movedY = math.abs((player.y or 0) - prevY)
+    local movedThisFrame = movedX > MOVE_EPSILON or movedY > MOVE_EPSILON
+
+    if movedThisFrame then
+        player.isMoving = true
+        player.standStillTimer = 0
+    else
+        player.standStillTimer = (player.standStillTimer or 0) + dt
+        if player.standStillTimer > STAND_STILL_TIMEOUT then
+            player.isMoving = false
+        end
+    end
+
+    updateFootsteps(player)
 end
 
 return MovementSystem

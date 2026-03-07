@@ -8,21 +8,21 @@
 
 1. **Game Architecture & Module Design**
     
-    - File structure
+    - File structure // done
         
-    - System boundaries
+    - System boundaries 
         
-    - Core update/draw loop
+    - Core update/draw loop // done
         
 2. **Game State Manager**
     
     - Menu / Playing / Pause / Game Over / Victory
         
-    - State transitions & persistence
+    - State transitions & persistence // done
         
 3. **Physics & Collision System**
     
-    - AABB collisions
+    - AABB collisions // done
         
     - Wall boundaries
         
@@ -30,23 +30,23 @@
         
 4. **Entity Base Framework**
     
-    - Shared entity lifecycle
+    - Shared entity lifecycle // done
         
-    - Velocity-based movement foundation
+    - Velocity-based movement foundation // done
         
 5. **Player Controller & Movement Logic**
     
-    - Input handling
+    - Input handling 
         
-    - Dash mechanics & cooldown
+    - Dash mechanics & cooldown // done
         
-    - Knockback integration
+    - Knockback integration // done
         
 6. **Enemy AI Framework (FSM)**
     
     - State machine design
         
-    - Transition rules
+    - Transition rules 
         
     - Shared enemy behaviors
         
@@ -117,10 +117,10 @@
     - Sound effects playback // done
         
     - Volume control // done
-        
+    
 4. **Animation System**
     
-    - Player animations (idle, move, dash) 
+    - Player animations (idle, move, dash) // done 
         
     - Enemy animations 
         
@@ -128,9 +128,9 @@
         
 5. **Enemy Variants (Data & Assembly)**
     
-    - Patrol Drone setup 
+    - Patrol Drone setup // done
         
-    - Hunter Drone setup
+    - Hunter Drone setup // done 
         
     - Stats tuning via config tables
         
@@ -141,15 +141,15 @@
         
     - Visual indicators 
         
-    - Collection feedback 
+    - Collection feedback // done
         
 7. **Visual Feedback Effects**
     
-    - Damage flicker
+    - Damage flicker 
         
     - Screen flashes 
         
-    - Hit feedback
+    - Hit feedback 
         
 8. **Difficulty Presentation**
     

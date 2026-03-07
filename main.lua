@@ -8,8 +8,8 @@ local PauseState = require("src/states/pause")
 local VictoryState = require("src/states/victory")
 local GameOverState = require("src/states/gameover")
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
+WINDOW_WIDTH = 1920
+WINDOW_HEIGHT = 1080
 
 VIRTUAL_WIDTH = 2
 VIRTUAL_HEIGHT = 1
@@ -24,7 +24,15 @@ local FADE_DURATION = 0.5
 
 function love.load()
     -- Build global runtime configuration once, then let states pull from StateManager.context.
-    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, { fullscreen = true })
+    local desktopWidth, desktopHeight = love.window.getDesktopDimensions()
+    WINDOW_WIDTH = desktopWidth or WINDOW_WIDTH
+    WINDOW_HEIGHT = desktopHeight or WINDOW_HEIGHT
+
+    love.window.setMode(WINDOW_WIDTH, WINDOW_HEIGHT, {
+        fullscreen = true,
+        fullscreentype = "desktop",
+        resizable = false
+    })
     love.graphics.setDefaultFilter("linear", "linear", 16)
     love.math.setRandomSeed(os.time())
 
@@ -38,6 +46,8 @@ function love.load()
         windowWidth = WINDOW_WIDTH,
         windowHeight = WINDOW_HEIGHT,
         backgroundPath = "assets/ui/background.png",
+        patrolDroneSpritePath = "assets/sprites/player/Patrol Drone.png",
+        hunterDroneSpritePath = "assets/sprites/player/Hunter Drone.png",
         playerSpritePath = "assets/sprites/player/Robot.png",
         playerSize = PLAYER_SIZE,
         playerSpeed = 300,
@@ -63,6 +73,10 @@ function love.load()
         powerNodeRepairDuration = 5.0,
         -- Audio settings are passed through the shared state context.
         dashSoundPath = "assets/audio/sfx/Dash.wav",
+        footstepSoundPath = "assets/audio/sfx/Footsteps.mp3",
+        footstepInterval = 0.35,
+        footstepVolume = 0.3,
+        cellPickupSoundPath = "assets/audio/sfx/Pickup.mp3",
         menuMusicPath = MENU_MUSIC_PATH,
         gameMusicPath = GAME_MUSIC_PATH,
         menuMusicFadeDuration = 1.0,
