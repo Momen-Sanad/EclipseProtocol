@@ -365,7 +365,7 @@ end
 -- Public constructor:
 -- config options (commonly used):
 --  - x, y: initial position
---  - speed, dashSpeed, dashDuration, dashCooldown
+--  - speed, moveStartSpeed, moveRampDuration, dashSpeed, dashDuration, dashCooldown
 --  - dashSoundPath: path to dash SFX (string)
 --  - maxHealth/health, maxEnergy/energy
 --  - spritePath, animMode, frameWidth/frameHeight (see setupGridAnimation)
@@ -380,6 +380,9 @@ function Player.new(config)
 
         -- movement / dash mechanics
         speed = cfg.speed or 300,
+        moveStartSpeed = cfg.moveStartSpeed or ((cfg.speed or 300) * 0.35),
+        moveRampDuration = cfg.moveRampDuration or 0.45,
+        moveHeldTime = 0,
         dashSpeed = cfg.dashSpeed or ((cfg.speed or 300) * 2.5),
         dashDuration = cfg.dashDuration or 0.18,
         dashCooldown = cfg.dashCooldown or 5.0,

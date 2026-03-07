@@ -41,6 +41,8 @@ function love.load()
         playerSpritePath = "assets/sprites/player/Robot.png",
         playerSize = PLAYER_SIZE,
         playerSpeed = 300,
+        playerMoveStartSpeed = 110,
+        playerMoveRampDuration = 0.45,
         playerFrameDuration = 0.12,
         playerAnimMode = "state",
         playerStateFrameCounts = { idle = 5, run = 6, dash = 4 },

@@ -1,5 +1,6 @@
 -- Handles player locomotion, dash timing, and knockback impulse blending.
 local AudioSystem = require("src/systems/audio_system")
+local Kinematics = require("src/utils/kinematics")
 
 local MovementSystem = {}
 
@@ -7,11 +8,30 @@ local MovementSystem = {}
 local IMPULSE_DECAY_RATE = 6.0    -- higher = knockback decays faster (per second)
 local IMPULSE_EPSILON = 1.0       -- below this value we zero the impulse
 
-local function safeInitPlayerVels(player)
-    player.vx_input   = player.vx_input   or 0
-    player.vy_input   = player.vy_input   or 0
-    player.vx_impulse = player.vx_impulse or 0
-    player.vy_impulse = player.vy_impulse or 0
+local function syncMoveFlags(player)
+    local moveX, moveY, speed = Kinematics.normalize(player.vx or 0, player.vy or 0)
+    player.moveX = moveX
+    player.moveY = moveY
+    player.isMoving = speed > 0 or player.isDashing
+end
+
+local function getWalkSpeed(player, baseSpeed, dt, hasInput)
+    if not hasInput then
+        player.moveHeldTime = 0
+        return 0
+    end
+
+    local rampDuration = math.max(0, player.moveRampDuration or 0)
+    local startSpeed = math.max(0, math.min(baseSpeed, player.moveStartSpeed or (baseSpeed * 0.35)))
+
+    if rampDuration <= 0 or startSpeed >= baseSpeed then
+        player.moveHeldTime = rampDuration
+        return baseSpeed
+    end
+
+    player.moveHeldTime = math.min(rampDuration, (player.moveHeldTime or 0) + (dt or 0))
+    local t = player.moveHeldTime / rampDuration
+    return startSpeed + ((baseSpeed - startSpeed) * t)
 end
 
 function MovementSystem.update(player, input, dt, bounds)
@@ -19,8 +39,8 @@ function MovementSystem.update(player, input, dt, bounds)
     if not player then return end
     dt = dt or 0
 
-    -- ensure velocity fields exist (so collision_system can add impulses safely)
-    safeInitPlayerVels(player)
+    -- Ensure input velocity and impulse velocity can be composed into one body velocity.
+    Kinematics.ensureCompositeVelocity(player)
 
     -- read move input
     local moveX, moveY = 0, 0
@@ -50,10 +70,7 @@ function MovementSystem.update(player, input, dt, bounds)
             dirY = player.lastMoveY or 0
         end
         if dirX ~= 0 or dirY ~= 0 then
-            local len = math.sqrt(dirX * dirX + dirY * dirY)
-            if len == 0 then len = 1 end
-            dirX = dirX / len
-            dirY = dirY / len
+            dirX, dirY = Kinematics.normalize(dirX, dirY)
             player.isDashing = true
             player.dashTimer = player.dashDuration or 0.18
             player.dashDirX = dirX
@@ -64,14 +81,19 @@ function MovementSystem.update(player, input, dt, bounds)
         end
     end
 
+    local hasMoveInput = moveX ~= 0 or moveY ~= 0
+
     -- base speed
     local baseSpeed = player.speed or 0
 
     -- compute input-driven velocity (vx_input, vy_input)
     if player.isDashing then
         -- override input with dash direction & speed
-        player.vx_input = (player.dashDirX or 0) * (player.dashSpeed or (baseSpeed * 2.5))
-        player.vy_input = (player.dashDirY or 0) * (player.dashSpeed or (baseSpeed * 2.5))
+        Kinematics.setInputVelocity(
+            player,
+            (player.dashDirX or 0) * (player.dashSpeed or (baseSpeed * 2.5)),
+            (player.dashDirY or 0) * (player.dashSpeed or (baseSpeed * 2.5))
+        )
 
         player.dashTimer = (player.dashTimer or 0) - dt
         if player.dashTimer <= 0 then
@@ -79,46 +101,24 @@ function MovementSystem.update(player, input, dt, bounds)
             player.dashTimer = 0
         end
     else
-
-        if moveX == 0 and moveY == 0 then
-            player.vx_input = 0
-            player.vy_input = 0
+        if not hasMoveInput then
+            getWalkSpeed(player, baseSpeed, dt, false)
+            Kinematics.setInputVelocity(player, 0, 0)
         else
-            local len = math.sqrt(moveX * moveX + moveY * moveY)
-            if len == 0 then len = 1 end
-            local nx = moveX / len
-            local ny = moveY / len
-            player.vx_input = nx * baseSpeed
-            player.vy_input = ny * baseSpeed
+            local nx, ny = Kinematics.normalize(moveX, moveY)
+            local walkSpeed = getWalkSpeed(player, baseSpeed, dt, true)
+            Kinematics.setInputVelocity(player, nx * walkSpeed, ny * walkSpeed)
         end
     end
 
-    -- expose move flags for other systems / drawing
-    player.moveX = (player.vx_input ~= 0) and (player.vx_input / (baseSpeed ~= 0 and baseSpeed or 1)) or 0
-    player.moveY = (player.vy_input ~= 0) and (player.vy_input / (baseSpeed ~= 0 and baseSpeed or 1)) or 0
-    player.isMoving = (player.moveX ~= 0 or player.moveY ~= 0) or player.isDashing
-
-    -- total velocity is input + impulse
-    local totalVx = (player.vx_input or 0) + (player.vx_impulse or 0)
-    local totalVy = (player.vy_input or 0) + (player.vy_impulse or 0)
-
-    -- integrate position using total velocity
-    player.x = (player.x or 0) + totalVx * dt
-    player.y = (player.y or 0) + totalVy * dt
-
-    -- window bounds clamp
-    if bounds then
-        player.x = math.max(bounds.minX, math.min(player.x, bounds.maxX))
-        player.y = math.max(bounds.minY, math.min(player.y, bounds.maxY))
-    end
+    -- Compose the movement input and knockback impulse into one velocity vector.
+    Kinematics.composeVelocity(player)
+    Kinematics.integrate(player, dt, bounds)
 
     -- decay impulses so knockback fades naturally
-    local decay = math.max(0, 1 - IMPULSE_DECAY_RATE * dt)
-    player.vx_impulse = (player.vx_impulse or 0) * decay
-    player.vy_impulse = (player.vy_impulse or 0) * decay
-
-    if math.abs(player.vx_impulse) < IMPULSE_EPSILON then player.vx_impulse = 0 end
-    if math.abs(player.vy_impulse) < IMPULSE_EPSILON then player.vy_impulse = 0 end
+    Kinematics.decayImpulse(player, IMPULSE_DECAY_RATE, dt, IMPULSE_EPSILON)
+    Kinematics.composeVelocity(player)
+    syncMoveFlags(player)
 end
 
 return MovementSystem

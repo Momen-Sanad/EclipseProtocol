@@ -15,9 +15,6 @@ local PatrolDrone = {}
 PatrolDrone.__index = PatrolDrone
 setmetatable(PatrolDrone, { __index = EnemyBase }) -- inherit EnemyBase
 
--- Utility Functions
-
--- Normalize a vector (dx, dy), returning unit vector and length
 local function normalize(dx, dy)
     local len = math.sqrt(dx * dx + dy * dy)
     if len == 0 then
@@ -133,8 +130,8 @@ function PatrolDrone:update(dt)
     -- Move toward target
     self.vx = nx * speed
     self.vy = ny * speed
-    self.x = self.x + nx * step
-    self.y = self.y + ny * step
+    self.x = self.x + self.vx * dt
+    self.y = self.y + self.vy * dt
 end
 
 function PatrolDrone:draw()

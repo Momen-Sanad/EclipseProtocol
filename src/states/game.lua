@@ -8,6 +8,7 @@ local EnemyBase = require("src/entities/enemy_base")
 local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
 local Hud = require("src/ui/hud")
+local Kinematics = require("src/utils/kinematics")
 local StateManager = require("src/core/state_manager")
 
 local GameState = {}
@@ -166,6 +167,8 @@ local function ensurePlayer(context)
         x = w / 2,
         y = h / 2,
         speed = context.playerSpeed or 300,
+        moveStartSpeed = context.playerMoveStartSpeed,
+        moveRampDuration = context.playerMoveRampDuration,
         dashSpeed = context.playerDashSpeed,
         dashDuration = context.playerDashDuration,
         dashCooldown = context.playerDashCooldown,
@@ -242,8 +245,7 @@ function GameState.update(dt, context)
     local w, h = getPlayAreaSize(context)
     Player.hitThisFrame = false
     EnemyBase.updatePlayerInvul(Player, dt)
-    Player.prevX = Player.x
-    Player.prevY = Player.y
+    Kinematics.capturePreviousPosition(Player)
 
     local bounds = {
         minX = 8,
@@ -263,16 +265,13 @@ function GameState.update(dt, context)
         drone.prevX = drone.x
         drone.prevY = drone.y
         drone:update(dt)
-        local playerSize = context.playerSize or 35
-        
     end
 
+    local playerSize = context.playerSize or 35
     for _, hunter in ipairs(Hunters) do
-        local playerSize = context.playerSize or 35
         hunter.prevX = hunter.x
         hunter.prevY = hunter.y
         hunter:update(Player, dt, playerSize)
-        
     end
 
     CollisionSystem.stopPlayerOnEnemies(Drones, Player, context.playerSize or 35)
@@ -280,8 +279,8 @@ function GameState.update(dt, context)
     CollisionSystem.stopEnemiesOnPlayer(Drones, Player, context.playerSize or 35)
     CollisionSystem.stopEnemiesOnPlayer(Hunters, Player, context.playerSize or 35)
 
-    Player.x = math.max(bounds.minX, math.min(Player.x, bounds.maxX))
-    Player.y = math.max(bounds.minY, math.min(Player.y, bounds.maxY))
+    -- Collision nudges can push the player outside bounds after movement integration.
+    Kinematics.clampPosition(Player, bounds)
 
     if Player.health and Player.health <= 0 then
         StateManager.change("transition", "gameover")

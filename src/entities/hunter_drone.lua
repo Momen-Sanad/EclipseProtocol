@@ -17,7 +17,6 @@ setmetatable(HunterDrone, { __index = EnemyBase }) -- inherit from EnemyBase
 
 -- Utility Functions
 
--- Normalize a vector (dx, dy), return unit vector and length
 local function normalize(dx, dy)
     local len = math.sqrt(dx * dx + dy * dy)
     if len == 0 then
@@ -90,10 +89,6 @@ function HunterDrone:update(player, dt, playerSize)
 
     local size = playerSize or 35
 
-    -- Store previous position for potential collision handling
-    self.prevX = self.x
-    self.prevY = self.y
-
     -- Calculate player center and drone center
     local px = (player and player.x or 0) + size / 2
     local py = (player and player.y or 0) + size / 2
@@ -151,7 +146,6 @@ function HunterDrone:update(player, dt, playerSize)
         return
     end
 
-    -- Apply velocity to position
     self.x = self.x + self.vx * dt
     self.y = self.y + self.vy * dt
 end
