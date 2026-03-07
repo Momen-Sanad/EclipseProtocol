@@ -35,7 +35,7 @@ function EnemySystem.reset(playWidth, playHeight, opts)
         x2 = x2,
         y2 = y2,
         size = droneSize,
-        speed = 180,
+        speed = 170,
         damage = 12,
         invulDuration = 1.5,
         color = { 0.95, 0.4, 0.25, 1.0 }
@@ -45,7 +45,7 @@ function EnemySystem.reset(playWidth, playHeight, opts)
         x = math.floor(w * 0.2),
         y = math.floor(h * 0.7),
         size = hunterSize,
-        speed = 220,
+        speed = 180,
         visionRange = 420,
         dotThreshold = 0.5,
         damage = 15,

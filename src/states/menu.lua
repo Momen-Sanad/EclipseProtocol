@@ -252,15 +252,16 @@ function MenuState.draw()
         love.graphics.print("W/A/S/D - Move", contentX, contentY + 58)
         love.graphics.print("Space - Dash", contentX, contentY + 78)
         love.graphics.print("Enter - Repair Power Node", contentX, contentY + 98)
+        love.graphics.print("Q - Stun Gun", contentX, contentY + 118)
 
         love.graphics.setFont(menuFont)
         setColor(COL.text)
-        love.graphics.print("MUSIC VOLUME", contentX, contentY + 130)
+        love.graphics.print("MUSIC VOLUME", contentX, contentY + 150)
 
         local barW = panelW - 80
         local barH = 16
         local barX = contentX
-        local barY = contentY + 170
+        local barY = contentY + 190
 
         setColor(COL.panelEdge)
         love.graphics.rectangle("line", barX, barY, barW, barH, 6, 6)

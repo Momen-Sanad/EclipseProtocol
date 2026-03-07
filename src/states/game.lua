@@ -1,5 +1,6 @@
 -- Main gameplay state: orchestrates systems for movement, AI, pickups, objectives, and HUD.
 local InputSystem = require("src/systems/input_system")
+local AbilitySystem = require("src/systems/ability_system")
 local MovementSystem = require("src/systems/movement_system")
 local AudioSystem = require("src/systems/audio_system")
 local EnemyBase = require("src/entities/enemy_base")
@@ -50,6 +51,7 @@ local function resetRun(context)
         hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE
     })
     PowerNodeSystem.reset(w, h, context)
+    AbilitySystem.reset(context)
 
     return player
 end
@@ -101,6 +103,7 @@ function GameState.update(dt, context)
     }
 
     MovementSystem.update(player, InputSystem, dt, bounds)
+    AbilitySystem.update(player, EnemySystem.getDrones(), EnemySystem.getHunters(), InputSystem, dt, playerSize)
     EnemySystem.update(player, dt, playerSize)
 
     -- Resolve node solidity before and after enemy/player collision exchange.
@@ -154,6 +157,7 @@ function GameState.draw(context)
 
     EnemySystem.draw(player, playerSize)
     PlayerSystem.draw()
+    AbilitySystem.draw()
     PowerNodeSystem.draw()
     CellSystem.draw()
 

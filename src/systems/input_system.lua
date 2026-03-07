@@ -35,6 +35,10 @@ function InputSystem.interactPressed()
     return InputSystem.keysPressed["return"] == true or InputSystem.keysPressed["kpenter"] == true
 end
 
+function InputSystem.stunGunPressed()
+    return InputSystem.keysPressed["q"] == true
+end
+
 function InputSystem.quitRequested()
     return InputSystem.keysPressed["escape"] == true
 end
