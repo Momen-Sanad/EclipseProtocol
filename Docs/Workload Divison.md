@@ -124,7 +124,7 @@
         
     - Enemy animations 
         
-    - Frame timing 
+    - Frame timing // done
         
 5. **Enemy Variants (Data & Assembly)**
     
@@ -147,7 +147,7 @@
     
     - Damage flicker //done
         
-    - Screen flashes 
+    - Screen flashes // done
         
     - Hit feedback 
         
