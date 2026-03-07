@@ -117,7 +117,7 @@
     - Sound effects playback // done
         
     - Volume control // done
-        
+    
 4. **Animation System**
     
     - Player animations (idle, move, dash) // done 
@@ -141,7 +141,7 @@
         
     - Visual indicators 
         
-    - Collection feedback 
+    - Collection feedback // done
         
 7. **Visual Feedback Effects**
     

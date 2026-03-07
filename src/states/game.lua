@@ -198,6 +198,9 @@ local function ensurePlayer(context)
         dashCooldown = context.playerDashCooldown,
         -- Forward the shared audio path so player movement can play the dash cue.
         dashSoundPath = context.dashSoundPath,
+        footstepSoundPath = context.footstepSoundPath,
+        footstepInterval = context.footstepInterval,
+        footstepVolume = context.footstepVolume,
         size = context.playerSize or 35,
         spritePath = context.playerSpritePath or "assets/sprites/player/Robot.png",
         frameDuration = context.playerFrameDuration or 0.12,

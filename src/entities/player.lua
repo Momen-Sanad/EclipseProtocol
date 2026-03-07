@@ -389,8 +389,14 @@ function Player.new(config)
         dashTimer = 0,
         dashCooldownTimer = 0,
         isDashing = false,
+        isMoving = false,
+        standStillTimer = 0,
         -- Stored on the entity so the movement system can trigger the correct dash SFX.
         dashSoundPath = cfg.dashSoundPath or "assets/audio/sfx/Dash.wav",
+        footstepSoundPath = cfg.footstepSoundPath or "assets/audio/sfx/Footsteps.mp3",
+        footstepVolume = cfg.footstepVolume or 0.35,
+        footstepSource = nil,
+        footstepSourcePath = nil,
 
         -- health / energy
         maxHealth = cfg.maxHealth or 100,
