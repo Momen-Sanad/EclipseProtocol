@@ -395,6 +395,7 @@ function Player.new(config)
         standStillTimer = 0,
         -- Stored on the entity so the movement system can trigger the correct dash SFX.
         dashSoundPath = cfg.dashSoundPath or "assets/audio/sfx/Dash.wav",
+        damageSoundPath = cfg.damageSoundPath or "assets/audio/sfx/Damage.mp3",
         footstepSoundPath = cfg.footstepSoundPath or "assets/audio/sfx/Footsteps.mp3",
         footstepVolume = cfg.footstepVolume or 0.35,
         footstepSource = nil,

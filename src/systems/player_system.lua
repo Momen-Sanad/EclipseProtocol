@@ -22,6 +22,7 @@ function PlayerSystem.ensure(context, playWidth, playHeight)
         dashCooldown = cfg.playerDashCooldown,
         dashEnergyCost = cfg.playerDashEnergyCost,
         dashSoundPath = cfg.dashSoundPath,
+        damageSoundPath = cfg.damageSoundPath,
         size = cfg.playerSize or 35,
         spritePath = cfg.playerSpritePath or "assets/sprites/player/Robot.png",
         frameDuration = cfg.playerFrameDuration or 0.12,

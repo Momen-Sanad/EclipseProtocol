@@ -76,6 +76,7 @@ function love.load()
         footstepSoundPath = "assets/audio/sfx/Footsteps.mp3",
         footstepInterval = 0.35,
         footstepVolume = 0.3,
+        damageSoundPath = "assets/audio/sfx/Damage.mp3",
         cellPickupSoundPath = "assets/audio/sfx/Pickup.mp3",
         menuMusicPath = MENU_MUSIC_PATH,
         gameMusicPath = GAME_MUSIC_PATH,

@@ -1,4 +1,5 @@
 -- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
+local AudioSystem = require("src/systems/audio_system")
 local Kinematics = require("src/utils/kinematics")
 local EnergyCell = require("src/entities/energy_cell")
 
@@ -72,6 +73,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 if enemy.damage and player.health then
                     player.health = math.max(0, player.health - (enemy.damage or 0))
                 end
+                AudioSystem.playSfx(player.damageSoundPath or "assets/audio/sfx/Damage.mp3")
 
                 -- 2) trigger optional hit callback (VFX/SFX hooks)
                 if type(enemy.onHit) == "function" then
