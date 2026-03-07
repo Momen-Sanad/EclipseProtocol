@@ -1,3 +1,4 @@
+-- Segmented HUD widget for the player's energy resource.
 local EnergyBar = {}
 
 local function drawLabel(text, x, y, color)
@@ -11,6 +12,7 @@ local function drawLabel(text, x, y, color)
 end
 
 function EnergyBar.draw(x, y, w, h, current, max, label)
+    -- Mirrors the health bar layout so both resources read as one UI family.
     local value = current or 0
     local maxValue = max or 1
     local pct = 0

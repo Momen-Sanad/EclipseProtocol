@@ -1,3 +1,4 @@
+-- Title screen state with a main menu and lightweight options panel.
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 
@@ -62,6 +63,7 @@ local function drawOutlinedText(font, text, x, y, color, outlineColor)
 end
 
 local function refreshDimensions()
+    -- Recompute panel layout when the window size changes.
     local w, h = love.graphics.getDimensions()
     windowWidth = w
     windowHeight = h
@@ -78,10 +80,12 @@ end
 
 local function setMusicVolume(value)
     musicVolume = math.max(0, math.min(1, value))
+    -- The options slider writes directly into the shared music mix level.
     AudioSystem.setMusicVolume(musicVolume)
 end
 
 local function ensureLoaded()
+    -- Menu assets are loaded on first entry and reused afterwards.
     if loaded then
         return
     end
@@ -103,6 +107,7 @@ local function ensureLoaded()
 end
 
 function MenuState.enter(context)
+    -- Re-entering the menu always resets selection and fades music back in.
     ensureLoaded()
     view = "main"
     menu.selected = 1
@@ -115,6 +120,7 @@ function MenuState.enter(context)
 
     if context and context.menuMusicPath then
         musicTargetVolume = musicVolume
+        -- Restart the menu loop muted, then fade it in during update().
         AudioSystem.playMusic(context.menuMusicPath, { loop = true, volume = 0 })
     end
 end
@@ -127,11 +133,13 @@ function MenuState.update(dt)
         if musicFadeDuration > 0 then
             t = musicFadeTime / musicFadeDuration
         end
+        -- Fade up toward the current menu volume instead of jumping to full loudness.
         AudioSystem.setCurrentMusicVolume(musicTargetVolume * t)
     end
 end
 
 function MenuState.keypressed(key)
+    -- Input is routed between the main menu list and the options view.
     if view == "main" then
         if key == "up" or key == "w" then
             menu.selected = menu.selected - 1
@@ -173,6 +181,7 @@ function MenuState.keypressed(key)
 end
 
 function MenuState.draw()
+    -- The menu uses one panel shell and swaps the inner content by active view.
     local w, h = love.graphics.getDimensions()
     if w ~= windowWidth or h ~= windowHeight then
         refreshDimensions()

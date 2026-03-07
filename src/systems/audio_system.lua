@@ -1,5 +1,7 @@
+-- Centralized music/SFX helper for loading, caching, and runtime volume control.
 local AudioSystem = {}
 
+-- Music is treated as a single active track, while SFX are cached and cloned per play.
 local musicSource = nil
 local musicPath = nil
 local musicVolume = 0.8
@@ -7,6 +9,7 @@ local sfxVolume = 0.9
 local sfxCache = {}
 
 local function loadSource(path, kind)
+    -- Missing audio should fail softly so gameplay can continue.
     if not path or path == "" then
         return nil
     end
@@ -26,6 +29,7 @@ local function loadSource(path, kind)
 end
 
 function AudioSystem.init(config)
+    -- Stores default mix levels and optionally starts a boot track.
     local cfg = config or {}
     if cfg.musicVolume then
         musicVolume = cfg.musicVolume
@@ -39,6 +43,7 @@ function AudioSystem.init(config)
 end
 
 function AudioSystem.playMusic(path, opts)
+    -- Starting new music always replaces the currently playing track.
     if musicSource then
         musicSource:stop()
         musicSource = nil
@@ -81,6 +86,7 @@ function AudioSystem.stopMusic()
 end
 
 function AudioSystem.playSfx(path, opts)
+    -- Reuse a cached template so repeated SFX can overlap without reloading from disk.
     local template = sfxCache[path]
     if not template then
         template = loadSource(path, "static")
@@ -149,6 +155,7 @@ function AudioSystem.setCurrentMusicVolume(volume)
     if volume == nil then
         return
     end
+    -- Temporary fades should not overwrite the saved global music volume.
     if musicSource then
         musicSource:setVolume(math.max(0, math.min(1, volume)))
     end

@@ -1,3 +1,4 @@
+-- Segmented HUD widget for the player's health resource.
 local HealthBar = {}
 
 local function drawLabel(text, x, y, color)
@@ -11,6 +12,7 @@ local function drawLabel(text, x, y, color)
 end
 
 function HealthBar.draw(x, y, w, h, current, max, label)
+    -- The fill is quantized into segments so changes are easy to read at a glance.
     local value = current or 0
     local maxValue = max or 1
     local pct = 0

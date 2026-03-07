@@ -386,6 +386,7 @@ function Player.new(config)
         dashTimer = 0,
         dashCooldownTimer = 0,
         isDashing = false,
+        -- Stored on the entity so the movement system can trigger the correct dash SFX.
         dashSoundPath = cfg.dashSoundPath or "assets/audio/sfx/Dash.wav",
 
         -- health / energy

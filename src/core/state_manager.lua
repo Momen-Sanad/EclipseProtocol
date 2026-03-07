@@ -1,3 +1,4 @@
+-- Lightweight state router that shares one context table across all screens.
 local StateManager = {
     states = {},
     current = nil,
@@ -27,6 +28,7 @@ function StateManager.change(name, ...)
         return
     end
 
+    -- Exit the previous state before entering the next one so transitions stay ordered.
     local prevName = StateManager.currentName
     if StateManager.current and StateManager.current.exit then
         StateManager.current.exit(StateManager.context, name)
@@ -52,6 +54,7 @@ function StateManager.draw()
 end
 
 function StateManager.drawState(name)
+    -- Used by transition/pause screens when they need another state's visual output.
     local state = StateManager.states[name]
     if state and state.draw then
         state.draw(StateManager.context)

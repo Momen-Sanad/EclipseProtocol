@@ -1,3 +1,4 @@
+-- Game-over screen with a background image, retry prompt, and music fade-in.
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 
@@ -23,6 +24,7 @@ local retryScale = 3
 local retryYRatio = 0.86
 
 local function refreshBackground()
+    -- Keep the image covering the full window even if the display size changes.
     local w, h = love.graphics.getDimensions()
     if w == windowWidth and h == windowHeight then
         return
@@ -60,6 +62,7 @@ local function getRetryBounds(w, h)
 end
 
 function GameOverState.enter(context)
+    -- Enter resets visual/audio fades so the screen always animates from a clean state.
     ensureFont()
     if not bg then
         bg = love.graphics.newImage("assets/ui/Game Over.jpg")
@@ -72,6 +75,7 @@ function GameOverState.enter(context)
     musicTargetVolume = (AudioSystem.getMusicVolume and AudioSystem.getMusicVolume()) or 0.8
     soundPath = (context and context.gameOverSoundPath) or "assets/audio/sfx/Game Over.mp3"
 
+    -- The game-over sting is treated as the active music track so it can fade in cleanly.
     AudioSystem.playMusic(soundPath, { loop = true, volume = 0 })
 end
 
@@ -86,6 +90,7 @@ function GameOverState.update(dt)
         if musicFadeDuration > 0 then
             t = musicFadeTime / musicFadeDuration
         end
+        -- Fade from silence to the user's current music volume.
         AudioSystem.setCurrentMusicVolume(musicTargetVolume * t)
     end
 end
@@ -117,6 +122,7 @@ function GameOverState.mousepressed(x, y, button)
 end
 
 function GameOverState.draw()
+    -- Only the retry prompt fades in; the background is shown immediately.
     ensureFont()
     refreshBackground()
     local w = windowWidth

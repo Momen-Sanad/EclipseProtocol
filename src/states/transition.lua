@@ -1,3 +1,4 @@
+-- Simple fade transition that bridges two registered states and manages music handoff.
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 
@@ -11,6 +12,7 @@ local fromState = "menu"
 local toState = "game"
 
 function TransitionState.enter(context, prevName, nextName)
+    -- Store both endpoints so draw() can render the outgoing state before the swap completes.
     duration = context.transitionDuration or 2.5
     fadeDuration = context.fadeDuration or 0.5
     timeLeft = duration
@@ -32,6 +34,7 @@ function TransitionState.update(dt, context)
     if fadeTime > 0 then
         if elapsed <= fadeTime then
             local t = math.min(1, elapsed / fadeTime)
+            -- Fade out the current track before handing control to the destination state.
             AudioSystem.setCurrentMusicVolume(startVolume * (1 - t))
         else
             AudioSystem.setCurrentMusicVolume(0)
@@ -42,12 +45,14 @@ function TransitionState.update(dt, context)
         timeLeft = 0
         StateManager.change(toState)
         if toState == "game" and context.gameMusicPath then
+            -- Gameplay music starts only after the transition completes.
             AudioSystem.playMusic(context.gameMusicPath)
         end
     end
 end
 
 function TransitionState.draw(context)
+    -- Fade to black, hold briefly, then reveal the destination state's first frame.
     local w, h = love.graphics.getDimensions()
     local elapsed = duration - timeLeft
     local fadeTime = math.min(fadeDuration, duration / 2)

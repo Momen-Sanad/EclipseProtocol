@@ -1,3 +1,4 @@
+-- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
 local CollisionSystem = {}
 
 local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
@@ -9,6 +10,7 @@ function CollisionSystem.overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
 end
 
 function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
+    -- Treat the player as a square hitbox and compare it against the enemy bounds.
     if not player or not enemy then
         return false
     end
@@ -22,6 +24,7 @@ function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
 end
 
 function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
+    -- Resolve penetration, then apply damage, knockback, and temporary invulnerability.
     if not enemies or not player then
         return false
     end
@@ -123,6 +126,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
 end
 
 function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
+    -- Push enemies back to their previous positions after a contact frame.
     if not enemies or not player then
         return false
     end
@@ -149,6 +153,7 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
 end
 
 function CollisionSystem.collectCells(player, cells, playerSize)
+    -- Remove pickups in-place so the caller can track how many were collected this frame.
     if not player or not cells then
         return 0
     end

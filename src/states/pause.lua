@@ -1,3 +1,4 @@
+-- Pause overlay that draws on top of gameplay and exposes quick navigation/options.
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 
@@ -57,10 +58,12 @@ end
 
 local function setMusicVolume(value)
     musicVolume = math.max(0, math.min(1, value))
+    -- Pause options adjust the same shared music volume used by other states.
     AudioSystem.setMusicVolume(musicVolume)
 end
 
 local function ensureLoaded()
+    -- Pause UI assets are tiny, so they are cached after first construction.
     if loaded then
         return
     end
@@ -79,6 +82,7 @@ local function ensureLoaded()
 end
 
 function PauseState.enter(context)
+    -- Entering pause keeps game state intact and only resets menu navigation state.
     ensureLoaded()
     view = "main"
     menu.selected = 1
@@ -95,6 +99,7 @@ function PauseState.update(dt)
 end
 
 function PauseState.keypressed(key)
+    -- Pause input either navigates the pause menu or returns directly to gameplay.
     if view == "main" then
         if key == "escape" then
             StateManager.change("transition", "game")
@@ -144,6 +149,7 @@ function PauseState.keypressed(key)
 end
 
 function PauseState.draw()
+    -- The current game frame is drawn first, then a translucent pause overlay is layered above it.
     StateManager.drawState("game")
     love.graphics.setColor(0, 0, 0, 0.45)
     love.graphics.rectangle("fill", 0, 0, windowWidth, windowHeight)

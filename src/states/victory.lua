@@ -1,3 +1,4 @@
+-- Victory screen that mirrors game-over flow with a different backdrop and track.
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 
@@ -32,6 +33,7 @@ local function setColor(col, alpha)
 end
 
 local function refreshBackground()
+    -- Victory art stretches to the current window dimensions.
     local w, h = love.graphics.getDimensions()
     if w == windowWidth and h == windowHeight then
         return
@@ -68,6 +70,7 @@ local function getRetryBounds(w, h)
 end
 
 function GameOverState.enter(context)
+    -- Victory uses the same fade pattern as game over, but with its own image and music.
     ensureFont()
     if not bg then
         bg = love.graphics.newImage("assets/ui/Victory.jpg")
@@ -80,6 +83,7 @@ function GameOverState.enter(context)
     musicTargetVolume = (AudioSystem.getMusicVolume and AudioSystem.getMusicVolume()) or 0.8
     soundPath = (context and context.victorySoundPath) or "assets/audio/sfx/Victory.mp3"
 
+    -- The victory track takes over the music channel and fades in from silence.
     AudioSystem.playMusic(soundPath, { loop = true, volume = 0 })
 end
 
@@ -94,6 +98,7 @@ function GameOverState.update(dt)
         if musicFadeDuration > 0 then
             t = musicFadeTime / musicFadeDuration
         end
+        -- Restore the configured loudness gradually for the end-state music.
         AudioSystem.setCurrentMusicVolume(musicTargetVolume * t)
     end
 end
@@ -125,6 +130,7 @@ function GameOverState.mousepressed(x, y, button)
 end
 
 function GameOverState.draw()
+    -- The continue prompt is rendered over the static victory background.
     ensureFont()
     refreshBackground()
     local w = windowWidth

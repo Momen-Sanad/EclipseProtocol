@@ -1,6 +1,8 @@
+-- Utility for extracting frame quads from sprite sheets that use transparent spacing.
 local SpriteSheet = {}
 
 function SpriteSheet.buildFrames(imagePath, options)
+    -- Scan rows and columns for opaque regions, then build quads for each detected frame.
     local opts = options or {}
     local alphaLimit = opts.alphaCutoff or 0.05
     local emptyThreshold = opts.emptyFrac or 0.98

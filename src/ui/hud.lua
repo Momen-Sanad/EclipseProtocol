@@ -1,3 +1,4 @@
+-- High-level HUD renderer for bars, timer, score, and dash cooldown feedback.
 local HealthBar = require("src/ui/health_bar")
 local EnergyBar = require("src/ui/energy_bar")
 
@@ -7,6 +8,7 @@ local font = nil
 local dashIcon = nil
 
 local function ensureFont()
+    -- Lazily load HUD assets so entering the module does not allocate immediately.
     if font then
         return
     end
@@ -29,6 +31,7 @@ local function formatTime(seconds)
 end
 
 local function drawDashCooldown(x, y, radius, remaining, total, font)
+    -- Draw a radial timer on top of the dash icon while the ability is cooling down.
     local cooldown = total or 0
     local timeLeft = math.max(0, remaining or 0)
     if cooldown <= 0 then
@@ -69,6 +72,7 @@ local function drawDashCooldown(x, y, radius, remaining, total, font)
 end
 
 function Hud.draw(player, elapsedTime, score)
+    -- The HUD reads player state only; it does not mutate gameplay state.
     if not player then
         return
     end
@@ -85,7 +89,7 @@ function Hud.draw(player, elapsedTime, score)
 
     local energyY = padding + barH + 14
     EnergyBar.draw(padding, energyY, barW, barH, player.energy, player.maxEnergy, "ENERGY")
-
+        -- The timer and score are drawn after the bars so they appear on top. They read from the same player state but do not affect it, so they can be safely rendered in any order.
     if elapsedTime ~= nil then
         local w = love.graphics.getWidth()
         local label = "TIME " .. formatTime(elapsedTime)
@@ -98,6 +102,7 @@ function Hud.draw(player, elapsedTime, score)
         love.graphics.setColor(0.70, 0.82, 0.88, 1.0)
         love.graphics.print(fpsLabel, w - fpsW - padding, padding + font:getHeight() + 6)
 
+        -- Draw the dash cooldown indicator in the bottom left corner if the player has the ability and it is on cooldown.
         if player.dashCooldown and dashIcon then
             local iconW = dashIcon:getWidth()
             local iconH = dashIcon:getHeight()

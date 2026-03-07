@@ -1,3 +1,4 @@
+-- Main gameplay state: owns the player, pickups, enemies, HUD, and win/lose flow.
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
 local CollisionSystem = require("src/systems/collision_system")
@@ -32,6 +33,7 @@ local Hunters = {}
 local HUNTER_SIZE = 90
 
 local function ensureCellSprite()
+    -- Pickups reuse one shared image instead of reloading per cell instance.
     if CellSprite then
         return
     end
@@ -39,6 +41,7 @@ local function ensureCellSprite()
 end
 
 local function spawnCell(context)
+    -- Cells are scattered randomly within the visible play bounds.
     local w = context.windowWidth or windowWidth
     local h = context.windowHeight or windowHeight
     local cell = {
@@ -51,6 +54,7 @@ local function spawnCell(context)
 end
 
 local function resetCells(context)
+    -- Called on fresh game starts to rebuild the pickup set from scratch.
     Cells = {}
     CellsCollected = 0
     for _ = 1, CELL_COUNT do
@@ -59,6 +63,7 @@ local function resetCells(context)
 end
 
 local function resetDrones(context)
+    -- Spawns one patrol drone and one hunter drone using the current window size.
     Drones = {}
     Hunters = {}
 
@@ -106,6 +111,7 @@ local function resetDrones(context)
 end
 
 local function loadAssets(context)
+    -- Background sizing is cached because it is stable across one game session.
     if loaded then
         return
     end
@@ -124,6 +130,7 @@ local function loadAssets(context)
 end
 
 local function ensurePlayer(context)
+    -- The player instance is persistent between pause transitions and recreated only once.
     if Player then
         return
     end
@@ -135,6 +142,7 @@ local function ensurePlayer(context)
         dashSpeed = context.playerDashSpeed,
         dashDuration = context.playerDashDuration,
         dashCooldown = context.playerDashCooldown,
+        -- Forward the shared audio path so player movement can play the dash cue.
         dashSoundPath = context.dashSoundPath,
         size = context.playerSize or 35,
         spritePath = context.playerSpritePath or "assets/sprites/player/Robot.png",
@@ -159,11 +167,13 @@ local function ensurePlayer(context)
 end
 
 function GameState.preload(context)
+    -- Used by transition.lua so the destination state can prepare assets off-screen.
     loadAssets(context)
     ensurePlayer(context)
 end
 
 function GameState.enter(context, prevName)
+    -- Reset transient gameplay state unless we are resuming from pause.
     loadAssets(context)
     ensurePlayer(context)
     if prevName ~= "pause" then
@@ -197,6 +207,7 @@ function GameState.enter(context, prevName)
 end
 
 function GameState.update(dt, context)
+    -- Update order matters: invulnerability, movement, enemies, collisions, then HUD-facing data.
     if not Player then
         ensurePlayer(context)
     end
@@ -272,6 +283,7 @@ function GameState.keyreleased(key)
 end
 
 function GameState.draw(context)
+    -- Render world layers back-to-front: background, enemies, player, pickups, HUD.
     loadAssets(context)
     ensurePlayer(context)
 
