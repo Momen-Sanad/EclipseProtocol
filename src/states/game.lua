@@ -1,241 +1,72 @@
--- Main gameplay state: owns the player, pickups, enemies, HUD, and win/lose flow.
+-- Main gameplay state: orchestrates systems for movement, AI, pickups, objectives, and HUD.
 local InputSystem = require("src/systems/input_system")
 local MovementSystem = require("src/systems/movement_system")
-local CollisionSystem = require("src/systems/collision_system")
 local AudioSystem = require("src/systems/audio_system")
-local PlayerEntity = require("src/entities/player")
 local EnemyBase = require("src/entities/enemy_base")
-local PowerNode = require("src/entities/power_node")
-local PatrolDrone = require("src/entities/patrol_drone")
-local HunterDrone = require("src/entities/hunter_drone")
+local PlayfieldSystem = require("src/systems/playfield_system")
+local PlayerSystem = require("src/systems/player_system")
+local EnemySystem = require("src/systems/enemy_system")
+local CellSystem = require("src/systems/cell_system")
+local PowerNodeSystem = require("src/systems/power_node_system")
+local EnergySystem = require("src/systems/energy_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
 local StateManager = require("src/core/state_manager")
 
 local GameState = {}
 
-local loaded = false
-local BG = nil
-local BG_SCALE = 1
-local BG_OFFSET_X = 0
-local BG_OFFSET_Y = 0
-local windowWidth = 0
-local windowHeight = 0
-
-local Player = nil
 local elapsedTime = 0
-local Cells = {}
-local CellsCollected = 0
-local CELL_COUNT = 10
-local CELL_SIZE = 300
-local CellSprite = nil
-local Drones = {}
-local DRONE_SIZE = 90
-local Hunters = {}
-local HUNTER_SIZE = 90
+local DEFAULT_CELL_COUNT = 10
+local DEFAULT_CELL_SIZE = 300
 local DEFAULT_CELL_ENERGY_RESTORE = 25
-local PowerNodes = {}
-
-local function refreshBackground()
-    if not BG then
-        return
-    end
-
-    local w, h = love.graphics.getDimensions()
-    if w == windowWidth and h == windowHeight then
-        return
-    end
-
-    windowWidth = w
-    windowHeight = h
-
-    local bgW = BG:getWidth()
-    local bgH = BG:getHeight()
-    BG_SCALE = math.max(windowWidth / bgW, windowHeight / bgH)
-    BG_OFFSET_X = (windowWidth - bgW * BG_SCALE) / 2
-    BG_OFFSET_Y = (windowHeight - bgH * BG_SCALE) / 2
-end
+local DEFAULT_DRONE_SIZE = 90
+local DEFAULT_HUNTER_SIZE = 90
 
 local function getPlayAreaSize(context)
-    refreshBackground()
-
-    local w = windowWidth
-    local h = windowHeight
-
-    if w <= 0 or h <= 0 then
-        w = (context and context.windowWidth) or 1280
-        h = (context and context.windowHeight) or 720
-    end
-
-    return w, h
+    return PlayfieldSystem.getPlayAreaSize(
+        (context and context.windowWidth) or 1280,
+        (context and context.windowHeight) or 720
+    )
 end
 
-local function ensureCellSprite()
-    -- Pickups reuse one shared image instead of reloading per cell instance.
-    if CellSprite then
-        return
-    end
-    CellSprite = love.graphics.newImage("assets/ui/Cell.png")
-end
-
-local function spawnCell(context)
-    -- Cells are scattered randomly within the visible play bounds.
+local function ensureRuntime(context)
     local w, h = getPlayAreaSize(context)
-    local cell = {
-        x = love.math.random(0, math.max(0, w - CELL_SIZE)),
-        y = love.math.random(0, math.max(0, h - CELL_SIZE)),
-        width = CELL_SIZE,
-        height = CELL_SIZE
-    }
-    table.insert(Cells, cell)
+    local player = PlayerSystem.ensure(context, w, h)
+    return player, w, h
 end
 
-local function resetCells(context)
-    -- Called on fresh game starts to rebuild the pickup set from scratch.
-    Cells = {}
-    CellsCollected = 0
-    for _ = 1, CELL_COUNT do
-        spawnCell(context)
-    end
-end
+local function resetRun(context)
+    local player, w, h = ensureRuntime(context)
+    PlayerSystem.resetForRun(context, w, h)
+    elapsedTime = 0
 
-local function resetDrones(context)
-    -- Spawns one patrol drone and one hunter drone using the current window size.
-    Drones = {}
-    Hunters = {}
-
-    local w, h = getPlayAreaSize(context)
-    local margin = DRONE_SIZE + 40
-
-    local x1 = margin
-    local y1 = math.floor(h * 0.3)
-    local x2 = math.max(margin, w - margin)
-    local y2 = y1
-
-    local drone = PatrolDrone.new({
-        x = x1,
-        y = y1,
-        x1 = x1,
-        y1 = y1,
-        x2 = x2,
-        y2 = y2,
-        size = DRONE_SIZE,
-        speed = 180,
-        damage = 12,
-        invulDuration = 1.5,
-        color = { 0.95, 0.4, 0.25, 1.0 }
+    CellSystem.reset(w, h, {
+        count = context.cellCount or DEFAULT_CELL_COUNT,
+        size = context.cellSize or DEFAULT_CELL_SIZE,
+        spritePath = context.cellSpritePath or "assets/ui/Cell.png"
     })
-
-    table.insert(Drones, drone)
-
-    local hunter = HunterDrone.new({
-        x = math.floor(w * 0.2),
-        y = math.floor(h * 0.7),
-        size = HUNTER_SIZE,
-        speed = 220,
-        visionRange = 420,
-        dotThreshold = 0.5,
-        damage = 15,
-        invulDuration = 1.5,
-        color = { 0.2, 0.85, 1.0, 1.0 },
-        coneColor = { 0.2, 0.8, 1.0, 0.18 },
-        lineColor = { 0.9, 0.9, 1.0, 0.7 },
-        lookColor = { 0.2, 0.9, 1.0, 0.9 }
+    EnemySystem.reset(w, h, {
+        droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
+        hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE
     })
+    PowerNodeSystem.reset(w, h, context)
 
-    table.insert(Hunters, hunter)
-end
-
-local function resetPowerNodes(context)
-    local w, h = getPlayAreaSize(context)
-    PowerNodes = PowerNode.buildGrid(w, h, {
-        size = context.powerNodeSize or context.nodeSize,
-        count = context.powerNodeCount or context.nodeCount,
-        interactRange = context.powerNodeInteractRange or context.nodeInteractRange,
-        repairDuration = context.powerNodeRepairDuration or context.nodeRepairDuration
-    })
-end
-
-local function loadAssets(context)
-    -- Background sizing is cached because it is stable across one game session.
-    if loaded then
-        refreshBackground()
-        return
-    end
-
-    BG = love.graphics.newImage(context.backgroundPath or "assets/ui/background.png")
-    refreshBackground()
-    loaded = true
-end
-
-local function ensurePlayer(context)
-    -- The player instance is persistent between pause transitions and recreated only once.
-    if Player then
-        return
-    end
-
-    local w, h = getPlayAreaSize(context)
-
-    Player = PlayerEntity.new({
-        x = w / 2,
-        y = h / 2,
-        speed = context.playerSpeed or 300,
-        moveStartSpeed = context.playerMoveStartSpeed,
-        moveRampDuration = context.playerMoveRampDuration,
-        dashSpeed = context.playerDashSpeed,
-        dashDuration = context.playerDashDuration,
-        dashCooldown = context.playerDashCooldown,
-        dashEnergyCost = context.playerDashEnergyCost,
-        -- Forward the shared audio path so player movement can play the dash cue.
-        dashSoundPath = context.dashSoundPath,
-        size = context.playerSize or 35,
-        spritePath = context.playerSpritePath or "assets/sprites/player/Robot.png",
-        frameDuration = context.playerFrameDuration or 0.12,
-        animMode = context.playerAnimMode,
-        frameWidth = context.playerFrameWidth,
-        frameHeight = context.playerFrameHeight,
-        frameCols = context.playerFrameCols,
-        frameRows = context.playerFrameRows,
-        frameLeft = context.playerFrameLeft,
-        frameTop = context.playerFrameTop,
-        frameSpacing = context.playerFrameSpacing,
-        defaultAnim = context.playerDefaultAnim,
-        stateFrameCounts = context.playerStateFrameCounts,
-        stateFrameDurations = context.playerStateFrameDurations,
-        stateRows = context.playerStateRows,
-        maxHealth = context.playerMaxHealth or 100,
-        health = context.playerHealth or 100,
-        maxEnergy = context.playerMaxEnergy or 100,
-        energy = context.playerEnergy or 100
-    })
+    return player
 end
 
 function GameState.preload(context)
     -- Used by transition.lua so the destination state can prepare assets off-screen.
-    loadAssets(context)
-    ensurePlayer(context)
+    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    ensureRuntime(context)
 end
 
 function GameState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
-    loadAssets(context)
-    ensurePlayer(context)
-    local w, h = getPlayAreaSize(context)
+    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    local player = ensureRuntime(context)
+
     if prevName ~= "pause" then
-        Player.x = w / 2
-        Player.y = h / 2
-        Player.frameIndex = 1
-        Player.frameTimer = 0
-        Player.health = Player.maxHealth or (context.playerMaxHealth or 100)
-        Player.energy = Player.maxEnergy or (context.playerMaxEnergy or 100)
-        Player.invulTimer = 0
-        Player.invulnerable = false
-        Player.hitThisFrame = false
-        elapsedTime = 0
-        ensureCellSprite()
-        resetCells(context)
-        resetDrones(context)
-        resetPowerNodes(context)
+        player = resetRun(context)
     end
 
     if prevName == "gameover" then
@@ -254,110 +85,52 @@ end
 
 function GameState.update(dt, context)
     -- Update order matters: invulnerability, movement, enemies, collisions, then HUD-facing data.
-    if not Player then
-        ensurePlayer(context)
-    end
-    local w, h = getPlayAreaSize(context)
-    Player.hitThisFrame = false
-    EnemyBase.updatePlayerInvul(Player, dt)
-    Kinematics.capturePreviousPosition(Player)
+    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    local player, w, h = ensureRuntime(context)
+    local playerSize = context.playerSize or 35
+
+    player.hitThisFrame = false
+    EnemyBase.updatePlayerInvul(player, dt)
+    Kinematics.capturePreviousPosition(player)
 
     local bounds = {
         minX = 8,
         minY = 8,
-        maxX = w - (context.playerSize or 35),
-        maxY = h - (context.playerSize or 35)
+        maxX = w - playerSize,
+        maxY = h - playerSize
     }
 
-    MovementSystem.update(
-        Player,
-        InputSystem,
-        dt,
-        bounds
-    )
+    MovementSystem.update(player, InputSystem, dt, bounds)
+    EnemySystem.update(player, dt, playerSize)
 
-    for _, drone in ipairs(Drones) do
-        drone.prevX = drone.x
-        drone.prevY = drone.y
-        drone:update(dt)
-    end
+    -- Resolve node solidity before and after enemy/player collision exchange.
+    PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
+    EnemySystem.resolvePlayerCollisions(player, playerSize)
+    PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
 
-    local playerSize = context.playerSize or 35
-    for _, hunter in ipairs(Hunters) do
-        hunter.prevX = hunter.x
-        hunter.prevY = hunter.y
-        hunter:update(Player, dt, playerSize)
-    end
+    Kinematics.clampPosition(player, bounds)
 
-    if PowerNodes and #PowerNodes > 0 then
-        for _, node in ipairs(PowerNodes) do
-            CollisionSystem.resolveEntityOnObstacle(Player, playerSize, playerSize, node)
-            CollisionSystem.stopEnemiesOnObstacle(Drones, node)
-            CollisionSystem.stopEnemiesOnObstacle(Hunters, node)
-        end
-    end
-
-    CollisionSystem.stopPlayerOnEnemies(Drones, Player, context.playerSize or 35)
-    CollisionSystem.stopPlayerOnEnemies(Hunters, Player, context.playerSize or 35)
-    CollisionSystem.stopEnemiesOnPlayer(Drones, Player, context.playerSize or 35)
-    CollisionSystem.stopEnemiesOnPlayer(Hunters, Player, context.playerSize or 35)
-
-    if PowerNodes and #PowerNodes > 0 then
-        for _, node in ipairs(PowerNodes) do
-            CollisionSystem.resolveEntityOnObstacle(Player, playerSize, playerSize, node)
-            CollisionSystem.stopEnemiesOnObstacle(Drones, node)
-            CollisionSystem.stopEnemiesOnObstacle(Hunters, node)
-        end
-    end
-
-    -- Collision nudges can push the player outside bounds after movement integration.
-    Kinematics.clampPosition(Player, bounds)
-
-    if Player.health and Player.health <= 0 then
+    if player.health and player.health <= 0 then
         StateManager.change("transition", "gameover")
         return
     end
 
-    if PowerNodes and #PowerNodes > 0 then
-        local playerStill = PowerNode.isPlayerStationarySinceLastFrame(Player)
-        local activeNode = PowerNode.getActive(PowerNodes)
-
-        if not activeNode and playerStill and InputSystem.interactPressed() then
-            local candidateNode = PowerNode.getNearestInRange(Player, PowerNodes, context.playerSize or 35)
-            if candidateNode then
-                PowerNode.startRepair(candidateNode)
-                activeNode = candidateNode
-            end
-        end
-
-        if activeNode then
-            if not playerStill then
-                PowerNode.cancelRepair(activeNode)
-            else
-                PowerNode.updateRepair(activeNode, dt)
-            end
-        end
-
-        if PowerNode.allRepaired(PowerNodes) then
-            StateManager.change("transition", "victory")
-            return
-        end
+    if PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
+        StateManager.change("transition", "victory")
+        return
     end
 
-    PlayerEntity.update(Player, dt)
+    PlayerSystem.updateAnimation(dt)
     InputSystem.update()
-
     elapsedTime = elapsedTime + dt
 
-    local collected = CollisionSystem.collectCells(Player, Cells, context.playerSize or 35)
+    local collected = CellSystem.collect(player, playerSize)
     if collected > 0 then
-        CellsCollected = CellsCollected + collected
-        if type(Player.energy) == "number" then
-            local energyPerCell = math.max(0, context.energyCellRestore or DEFAULT_CELL_ENERGY_RESTORE)
-            local maxEnergy = Player.maxEnergy or Player.energy
-            local restoredEnergy = collected * energyPerCell
-            Player.energy = math.min(maxEnergy, Player.energy + restoredEnergy)
-        end
+        EnergySystem.restoreFromCells(
+            player,
+            collected,
+            context.energyCellRestore or DEFAULT_CELL_ENERGY_RESTORE
+        )
     end
 end
 
@@ -375,49 +148,25 @@ end
 
 function GameState.draw(context)
     -- Render world layers back-to-front: background, enemies, player, pickups, HUD.
-    loadAssets(context)
-    refreshBackground()
-    ensurePlayer(context)
+    PlayfieldSystem.drawBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    local player = PlayerSystem.get()
+    local playerSize = context.playerSize or 35
 
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(BG, BG_OFFSET_X, BG_OFFSET_Y, 0, BG_SCALE, BG_SCALE)
-    for _, drone in ipairs(Drones) do
-        drone:draw()
-    end
-    for _, hunter in ipairs(Hunters) do
-        hunter:draw(Player, (context.playerSize or 35)/2)
-    end
-    PlayerEntity.draw(Player)
+    EnemySystem.draw(player, playerSize)
+    PlayerSystem.draw()
+    PowerNodeSystem.draw()
+    CellSystem.draw()
 
-    if PowerNodes and #PowerNodes > 0 then
-        for _, node in ipairs(PowerNodes) do
-            PowerNode.draw(node)
-        end
-    end
-
-    for _, cell in ipairs(Cells) do
-        if CellSprite then
-            local scale = CELL_SIZE / math.max(CellSprite:getWidth(), CellSprite:getHeight())
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(CellSprite, cell.x, cell.y, 0, scale, scale)
-        else
-            love.graphics.setColor(0.7, 0.9, 1.0, 1)
-            love.graphics.rectangle("fill", cell.x, cell.y, cell.width, cell.height)
-        end
-    end
-
-    if PowerNodes and #PowerNodes > 0 then
-        local promptText = PowerNode.getPrompt(Player, PowerNodes, context.playerSize or 35)
+    local promptText = PowerNodeSystem.getPrompt(player, playerSize)
+    if promptText then
         local w = love.graphics.getWidth()
         local h = love.graphics.getHeight()
-        if promptText then
-            love.graphics.setColor(0.9, 0.96, 1.0, 0.95)
-            local textW = love.graphics.getFont():getWidth(promptText)
-            love.graphics.print(promptText, (w - textW) / 2, h - 56)
-        end
+        love.graphics.setColor(0.9, 0.96, 1.0, 0.95)
+        local textW = love.graphics.getFont():getWidth(promptText)
+        love.graphics.print(promptText, (w - textW) / 2, h - 56)
     end
 
-    Hud.draw(Player, elapsedTime, CellsCollected)
+    Hud.draw(player, elapsedTime, CellSystem.getCollectedTotal())
 end
 
 return GameState
