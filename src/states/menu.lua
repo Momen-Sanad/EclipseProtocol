@@ -154,7 +154,7 @@ function MenuState.keypressed(key)
         elseif key == "return" or key == "kpenter" then
             local choice = menu.items[menu.selected]
             if choice == "Start" then
-                StateManager.change("transition", "game")
+                StateManager.change("level_select")
             elseif choice == "Options" then
                 view = "options"
             elseif choice == "Quit" then

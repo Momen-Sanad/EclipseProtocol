@@ -2,6 +2,7 @@
 local AudioSystem = require("src/systems/audio_system")
 local StateManager = require("src/core/state_manager")
 local MenuState = require("src/states/menu")
+local LevelSelectState = require("src/states/level_select")
 local GameState = require("src/states/game")
 local TransitionState = require("src/states/transition")
 local PauseState = require("src/states/pause")
@@ -89,10 +90,59 @@ function love.load()
         gameOverMusicFadeDuration = 1.0,
         gameOverTextFadeDuration = 1.0,
         transitionDuration = TRANSITION_DURATION,
-        fadeDuration = FADE_DURATION
+        fadeDuration = FADE_DURATION,
+        selectedLevelIndex = 1,
+        levelPresets = {
+            {
+                id = "level_1",
+                label = "Level 1 - Training Deck",
+                description = "Lower threat layout for warm-up runs.",
+                settings = {
+                    cellCount = 14,
+                    powerNodeCount = 2,
+                    droneCount = 1,
+                    hunterCount = 1,
+                    droneSpeed = 155,
+                    hunterSpeed = 165,
+                    hunterVisionRange = 350,
+                    energyCellRestore = 18
+                }
+            },
+            {
+                id = "level_2",
+                label = "Level 2 - Core Sector",
+                description = "Balanced station pressure.",
+                settings = {
+                    cellCount = 10,
+                    powerNodeCount = 3,
+                    droneCount = 2,
+                    hunterCount = 1,
+                    droneSpeed = 175,
+                    hunterSpeed = 185,
+                    hunterVisionRange = 420,
+                    energyCellRestore = 15
+                }
+            },
+            {
+                id = "level_3",
+                label = "Level 3 - Reactor Wing",
+                description = "Dense patrols with aggressive hunters.",
+                settings = {
+                    cellCount = 8,
+                    powerNodeCount = 4,
+                    droneCount = 2,
+                    hunterCount = 2,
+                    droneSpeed = 195,
+                    hunterSpeed = 210,
+                    hunterVisionRange = 480,
+                    energyCellRestore = 12
+                }
+            }
+        }
     })
 
     StateManager.register("menu", MenuState)
+    StateManager.register("level_select", LevelSelectState)
     StateManager.register("game", GameState)
     StateManager.register("transition", TransitionState)
     StateManager.register("pause", PauseState)
