@@ -67,6 +67,7 @@ function love.load()
         stunGunRange = 520,
         stunGunStunDuration = 5.0,
         stunGunLaserLifetime = 0.12,
+        stunGunSoundPath = "assets/audio/sfx/Laser.mp3",
         energyCellRestore = 15,
         powerNodeSize = 120,
         powerNodeCount = 3,

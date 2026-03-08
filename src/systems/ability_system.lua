@@ -1,4 +1,6 @@
 -- Stun-gun ability: fires a short-lived laser that stuns one enemy on hit.
+local AudioSystem = require("src/systems/audio_system")
+
 local AbilitySystem = {}
 
 local STUN_DURATION_DEFAULT = 5.0
@@ -6,12 +8,14 @@ local COOLDOWN_DEFAULT = 20.0
 local RANGE_DEFAULT = 520
 local ENERGY_COST_DEFAULT = 60
 local LASER_LIFETIME_DEFAULT = 0.12
+local LASER_SOUND_PATH_DEFAULT = "assets/audio/sfx/Laser.mp3"
 
 local stunDuration = STUN_DURATION_DEFAULT
 local cooldown = COOLDOWN_DEFAULT
 local range = RANGE_DEFAULT
 local energyCost = ENERGY_COST_DEFAULT
 local laserLifetime = LASER_LIFETIME_DEFAULT
+local laserSoundPath = LASER_SOUND_PATH_DEFAULT
 local cooldownTimer = 0
 local laserTimer = 0
 local beamStartX = 0
@@ -112,6 +116,7 @@ function AbilitySystem.reset(context)
     range = cfg.stunGunRange or RANGE_DEFAULT
     energyCost = cfg.stunGunEnergyCost or ENERGY_COST_DEFAULT
     laserLifetime = cfg.stunGunLaserLifetime or LASER_LIFETIME_DEFAULT
+    laserSoundPath = cfg.stunGunSoundPath or LASER_SOUND_PATH_DEFAULT
     cooldownTimer = 0
     laserTimer = 0
 end
@@ -155,6 +160,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
     beamEndX = startX + (dirX * hitDist)
     beamEndY = startY + (dirY * hitDist)
     laserTimer = laserLifetime
+    AudioSystem.playSfx(laserSoundPath)
 
     if hitEnemy then
         hitEnemy.pauseTimer = math.max(hitEnemy.pauseTimer or 0, stunDuration)
