@@ -151,7 +151,7 @@
         
     - Screen flashes // done
         
-    - Hit feedback 
+    - Hit feedback // done
         
 8. **Difficulty Presentation**
     
