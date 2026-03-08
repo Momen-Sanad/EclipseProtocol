@@ -234,6 +234,7 @@ end
 
 function PatrolDrone:update(dt)
     dt = dt or 0
+    EnemyBase.updateStunFlicker(self, dt)
 
     -- Handle pause at patrol points
     if self.pauseTimer and self.pauseTimer > 0 then
@@ -298,12 +299,13 @@ function PatrolDrone:draw()
     if not love or not love.graphics then
         return
     end
+    local alpha = EnemyBase.getStunFlickerAlpha(self)
 
     if self.sprite then
         -- Draw sprite with scaling
         local sprite = self.sprite
         local scale = self.scale or 1
-        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setColor(1, 1, 1, alpha)
         love.graphics.draw(sprite, self.x, self.y, 0, scale, scale)
     elseif self.hasDirectionalSprites then
         local frames = self.framesByDirection[self.animDirection] or {}
@@ -313,11 +315,11 @@ function PatrolDrone:draw()
             local targetH = self.height or frame:getHeight()
             local sx = targetW / frame:getWidth()
             local sy = targetH / frame:getHeight()
-            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.setColor(1, 1, 1, alpha)
             love.graphics.draw(frame, self.x, self.y, 0, sx, sy)
         else
             local color = self.color or { 1, 1, 1, 1 }
-            love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+            love.graphics.setColor(color[1], color[2], color[3], (color[4] or 1) * alpha)
             love.graphics.rectangle("fill", self.x, self.y, self.width or 32, self.height or 32)
         end
     else
@@ -325,7 +327,7 @@ function PatrolDrone:draw()
         local w = self.width or 32
         local h = self.height or 32
         local color = self.color or { 1, 1, 1, 1 }
-        love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+        love.graphics.setColor(color[1], color[2], color[3], (color[4] or 1) * alpha)
         love.graphics.rectangle("fill", self.x, self.y, w, h)
     end
 

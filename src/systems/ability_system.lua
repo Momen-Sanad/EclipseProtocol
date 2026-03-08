@@ -1,5 +1,6 @@
 -- Stun-gun ability: fires a short-lived laser that stuns one enemy on hit.
 local AudioSystem = require("src/systems/audio_system")
+local EnemyBase = require("src/entities/enemy_base")
 
 local AbilitySystem = {}
 
@@ -167,6 +168,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
         hitEnemy.chasing = false
         hitEnemy.vx = 0
         hitEnemy.vy = 0
+        EnemyBase.applyStunFlicker(hitEnemy, 0.35, 5)
     end
 
     if type(player.energy) == "number" then

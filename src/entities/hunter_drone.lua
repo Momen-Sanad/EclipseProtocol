@@ -212,6 +212,7 @@ end
 
 function HunterDrone:update(player, dt, playerSize)
     dt = dt or 0
+    EnemyBase.updateStunFlicker(self, dt)
 
     -- handle pause state (e.g., after collision)
     if self.pauseTimer and self.pauseTimer > 0 then
@@ -293,16 +294,17 @@ function HunterDrone:draw(player, playerSize)
     local size = playerSize or 35
     local cx = self.x + (self.width or 0) / 2
     local cy = self.y + (self.height or 0) / 2
+    local alpha = EnemyBase.getStunFlickerAlpha(self)
 
     if self.detectedPlayer then
         -- Once detected, show a full alert radius instead of the directional cone.
         local fill = self.detectedFillColor or { 1.0, 0.15, 0.15, 0.12 }
         local ring = self.detectedRingColor or { 1.0, 0.25, 0.25, 0.95 }
         local radius = self.visionRange -20 or 400
-        love.graphics.setColor(fill[1], fill[2], fill[3], fill[4] or 1)
+        love.graphics.setColor(fill[1], fill[2], fill[3], (fill[4] or 1) * alpha)
         love.graphics.circle("fill", cx, cy, radius)
         love.graphics.setLineWidth(3)
-        love.graphics.setColor(ring[1], ring[2], ring[3], ring[4] or 1)
+        love.graphics.setColor(ring[1], ring[2], ring[3], (ring[4] or 1) * alpha)
         love.graphics.circle("line", cx, cy, radius)
         love.graphics.setLineWidth(1)
     else
@@ -311,7 +313,7 @@ function HunterDrone:draw(player, playerSize)
         local halfAngle = 1.05
         local orientation = self.spinAngle or math.atan(self.lookY, self.lookX)
         local range = self.visionRange - 20 or 400
-        love.graphics.setColor(coneColor[1], coneColor[2], coneColor[3], coneColor[4] or 1)
+        love.graphics.setColor(coneColor[1], coneColor[2], coneColor[3], (coneColor[4] or 1) * alpha)
         love.graphics.arc("fill", "pie", cx, cy, range, orientation - halfAngle, orientation + halfAngle)
     end
 
@@ -339,7 +341,7 @@ function HunterDrone:draw(player, playerSize)
             local targetH = self.height or frame:getHeight()
             local sx = targetW / frame:getWidth()
             local sy = targetH / frame:getHeight()
-            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.setColor(1, 1, 1, alpha)
             love.graphics.draw(frame, self.x, self.y, 0, sx, sy)
             love.graphics.setColor(1, 1, 1, 1)
             return
@@ -348,7 +350,7 @@ function HunterDrone:draw(player, playerSize)
 
     -- Fallback body if sprites are missing.
     local color = self.color or { 1, 1, 1, 1 }
-    love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+    love.graphics.setColor(color[1], color[2], color[3], (color[4] or 1) * alpha)
     love.graphics.rectangle("fill", self.x, self.y, self.width or 32, self.height or 32)
     love.graphics.setColor(1, 1, 1, 1)
 end
