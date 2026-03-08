@@ -96,47 +96,17 @@ function love.load()
             {
                 id = "level_1",
                 label = "Level 1 - Training Deck",
-                description = "Lower threat layout for warm-up runs.",
-                settings = {
-                    cellCount = 14,
-                    powerNodeCount = 2,
-                    droneCount = 1,
-                    hunterCount = 1,
-                    droneSpeed = 155,
-                    hunterSpeed = 165,
-                    hunterVisionRange = 350,
-                    energyCellRestore = 18
-                }
+                description = "Lower threat layout for warm-up runs."
             },
             {
                 id = "level_2",
                 label = "Level 2 - Core Sector",
-                description = "Balanced station pressure.",
-                settings = {
-                    cellCount = 10,
-                    powerNodeCount = 3,
-                    droneCount = 2,
-                    hunterCount = 1,
-                    droneSpeed = 175,
-                    hunterSpeed = 185,
-                    hunterVisionRange = 420,
-                    energyCellRestore = 15
-                }
+                description = "Balanced station pressure."
             },
             {
                 id = "level_3",
                 label = "Level 3 - Reactor Wing",
-                description = "Dense patrols with aggressive hunters.",
-                settings = {
-                    cellCount = 8,
-                    powerNodeCount = 4,
-                    droneCount = 2,
-                    hunterCount = 2,
-                    droneSpeed = 195,
-                    hunterSpeed = 210,
-                    hunterVisionRange = 480,
-                    energyCellRestore = 12
-                }
+                description = "Dense patrols with aggressive hunters."
             }
         }
     })

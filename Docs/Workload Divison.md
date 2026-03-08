@@ -107,6 +107,8 @@
     - Game Over Screen // done
     
     - Options Menu // done 
+
+    - Level Select Menu // done
         
     - Victory Screen // done
         
@@ -122,7 +124,7 @@
     
     - Player animations (idle, move, dash) // done 
         
-    - Enemy animations 
+    - Enemy animations // done (could be better)
         
     - Frame timing // done
         

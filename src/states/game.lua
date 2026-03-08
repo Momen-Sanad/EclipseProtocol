@@ -26,48 +26,6 @@ local DEFAULT_HUNTER_SIZE = 90
 local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
-local DEFAULT_DRONE_COUNT = 1
-local DEFAULT_HUNTER_COUNT = 1
-
-local activeLevelSettings = nil
-
-local function getSelectedLevelSettings(context)
-    if not context or type(context.levelPresets) ~= "table" then
-        return nil
-    end
-    local selected = context.selectedLevelIndex or 1
-    local preset = context.levelPresets[selected]
-    if not preset or type(preset.settings) ~= "table" then
-        return nil
-    end
-    return preset.settings
-end
-
-local function getConfigValue(context, key, fallback)
-    if activeLevelSettings and activeLevelSettings[key] ~= nil then
-        return activeLevelSettings[key]
-    end
-    if context and context[key] ~= nil then
-        return context[key]
-    end
-    return fallback
-end
-
-local function buildRunContext(context)
-    local base = context or {}
-    if not activeLevelSettings then
-        return base
-    end
-
-    local merged = {}
-    for key, value in pairs(base) do
-        merged[key] = value
-    end
-    for key, value in pairs(activeLevelSettings) do
-        merged[key] = value
-    end
-    return merged
-end
 
 local function getPlayAreaSize(context)
     return PlayfieldSystem.getPlayAreaSize(
@@ -83,32 +41,22 @@ local function ensureRuntime(context)
 end
 
 local function resetRun(context)
-    activeLevelSettings = getSelectedLevelSettings(context)
-    local runContext = buildRunContext(context)
-
-    local player, w, h = ensureRuntime(runContext)
-    PlayerSystem.resetForRun(runContext, w, h)
+    local player, w, h = ensureRuntime(context)
+    PlayerSystem.resetForRun(context, w, h)
     ScreenFlashSystem.reset()
     elapsedTime = 0
 
     CellSystem.reset(w, h, {
-        count = runContext.cellCount or DEFAULT_CELL_COUNT,
-        size = runContext.cellSize or DEFAULT_CELL_SIZE,
-        spritePath = runContext.cellSpritePath or "assets/ui/Cell.png"
+        count = context.cellCount or DEFAULT_CELL_COUNT,
+        size = context.cellSize or DEFAULT_CELL_SIZE,
+        spritePath = context.cellSpritePath or "assets/ui/Cell.png"
     })
     EnemySystem.reset(w, h, {
-        droneSize = runContext.droneSize or DEFAULT_DRONE_SIZE,
-        hunterSize = runContext.hunterSize or DEFAULT_HUNTER_SIZE,
-        droneCount = runContext.droneCount or DEFAULT_DRONE_COUNT,
-        hunterCount = runContext.hunterCount or DEFAULT_HUNTER_COUNT,
-        droneSpeed = runContext.droneSpeed,
-        hunterSpeed = runContext.hunterSpeed,
-        hunterVisionRange = runContext.hunterVisionRange,
-        droneDamage = runContext.droneDamage,
-        hunterDamage = runContext.hunterDamage
+        droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
+        hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE
     })
-    PowerNodeSystem.reset(w, h, runContext)
-    AbilitySystem.reset(runContext)
+    PowerNodeSystem.reset(w, h, context)
+    AbilitySystem.reset(context)
 
     return player
 end
@@ -116,14 +64,13 @@ end
 function GameState.preload(context)
     -- Used by transition.lua so the destination state can prepare assets off-screen.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
-    activeLevelSettings = getSelectedLevelSettings(context)
-    ensureRuntime(buildRunContext(context))
+    ensureRuntime(context)
 end
 
 function GameState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
-    local player = ensureRuntime(buildRunContext(context))
+    local player = ensureRuntime(context)
 
     if prevName ~= "pause" then
         player = resetRun(context)
@@ -146,8 +93,8 @@ end
 function GameState.update(dt, context)
     -- Update order matters: invulnerability, movement, enemies, collisions, then HUD-facing data.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
-    local player, w, h = ensureRuntime(buildRunContext(context))
-    local playerSize = getConfigValue(context, "playerSize", 35)
+    local player, w, h = ensureRuntime(context)
+    local playerSize = context.playerSize or 35
 
     ScreenFlashSystem.update(dt)
     player.hitThisFrame = false
@@ -171,9 +118,9 @@ function GameState.update(dt, context)
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
     if player.hitThisFrame then
         ScreenFlashSystem.trigger(
-            getConfigValue(context, "damageFlashColor", DEFAULT_DAMAGE_FLASH_COLOR),
-            getConfigValue(context, "damageFlashAlpha", DEFAULT_DAMAGE_FLASH_ALPHA),
-            getConfigValue(context, "damageFlashDuration", DEFAULT_DAMAGE_FLASH_DURATION)
+            context.damageFlashColor or DEFAULT_DAMAGE_FLASH_COLOR,
+            context.damageFlashAlpha or DEFAULT_DAMAGE_FLASH_ALPHA,
+            context.damageFlashDuration or DEFAULT_DAMAGE_FLASH_DURATION
         )
     end
 
@@ -198,7 +145,7 @@ function GameState.update(dt, context)
         EnergySystem.restoreFromCells(
             player,
             collected,
-            getConfigValue(context, "energyCellRestore", DEFAULT_CELL_ENERGY_RESTORE)
+            context.energyCellRestore or DEFAULT_CELL_ENERGY_RESTORE
         )
     end
 end
@@ -219,7 +166,7 @@ function GameState.draw(context)
     -- Render world layers back-to-front: background, enemies, player, pickups, HUD.
     PlayfieldSystem.drawBackground((context and context.backgroundPath) or "assets/ui/background.png")
     local player = PlayerSystem.get()
-    local playerSize = getConfigValue(context, "playerSize", 35)
+    local playerSize = context.playerSize or 35
 
     EnemySystem.draw(player, playerSize)
     PlayerSystem.draw()
