@@ -93,7 +93,7 @@ function EnemySystem.draw(player, playerSize)
         drone:draw()
     end
     for _, hunter in ipairs(hunters) do
-        hunter:draw(player, (playerSize or 35) / 2)
+        hunter:draw(player, playerSize or 35)
     end
 end
 

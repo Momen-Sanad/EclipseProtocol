@@ -3,7 +3,7 @@ local InputSystem = require("src/systems/input_system")
 local AbilitySystem = require("src/systems/ability_system")
 local MovementSystem = require("src/systems/movement_system")
 local AudioSystem = require("src/systems/audio_system")
-local EnemyBase = require("src/entities/enemy_base")
+local DamageSystem = require("src/systems/damage_system")
 local PlayfieldSystem = require("src/systems/playfield_system")
 local PlayerSystem = require("src/systems/player_system")
 local EnemySystem = require("src/systems/enemy_system")
@@ -101,7 +101,7 @@ function GameState.update(dt, context)
 
     ScreenFlashSystem.update(dt)
     player.hitThisFrame = false
-    EnemyBase.updatePlayerInvul(player, dt)
+    DamageSystem.updatePlayerInvulnerability(player, dt)
     Kinematics.capturePreviousPosition(player)
 
     local bounds = {

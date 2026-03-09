@@ -1,5 +1,5 @@
 -- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
-local AudioSystem = require("src/systems/audio_system")
+local DamageSystem = require("src/systems/damage_system")
 local Kinematics = require("src/utils/kinematics")
 local EnergyCell = require("src/entities/energy_cell")
 
@@ -28,7 +28,7 @@ function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
 end
 
 function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
-    -- Resolve penetration, then apply damage, knockback, and temporary invulnerability.
+    -- Resolve penetration and report contact; damage rules are delegated to DamageSystem.
     if not enemies or not player then
         return false
     end
@@ -64,56 +64,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 end
             end
 
-            -- Only apply damage/knockback if the player is NOT currently invulnerable
-            if not player.invulTimer or player.invulTimer <= 0 then
-                local reactionDuration = math.max(0.01, player.damageFlickerDuration or 0.4)
-                local hitInvulDuration = enemy.invulDuration or 1.0
-
-                -- 1) apply damage directly (so we know it happens)
-                if enemy.damage and player.health then
-                    player.health = math.max(0, player.health - (enemy.damage or 0))
-                end
-                AudioSystem.playSfx(player.damageSoundPath or "assets/audio/sfx/Damage.mp3")
-
-                -- 2) trigger optional hit callback (VFX/SFX hooks)
-                if type(enemy.onHit) == "function" then
-                    pcall(enemy.onHit, enemy, player)
-                end
-
-                -- 3) knockback via velocity impulse (smooth)
-                local cx = player.x + (size / 2)
-                local cy = player.y + (size / 2)
-                local ex_c = ex + (ew / 2)
-                local ey_c = ey + (eh / 2)
-                local dx = cx - ex_c
-                local dy = cy - ey_c
-                local len = 0
-                dx, dy, len = Kinematics.normalize(dx, dy)
-                if len == 0 then
-                    dx, dy = 0, -1
-                end
-
-                -- use velocity knockback so the movement system handles collisions & walls
-                local knockback = enemy.knockback or 300      -- impulse magnitude (pixels/sec)
-                local immediate = enemy.immediateKnockback or 8 -- small immediate positional nudge (pixels)
-
-                -- 1) add to impulse components (movement system integrates + decays these)
-                Kinematics.addImpulse(player, dx * knockback, dy * knockback)
-                Kinematics.composeVelocity(player)
-
-                -- 2) small immediate position nudge so knockback is visible this frame
-                Kinematics.translate(player, dx * immediate, dy * immediate)
-
-                -- debug print for knockback values
-                -- print(("KNOCK: dx=%.2f dy=%.2f imp=(%.1f,%.1f) immediate=%.1f"):format(dx,dy, player.vx_impulse, player.vy_impulse, immediate))
-
-                -- 4) start the brief hit reaction (blink + movement lock) and invulnerability.
-                player.damageFlickerTimer = math.max(player.damageFlickerTimer or 0, reactionDuration)
-                player.damageLockTimer = math.max(player.damageLockTimer or 0, reactionDuration)
-                player.invulTimer = math.max(player.invulTimer or 0, hitInvulDuration, reactionDuration)
-                player.invulnerable = true
-                player.hitThisFrame = true
-            end
+            DamageSystem.applyPlayerEnemyHit(player, enemy, size)
 
             -- rewind enemy to previous pos (prevents tunneling) and pause it briefly
             Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
