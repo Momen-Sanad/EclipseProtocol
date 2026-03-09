@@ -10,6 +10,7 @@ local windowWidth = 0
 local windowHeight = 0
 
 local function refreshBackground()
+    -- Recomputes "cover" scaling whenever window dimensions change.
     if not bg then
         return
     end
@@ -30,6 +31,7 @@ local function refreshBackground()
 end
 
 function PlayfieldSystem.ensureBackground(path)
+    -- Loads/reloads the playfield texture only when path changes.
     local nextPath = path or "assets/ui/background.png"
     if not bg or bgPath ~= nextPath then
         bg = love.graphics.newImage(nextPath)
@@ -41,6 +43,7 @@ function PlayfieldSystem.ensureBackground(path)
 end
 
 function PlayfieldSystem.getPlayAreaSize(fallbackWidth, fallbackHeight)
+    -- Returns current render size; falls back when window info is not ready.
     refreshBackground()
 
     local w = windowWidth
@@ -55,6 +58,7 @@ function PlayfieldSystem.getPlayAreaSize(fallbackWidth, fallbackHeight)
 end
 
 function PlayfieldSystem.drawBackground(path)
+    -- Draws pre-scaled background behind all gameplay layers.
     PlayfieldSystem.ensureBackground(path)
     if not bg then
         return

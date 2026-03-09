@@ -12,6 +12,7 @@ function SpriteSheet.buildFrames(imagePath, options)
     local w, h = imageData:getDimensions()
 
     local function buildSegments(isRow)
+        -- Groups consecutive non-empty rows/columns into frame bands.
         local segments = {}
         local major = isRow and h or w
         local minor = isRow and w or h
@@ -49,6 +50,7 @@ function SpriteSheet.buildFrames(imagePath, options)
     local frames = {}
 
     local function cellHasPixels(col, row)
+        -- Guards against empty intersections when row/column segmentation over-splits.
         for y = row[1], row[2] do
             for x = col[1], col[2] do
                 local _, _, _, a = imageData:getPixel(x, y)
@@ -74,6 +76,7 @@ function SpriteSheet.buildFrames(imagePath, options)
     end
 
     if #frames == 0 then
+        -- Fallback for fully opaque sheets or unusual art that yields no gaps.
         local quad = love.graphics.newQuad(0, 0, w, h, w, h)
         table.insert(frames, { quad = quad, w = w, h = h })
     end

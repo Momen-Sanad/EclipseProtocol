@@ -7,6 +7,7 @@ PowerNode.DEFAULT_REPAIR_DURATION = 5.0
 PowerNode.DEFAULT_INTERACT_RANGE = 170
 
 function PowerNode.new(opts)
+    -- Creates one repairable obstacle node with interaction/repair metadata.
     opts = opts or {}
     return {
         x = opts.x or 0,
@@ -22,6 +23,7 @@ function PowerNode.new(opts)
 end
 
 function PowerNode.buildGrid(playWidth, playHeight, opts)
+    -- Distributes nodes in a padded grid so they are spread across the playfield.
     opts = opts or {}
     local w = playWidth or 0
     local h = playHeight or 0
@@ -54,6 +56,7 @@ function PowerNode.buildGrid(playWidth, playHeight, opts)
 end
 
 function PowerNode.isPlayerStationarySinceLastFrame(player)
+    -- Repair only progresses while the player remains still.
     if not player then
         return false
     end
@@ -66,6 +69,7 @@ function PowerNode.isPlayerStationarySinceLastFrame(player)
 end
 
 local function getPlayerCenter(player, playerSize)
+    -- Computes player center used for range checks.
     local size = playerSize or 35
     local px = (player and player.x or 0) + (size / 2)
     local py = (player and player.y or 0) + (size / 2)
@@ -73,6 +77,7 @@ local function getPlayerCenter(player, playerSize)
 end
 
 function PowerNode.getNearestInRange(player, nodes, playerSize)
+    -- Finds the closest unrepaired node inside interaction radius.
     if not player or not nodes then
         return nil
     end
@@ -100,6 +105,7 @@ function PowerNode.getNearestInRange(player, nodes, playerSize)
 end
 
 function PowerNode.getActive(nodes)
+    -- Returns node currently being repaired (if any).
     if not nodes then
         return nil
     end
@@ -112,6 +118,7 @@ function PowerNode.getActive(nodes)
 end
 
 function PowerNode.allRepaired(nodes)
+    -- Win-condition helper used by the power node system.
     if not nodes or #nodes == 0 then
         return false
     end
@@ -124,6 +131,7 @@ function PowerNode.allRepaired(nodes)
 end
 
 function PowerNode.startRepair(node)
+    -- Begins repair progress from zero.
     if not node then
         return
     end
@@ -132,6 +140,7 @@ function PowerNode.startRepair(node)
 end
 
 function PowerNode.cancelRepair(node)
+    -- Interrupts repair when player moves away.
     if not node then
         return
     end
@@ -140,6 +149,7 @@ function PowerNode.cancelRepair(node)
 end
 
 function PowerNode.updateRepair(node, dt)
+    -- Advances timer and marks node repaired when duration is reached.
     if not node then
         return false
     end
@@ -157,6 +167,7 @@ function PowerNode.updateRepair(node, dt)
 end
 
 function PowerNode.getPrompt(player, nodes, playerSize)
+    -- Produces context-sensitive HUD prompt for repair interaction.
     if not nodes or #nodes == 0 or PowerNode.allRepaired(nodes) then
         return nil
     end
@@ -178,6 +189,7 @@ function PowerNode.getPrompt(player, nodes, playerSize)
 end
 
 function PowerNode.draw(node)
+    -- Renders node body, interaction range tint, and repair progress bar.
     if not node then
         return
     end

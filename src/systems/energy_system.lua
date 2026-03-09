@@ -2,6 +2,7 @@
 local EnergySystem = {}
 
 function EnergySystem.restoreFromCells(player, collectedCount, energyPerCell)
+    -- Applies pickup gain with clamping and returns the actual energy restored.
     if not player or type(player.energy) ~= "number" then
         return 0
     end

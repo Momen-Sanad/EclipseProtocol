@@ -49,10 +49,12 @@ local COL = {
 }
 
 local function setColor(col)
+    -- Small helper so palette tables can be passed directly.
     love.graphics.setColor(col[1], col[2], col[3], col[4] or 1)
 end
 
 local function refreshDimensions()
+    -- Keeps background and panel math in sync with current window size.
     local w, h = love.graphics.getDimensions()
     windowWidth = w
     windowHeight = h
@@ -66,6 +68,7 @@ local function refreshDimensions()
 end
 
 local function ensureLoaded()
+    -- Lazy-load images/fonts once for this state.
     if loaded then
         return
     end
@@ -86,6 +89,7 @@ local function ensureLoaded()
 end
 
 local function resolveLevels(context)
+    -- Uses configured level presets, falling back to hardcoded defaults.
     local presets = context and context.levelPresets
     if type(presets) == "table" and #presets > 0 then
         return presets
@@ -94,6 +98,7 @@ local function resolveLevels(context)
 end
 
 local function clampSelection()
+    -- Wraps selection index so up/down navigation loops cleanly.
     local count = #levelItems
     if count <= 0 then
         selected = 1
@@ -108,6 +113,7 @@ local function clampSelection()
 end
 
 function LevelSelectState.enter(context)
+    -- Refreshes list and applies previously selected level when reopening.
     ensureLoaded()
     refreshDimensions()
     animTime = 0
@@ -117,10 +123,12 @@ function LevelSelectState.enter(context)
 end
 
 function LevelSelectState.update(dt)
+    -- Drives small pulse animation used by selected row highlight.
     animTime = animTime + dt
 end
 
 function LevelSelectState.keypressed(key, context)
+    -- Handles level list navigation and commit/cancel actions.
     if key == "up" or key == "w" then
         selected = selected - 1
         clampSelection()
@@ -150,6 +158,7 @@ function LevelSelectState.keypressed(key, context)
 end
 
 function LevelSelectState.draw()
+    -- Draws background, selection panel, and mission brief text.
     local w, h = love.graphics.getDimensions()
     if w ~= windowWidth or h ~= windowHeight then
         refreshDimensions()

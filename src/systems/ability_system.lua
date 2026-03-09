@@ -25,6 +25,7 @@ local beamEndX = 0
 local beamEndY = 0
 
 local function getAimDir(player)
+    -- Aim follows current movement; if idle, fallback to last movement direction.
     local dx = player.moveX or 0
     local dy = player.moveY or 0
     if dx == 0 and dy == 0 then
@@ -42,6 +43,7 @@ local function getAimDir(player)
 end
 
 local function rayAabbHitDistance(originX, originY, dirX, dirY, minX, minY, maxX, maxY, maxDistance)
+    -- Slab-based ray-vs-AABB test returning first hit distance along ray.
     local tMin = 0
     local tMax = maxDistance
 
@@ -81,10 +83,12 @@ local function rayAabbHitDistance(originX, originY, dirX, dirY, minX, minY, maxX
 end
 
 local function findFirstEnemyHit(startX, startY, dirX, dirY, maxDistance, drones, hunters)
+    -- Picks nearest hit enemy across both enemy pools.
     local bestEnemy = nil
     local bestDist = maxDistance
 
     local function testEnemy(enemy)
+        -- Enemy hitbox is treated as its axis-aligned width/height rectangle.
         local minX = enemy.x or 0
         local minY = enemy.y or 0
         local maxX = minX + (enemy.width or 0)
@@ -111,6 +115,7 @@ local function findFirstEnemyHit(startX, startY, dirX, dirY, maxDistance, drones
 end
 
 function AbilitySystem.reset(context)
+    -- Loads per-run tuning from context and clears cooldown/laser timers.
     local cfg = context or {}
     stunDuration = cfg.stunGunStunDuration or STUN_DURATION_DEFAULT
     cooldown = cfg.stunGunCooldown or COOLDOWN_DEFAULT
@@ -123,6 +128,7 @@ function AbilitySystem.reset(context)
 end
 
 function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
+    -- Consumes input, validates cooldown/energy, fires beam, and stuns one enemy on hit.
     dt = dt or 0
     if cooldownTimer > 0 then
         cooldownTimer = math.max(0, cooldownTimer - dt)
@@ -156,6 +162,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
     local dirX, dirY = getAimDir(player)
     local hitEnemy, hitDist = findFirstEnemyHit(startX, startY, dirX, dirY, range, drones, hunters)
 
+    -- Beam endpoint is either the first enemy hit or max range.
     beamStartX = startX
     beamStartY = startY
     beamEndX = startX + (dirX * hitDist)
@@ -164,6 +171,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
     AudioSystem.playSfx(laserSoundPath)
 
     if hitEnemy then
+        -- Stun effect freezes pursuit and applies a brief flicker feedback.
         hitEnemy.pauseTimer = math.max(hitEnemy.pauseTimer or 0, stunDuration)
         hitEnemy.chasing = false
         hitEnemy.vx = 0
@@ -181,6 +189,7 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
 end
 
 function AbilitySystem.draw()
+    -- Draw a short-lived two-pass laser (soft glow + bright core).
     if laserTimer <= 0 then
         return
     end

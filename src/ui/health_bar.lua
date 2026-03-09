@@ -2,6 +2,7 @@
 local HealthBar = {}
 
 local function drawLabel(text, x, y, color)
+    -- Draw text with a 1px shadow-style outline for readability.
     love.graphics.setColor(0, 0, 0, 0.65)
     love.graphics.print(text, x - 1, y)
     love.graphics.print(text, x + 1, y)

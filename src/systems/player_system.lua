@@ -6,6 +6,7 @@ local PlayerSystem = {}
 local player = nil
 
 function PlayerSystem.ensure(context, playWidth, playHeight)
+    -- Creates player once, then returns the same instance for the run.
     if player then
         return player
     end
@@ -48,6 +49,7 @@ function PlayerSystem.ensure(context, playWidth, playHeight)
 end
 
 function PlayerSystem.resetForRun(context, playWidth, playHeight)
+    -- Reinitializes runtime-only fields when starting/restarting gameplay.
     local cfg = context or {}
     local p = PlayerSystem.ensure(cfg, playWidth, playHeight)
     p.x = (playWidth or 0) / 2
@@ -65,10 +67,12 @@ function PlayerSystem.resetForRun(context, playWidth, playHeight)
 end
 
 function PlayerSystem.get()
+    -- Read-only accessor used by draw/UI systems.
     return player
 end
 
 function PlayerSystem.updateAnimation(dt)
+    -- Advances player animation state without mutating high-level gameplay flow.
     if not player then
         return
     end
@@ -76,6 +80,7 @@ function PlayerSystem.updateAnimation(dt)
 end
 
 function PlayerSystem.draw()
+    -- Centralized player rendering entry point.
     if not player then
         return
     end

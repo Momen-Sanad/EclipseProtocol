@@ -2,6 +2,7 @@
 local Kinematics = {}
 
 function Kinematics.normalize(vx, vy)
+    -- Returns normalized direction plus original magnitude.
     local len = math.sqrt((vx or 0) * (vx or 0) + (vy or 0) * (vy or 0))
     if len == 0 then
         return 0, 0, 0
@@ -11,6 +12,7 @@ function Kinematics.normalize(vx, vy)
 end
 
 function Kinematics.capturePreviousPosition(body)
+    -- Snapshot before movement/collision resolution so other systems can compare motion.
     if not body then
         return
     end
@@ -20,6 +22,7 @@ function Kinematics.capturePreviousPosition(body)
 end
 
 function Kinematics.setVelocity(body, vx, vy)
+    -- Writes final composed velocity used for frame integration.
     if not body then
         return
     end
@@ -29,10 +32,12 @@ function Kinematics.setVelocity(body, vx, vy)
 end
 
 function Kinematics.stop(body)
+    -- Convenience helper for hard-stopping an entity.
     Kinematics.setVelocity(body, 0, 0)
 end
 
 function Kinematics.translate(body, dx, dy)
+    -- Adds delta movement directly to position.
     if not body then
         return
     end
@@ -42,6 +47,7 @@ function Kinematics.translate(body, dx, dy)
 end
 
 function Kinematics.moveTo(body, x, y)
+    -- Absolute placement helper used by resets/spawns.
     if not body then
         return
     end
@@ -55,6 +61,7 @@ function Kinematics.moveTo(body, x, y)
 end
 
 function Kinematics.clampPosition(body, bounds)
+    -- Restricts coordinates inside a min/max rectangle.
     if not body or not bounds then
         return
     end
@@ -68,6 +75,7 @@ function Kinematics.clampPosition(body, bounds)
 end
 
 function Kinematics.integrate(body, dt, bounds)
+    -- Euler integration step (position += velocity * dt), then optional bounds clamp.
     if not body then
         return
     end
@@ -79,6 +87,7 @@ function Kinematics.integrate(body, dt, bounds)
 end
 
 function Kinematics.ensureCompositeVelocity(body)
+    -- Initializes the split velocity channels used by movement + impulses.
     if not body then
         return
     end
@@ -92,6 +101,7 @@ function Kinematics.ensureCompositeVelocity(body)
 end
 
 function Kinematics.setInputVelocity(body, vx, vy)
+    -- Records movement contributed by player/AI input this frame.
     if not body then
         return
     end
@@ -101,6 +111,7 @@ function Kinematics.setInputVelocity(body, vx, vy)
 end
 
 function Kinematics.addImpulse(body, vx, vy)
+    -- Adds knockback/dash-like transient velocity on top of input velocity.
     if not body then
         return
     end
@@ -110,6 +121,7 @@ function Kinematics.addImpulse(body, vx, vy)
 end
 
 function Kinematics.composeVelocity(body)
+    -- Combines input + impulse channels into the final `vx/vy`.
     if not body then
         return 0, 0
     end
@@ -122,6 +134,7 @@ function Kinematics.composeVelocity(body)
 end
 
 function Kinematics.decayImpulse(body, rate, dt, epsilon)
+    -- Dampens impulse over time and snaps tiny values to zero for stability.
     if not body then
         return
     end

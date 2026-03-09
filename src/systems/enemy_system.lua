@@ -12,6 +12,7 @@ local DEFAULT_DRONE_SIZE = 90
 local DEFAULT_HUNTER_SIZE = 90
 
 function EnemySystem.reset(playWidth, playHeight, opts)
+    -- Rebuilds enemy lists and places one patrol + one hunter for the run start.
     opts = opts or {}
     drones = {}
     hunters = {}
@@ -58,6 +59,7 @@ function EnemySystem.reset(playWidth, playHeight, opts)
 end
 
 function EnemySystem.update(player, dt, playerSize)
+    -- Advances enemy movement/AI while caching previous positions for collision correction.
     for _, drone in ipairs(drones) do
         drone.prevX = drone.x
         drone.prevY = drone.y
@@ -72,6 +74,7 @@ function EnemySystem.update(player, dt, playerSize)
 end
 
 function EnemySystem.resolvePlayerCollisions(player, playerSize)
+    -- Keeps player/enemy bodies separated and applies hit interactions.
     CollisionSystem.stopPlayerOnEnemies(drones, player, playerSize)
     CollisionSystem.stopPlayerOnEnemies(hunters, player, playerSize)
     CollisionSystem.stopEnemiesOnPlayer(drones, player, playerSize)
@@ -79,11 +82,13 @@ function EnemySystem.resolvePlayerCollisions(player, playerSize)
 end
 
 function EnemySystem.resolveObstacleCollisions(obstacle)
+    -- Resolves enemy overlap against a single obstacle rectangle.
     CollisionSystem.stopEnemiesOnObstacle(drones, obstacle)
     CollisionSystem.stopEnemiesOnObstacle(hunters, obstacle)
 end
 
 function EnemySystem.draw(player, playerSize)
+    -- Draw order keeps patrol drones below hunter debug/cone overlay output.
     for _, drone in ipairs(drones) do
         drone:draw()
     end
@@ -93,10 +98,12 @@ function EnemySystem.draw(player, playerSize)
 end
 
 function EnemySystem.getDrones()
+    -- Accessor used by ability/collision systems.
     return drones
 end
 
 function EnemySystem.getHunters()
+    -- Accessor used by ability/collision systems.
     return hunters
 end
 

@@ -28,6 +28,7 @@ local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 
 local function getPlayAreaSize(context)
+    -- Uses live background-scaled viewport size with context fallback.
     return PlayfieldSystem.getPlayAreaSize(
         (context and context.windowWidth) or 1280,
         (context and context.windowHeight) or 720
@@ -35,12 +36,14 @@ local function getPlayAreaSize(context)
 end
 
 local function ensureRuntime(context)
+    -- Ensures player exists and returns current play area metrics.
     local w, h = getPlayAreaSize(context)
     local player = PlayerSystem.ensure(context, w, h)
     return player, w, h
 end
 
 local function resetRun(context)
+    -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
     local player, w, h = ensureRuntime(context)
     PlayerSystem.resetForRun(context, w, h)
     ScreenFlashSystem.reset()
@@ -151,6 +154,7 @@ function GameState.update(dt, context)
 end
 
 function GameState.keypressed(key)
+    -- Escape pauses; all other keys route to input buffering.
     if key == "escape" then
         StateManager.change("pause")
         return
@@ -159,6 +163,7 @@ function GameState.keypressed(key)
 end
 
 function GameState.keyreleased(key)
+    -- Forward release events so movement axes and one-shot inputs clear correctly.
     InputSystem.keyreleased(key)
 end
 
@@ -188,6 +193,7 @@ function GameState.draw(context)
 end
 
 function GameState.exit()
+    -- Defensive cleanup for effects that should not leak into other states.
     ScreenFlashSystem.reset()
 end
 

@@ -48,10 +48,12 @@ local COL = {
 }
 
 local function setColor(col)
+    -- Utility to apply RGBA tables from the shared palette.
     love.graphics.setColor(col[1], col[2], col[3], col[4] or 1)
 end
 
 local function drawOutlinedText(font, text, x, y, color, outlineColor)
+    -- Pixel-style 4-direction outline pass for legibility over bright backgrounds.
     love.graphics.setFont(font)
     setColor(outlineColor)
     love.graphics.print(text, x - 2, y)
@@ -126,6 +128,7 @@ function MenuState.enter(context)
 end
 
 function MenuState.update(dt)
+    -- Advances ambient menu animation and music fade-in.
     anim.time = anim.time + dt
     if musicFadeTime < musicFadeDuration then
         musicFadeTime = math.min(musicFadeDuration, musicFadeTime + dt)
@@ -213,6 +216,7 @@ function MenuState.draw()
     drawOutlinedText(titleFont, "PROTOCOL", titleX2, titleY + 80, COL.text, { 0.05, 0.09, 0.12, 0.9 })
 
     if view == "main" then
+        -- Main view: simple vertical selection list.
         local startY = panelY + 130
         local gap = 70
         love.graphics.setFont(menuFont)
@@ -239,6 +243,7 @@ function MenuState.draw()
     end
 
     if view == "options" then
+        -- Options view: controls cheat sheet + music volume slider.
         local contentX = panelX + 40
         local contentY = panelY + 60
 

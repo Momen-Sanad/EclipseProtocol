@@ -7,6 +7,7 @@ local PowerNodeSystem = {}
 local nodes = {}
 
 function PowerNodeSystem.reset(playWidth, playHeight, context)
+    -- Creates a new node set for the current run using context overrides.
     local cfg = context or {}
     nodes = PowerNode.buildGrid(playWidth, playHeight, {
         size = cfg.powerNodeSize or cfg.nodeSize,
@@ -17,6 +18,7 @@ function PowerNodeSystem.reset(playWidth, playHeight, context)
 end
 
 function PowerNodeSystem.resolveObstacleCollisions(player, playerSize, drones, hunters)
+    -- Treat power nodes as solid obstacles for player and enemies.
     for _, node in ipairs(nodes) do
         CollisionSystem.resolveEntityOnObstacle(player, playerSize, playerSize, node)
         CollisionSystem.stopEnemiesOnObstacle(drones, node)
@@ -25,6 +27,7 @@ function PowerNodeSystem.resolveObstacleCollisions(player, playerSize, drones, h
 end
 
 function PowerNodeSystem.update(player, playerSize, input, dt)
+    -- Handles repair start/cancel/progress and reports win condition.
     if not nodes or #nodes == 0 then
         return false
     end
@@ -52,16 +55,19 @@ function PowerNodeSystem.update(player, playerSize, input, dt)
 end
 
 function PowerNodeSystem.getPrompt(player, playerSize)
+    -- UI helper for contextual interaction text.
     return PowerNode.getPrompt(player, nodes, playerSize)
 end
 
 function PowerNodeSystem.draw()
+    -- Draws all node visuals, including interaction radii and repair bars.
     for _, node in ipairs(nodes) do
         PowerNode.draw(node)
     end
 end
 
 function PowerNodeSystem.getNodes()
+    -- Exposes raw node list for advanced systems/debugging.
     return nodes
 end
 

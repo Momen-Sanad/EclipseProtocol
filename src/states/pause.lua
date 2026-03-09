@@ -36,10 +36,12 @@ local COL = {
 }
 
 local function setColor(col)
+    -- Utility to apply palette colors stored as RGBA tables.
     love.graphics.setColor(col[1], col[2], col[3], col[4] or 1)
 end
 
 local function drawOutlinedText(font, text, x, y, color, outlineColor)
+    -- Cheap outline pass to keep title readable over gameplay backdrop.
     love.graphics.setFont(font)
     setColor(outlineColor)
     love.graphics.print(text, x - 2, y)
@@ -51,6 +53,7 @@ local function drawOutlinedText(font, text, x, y, color, outlineColor)
 end
 
 local function refreshDimensions()
+    -- Keeps pause panel centered when resolution changes.
     local w, h = love.graphics.getDimensions()
     windowWidth = w
     windowHeight = h
@@ -95,6 +98,7 @@ function PauseState.enter(context)
 end
 
 function PauseState.update(dt)
+    -- Drives subtle pulse animation on the selected menu row.
     anim.time = anim.time + dt
 end
 
@@ -133,6 +137,7 @@ function PauseState.keypressed(key)
     end
 
     if view == "options" then
+        -- Options subview mirrors menu volume controls.
         if key == "escape" or key == "backspace" then
             view = "main"
             return nil
@@ -175,6 +180,7 @@ function PauseState.draw()
     drawOutlinedText(titleFont, "PAUSED", titleX, titleY, COL.text, { 0.05, 0.09, 0.12, 0.9 })
 
     if view == "main" then
+        -- Main pause view: navigation/actions.
         local startY = panelY + 90
         local gap = 58
         love.graphics.setFont(menuFont)
@@ -201,6 +207,7 @@ function PauseState.draw()
     end
 
     if view == "options" then
+        -- Options subview: controls legend and volume bar.
         local contentX = panelX + 40
         local contentY = panelY + 60
 

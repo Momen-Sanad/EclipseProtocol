@@ -17,6 +17,7 @@ local function ensureFont()
 end
 
 local function ensureDashIcon()
+    -- Dash icon texture is reused every frame once loaded.
     if dashIcon then
         return
     end
@@ -24,6 +25,7 @@ local function ensureDashIcon()
 end
 
 local function formatTime(seconds)
+    -- Converts elapsed seconds into MM:SS string for HUD display.
     local total = math.max(0, math.floor(seconds or 0))
     local mins = math.floor(total / 60)
     local secs = total % 60
@@ -72,6 +74,7 @@ local function drawDashCooldown(x, y, radius, remaining, total, font)
 end
 
 local function drawStunGunPanel(player, x, y, w, h)
+    -- Bottom-right panel showing stun gun cost/cooldown/readiness.
     local cost = math.max(0, math.floor(player.stunGunEnergyCost or 0))
     local cooldownTotal = math.max(0, player.stunGunCooldown or 0)
     local cooldownLeft = math.max(0, player.stunGunCooldownTimer or 0)
@@ -149,7 +152,7 @@ function Hud.draw(player, elapsedTime, score)
         local py = love.graphics.getHeight() - panelH - padding
         drawStunGunPanel(player, px, py, panelW, panelH)
     end
-        -- The timer and score are drawn after the bars so they appear on top. They read from the same player state but do not affect it, so they can be safely rendered in any order.
+    -- Timer/FPS are drawn after bars so text remains visually on top.
     if elapsedTime ~= nil then
         local w = love.graphics.getWidth()
         local label = "TIME " .. formatTime(elapsedTime)
