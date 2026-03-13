@@ -64,6 +64,21 @@ function PlayerSystem.resetForRun(context, playWidth, playHeight)
     p.hitThisFrame = false
     p.damageFlickerTimer = 0
     p.damageLockTimer = 0
+
+    -- Apply per-run tunables so difficulty selection can override ability costs.
+    if cfg.playerDashEnergyCost ~= nil then
+        p.dashEnergyCost = cfg.playerDashEnergyCost
+    end
+    if cfg.playerDashCooldown ~= nil then
+        p.dashCooldown = cfg.playerDashCooldown
+    end
+    if cfg.playerDashDuration ~= nil then
+        p.dashDuration = cfg.playerDashDuration
+    end
+    if cfg.playerDashSpeed ~= nil then
+        p.dashSpeed = cfg.playerDashSpeed
+    end
+
     return p
 end
 
