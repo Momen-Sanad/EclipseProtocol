@@ -23,7 +23,9 @@ function CellSystem.reset(playWidth, playHeight, opts)
     cellCount = math.max(0, math.floor(opts.count or 10))
     cellSize = math.max(1, math.floor(opts.size or 300))
     cellSpritePath = opts.spritePath or "assets/ui/Cell.png"
-    totalCollected = 0
+    if not opts.preserveCollectedTotal then
+        totalCollected = 0
+    end
     cells = {}
 
     for _ = 1, cellCount do
