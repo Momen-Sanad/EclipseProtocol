@@ -17,6 +17,8 @@ local DEFAULT_PATROL_DAMAGE = 12
 local DEFAULT_HUNTER_DAMAGE = 15
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
 local DEFAULT_PATROL_LINE_NODE_CLEARANCE = 24
+local DEFAULT_PATROL_ROUTE_MIN_FRACTION = 0.24
+local DEFAULT_PATROL_ROUTE_MAX_FRACTION = 0.62
 
 local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
     return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
@@ -156,15 +158,35 @@ local function resolvePatrolOverlapY(x, y, droneSize, minY, maxY, padding)
     return y
 end
 
+local function buildPatrolRouteX(w, droneSize, lane, opts, rng)
+    local minX = 8
+    local maxX = math.max(minX, w - droneSize - 8)
+    local routeMinFrac = opts.patrolRouteMinFraction or DEFAULT_PATROL_ROUTE_MIN_FRACTION
+    local routeMaxFrac = opts.patrolRouteMaxFraction or DEFAULT_PATROL_ROUTE_MAX_FRACTION
+    local minRouteLen = math.max(droneSize * 2, math.floor(w * routeMinFrac))
+    local maxRouteLen = math.max(minRouteLen, math.floor(w * routeMaxFrac))
+    local routeLen = rng(minRouteLen, maxRouteLen)
+    local anchorX = math.floor(w * (0.1 + (0.8 * lane)))
+    local jitterX = math.max(24, math.floor(w * 0.12))
+    local maxStartX = math.max(minX, maxX - routeLen)
+    local x1 = clamp(anchorX - math.floor(routeLen * 0.5) + rng(-jitterX, jitterX), minX, maxStartX)
+    local x2 = x1 + routeLen
+    if x2 > maxX then
+        x2 = maxX
+        x1 = math.max(minX, x2 - routeLen)
+    end
+    return x1, x2
+end
+
 local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     -- Spread patrols vertically with randomization, while keeping distance from repair nodes.
-    local margin = droneSize + 40
-    local x1 = margin
-    local x2 = math.max(margin, w - margin)
+    local x1 = 8
+    local x2 = math.max(x1 + droneSize, w - droneSize - 8)
     local minY = droneSize + 8
     local maxY = math.max(minY, h - droneSize - 8)
     local rng = (love and love.math and love.math.random) or math.random
     local lane = index / (total + 1)
+    x1, x2 = buildPatrolRouteX(w, droneSize, lane, opts, rng)
     local laneBaseY = math.floor(h * (0.15 + (0.7 * lane)))
     local laneJitter = math.floor(h * 0.08)
     local minDistance = opts.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
@@ -340,22 +362,57 @@ end
 function EnemySystem.reset(playWidth, playHeight, opts)
     -- Rebuilds enemy lists using scaled counts/damage values provided by caller.
     opts = opts or {}
+    EnemySystem.resetPatrols(playWidth, playHeight, opts)
+    EnemySystem.resetHunters(playWidth, playHeight, opts)
+end
+
+function EnemySystem.resetPatrols(playWidth, playHeight, opts)
+    -- Rebuild patrol drones first so other systems can consume finalized lanes.
+    opts = opts or {}
     drones = {}
     hunters = {}
 
     local w = playWidth or 0
     local h = playHeight or 0
     local droneSize = opts.droneSize or DEFAULT_DRONE_SIZE
-    local hunterSize = opts.hunterSize or DEFAULT_HUNTER_SIZE
     local patrolCount = math.max(1, math.floor(opts.patrolCount or 1))
-    local hunterCount = math.max(1, math.floor(opts.hunterCount or 1))
 
     for i = 1, patrolCount do
         spawnPatrolDrone(w, h, droneSize, i, patrolCount, opts)
     end
+end
+
+function EnemySystem.resetHunters(playWidth, playHeight, opts)
+    -- Spawn/rebuild hunters without touching finalized patrol list.
+    opts = opts or {}
+    hunters = {}
+
+    local w = playWidth or 0
+    local h = playHeight or 0
+    local hunterSize = opts.hunterSize or DEFAULT_HUNTER_SIZE
+    local hunterCount = math.max(1, math.floor(opts.hunterCount or 1))
+
     for i = 1, hunterCount do
         spawnHunterDrone(w, h, hunterSize, i, hunterCount, opts)
     end
+end
+
+function EnemySystem.getPatrolLanes()
+    -- Snapshot finalized horizontal patrol segments for systems that must avoid those lanes.
+    local lanes = {}
+    for _, drone in ipairs(drones) do
+        local x1 = drone.x1 or drone.x or 0
+        local x2 = drone.x2 or x1
+        local y1 = drone.y1 or drone.y or 0
+        local y2 = drone.y2 or y1
+        lanes[#lanes + 1] = {
+            x1 = math.min(x1, x2),
+            x2 = math.max(x1, x2),
+            y = (y1 + y2) * 0.5,
+            thickness = math.max(drone.height or 0, drone.width or 0, 1)
+        }
+    end
+    return lanes
 end
 
 function EnemySystem.update(player, dt, playerSize)
