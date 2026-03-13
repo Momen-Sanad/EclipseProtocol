@@ -32,7 +32,8 @@ end
 function PowerNodeSystem.update(player, playerSize, input, dt)
     -- Handles repair start/cancel/progress and reports win condition.
     if not nodes or #nodes == 0 then
-        return false
+        -- Fail-safe: strict spawn constraints can produce no valid nodes for a room.
+        return true
     end
 
     local playerStill = PowerNode.isPlayerStationarySinceLastFrame(player)
