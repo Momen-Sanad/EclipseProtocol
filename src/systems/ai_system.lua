@@ -65,13 +65,20 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     local oy = blockedNode.y or 0
     local ow = blockedNode.width or 0
     local oh = blockedNode.height or 0
-    local horizontalOffset = math.max(ow, ew, 24)
-    local verticalOffset = math.max(oh, eh, 24)
+    local nodeCx = ox + (ow / 2)
+    local nodeCy = oy + (oh / 2)
+    local centerDistance = math.sqrt(distanceSq(cx, cy, nodeCx, nodeCy))
+    local minSafeDistance = math.max(24, (math.max(ow, oh) * 0.5) + (math.max(ew, eh) * 0.6) + 28)
+    local distanceDeficit = math.max(0, minSafeDistance - centerDistance)
+    local horizontalOffset = math.max(ow, ew, 24) + distanceDeficit + 20
+    local verticalOffset = math.max(oh, eh, 24) + distanceDeficit + 20
+    local preferredXDir = (cx >= nodeCx) and 1 or -1
+    local preferredYDir = (cy >= nodeCy) and 1 or -1
     local candidates = {
-        { x = cx + horizontalOffset, y = cy },
-        { x = cx - horizontalOffset, y = cy },
-        { x = cx, y = cy + verticalOffset },
-        { x = cx, y = cy - verticalOffset }
+        { x = cx + (preferredXDir * horizontalOffset), y = cy },
+        { x = cx - (preferredXDir * horizontalOffset), y = cy },
+        { x = cx, y = cy + (preferredYDir * verticalOffset) },
+        { x = cx, y = cy - (preferredYDir * verticalOffset) }
     }
 
     local best = nil
@@ -82,7 +89,12 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
         if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
             local toTarget = distanceSq(candidate.x, candidate.y, targetX, targetY)
             local fromCurrent = distanceSq(candidate.x, candidate.y, cx, cy)
+            local candidateNodeDistance = math.sqrt(distanceSq(candidate.x, candidate.y, nodeCx, nodeCy))
             local score = toTarget + (fromCurrent * 0.3)
+            if candidateNodeDistance < (minSafeDistance + 12) then
+                local proximity = (minSafeDistance + 12) - candidateNodeDistance
+                score = score + (proximity * proximity * 6)
+            end
             if score < bestScore then
                 bestScore = score
                 best = candidate
