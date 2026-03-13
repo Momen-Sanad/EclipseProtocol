@@ -81,6 +81,7 @@ local function setupRoom(context, w, h, difficulty, preserveCells)
         count = scaled.cellCount or context.cellCount or DEFAULT_CELL_COUNT,
         size = context.cellSize or DEFAULT_CELL_SIZE,
         spritePath = context.cellSpritePath or "assets/ui/Cell.png",
+        minGap = context.cellMinGap,
         preserveCollectedTotal = preserveCells and true or false
     })
     PowerNodeSystem.reset(w, h, {
