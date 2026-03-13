@@ -74,11 +74,20 @@ function EnemySystem.update(player, dt, playerSize)
 end
 
 function EnemySystem.resolvePlayerCollisions(player, playerSize)
-    -- Keeps player/enemy bodies separated and applies hit interactions.
-    CollisionSystem.stopPlayerOnEnemies(drones, player, playerSize)
-    CollisionSystem.stopPlayerOnEnemies(hunters, player, playerSize)
+    -- Keeps player/enemy bodies separated and returns contact events for damage processing.
+    local _, droneHits = CollisionSystem.stopPlayerOnEnemies(drones, player, playerSize)
+    local _, hunterHits = CollisionSystem.stopPlayerOnEnemies(hunters, player, playerSize)
     CollisionSystem.stopEnemiesOnPlayer(drones, player, playerSize)
     CollisionSystem.stopEnemiesOnPlayer(hunters, player, playerSize)
+
+    local hitEvents = {}
+    for _, event in ipairs(droneHits or {}) do
+        hitEvents[#hitEvents + 1] = event
+    end
+    for _, event in ipairs(hunterHits or {}) do
+        hitEvents[#hitEvents + 1] = event
+    end
+    return hitEvents
 end
 
 function EnemySystem.resolveObstacleCollisions(obstacle)
