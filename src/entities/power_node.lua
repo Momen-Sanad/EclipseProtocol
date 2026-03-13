@@ -22,37 +22,100 @@ function PowerNode.new(opts)
     }
 end
 
-function PowerNode.buildGrid(playWidth, playHeight, opts)
-    -- Distributes nodes in a padded grid so they are spread across the playfield.
+local function centerDistanceSq(ax, ay, bx, by)
+    local dx = ax - bx
+    local dy = ay - by
+    return (dx * dx) + (dy * dy)
+end
+
+function PowerNode.buildRandom(playWidth, playHeight, opts)
+    -- Randomly distributes nodes while keeping spacing so repair zones do not overlap excessively.
     opts = opts or {}
     local w = playWidth or 0
     local h = playHeight or 0
     local size = opts.size or PowerNode.DEFAULT_SIZE
     local count = math.max(1, math.floor(opts.count or PowerNode.DEFAULT_COUNT))
-
-    local cols = math.ceil(math.sqrt(count))
-    local rows = math.ceil(count / cols)
-    local padX = math.max(100, size)
-    local padY = math.max(100, size)
-    local usableW = math.max(0, w - (padX * 2))
-    local usableH = math.max(0, h - (padY * 2))
+    local pad = math.max(40, math.floor(size * 0.5))
+    local minSpacing = math.max(size * 1.15, opts.minSpacing or (size + 40))
+    local minSpacingSq = minSpacing * minSpacing
+    local maxAttemptsPerNode = 80
+    local rng = (love and love.math and love.math.random) or math.random
 
     local nodes = {}
-    for i = 1, count do
-        local col = (i - 1) % cols
-        local row = math.floor((i - 1) / cols)
-        local cx = padX + ((cols > 1) and (usableW * (col / (cols - 1))) or (usableW * 0.5))
-        local cy = padY + ((rows > 1) and (usableH * (row / (rows - 1))) or (usableH * 0.5))
-        nodes[#nodes + 1] = PowerNode.new({
-            x = math.floor(cx - (size / 2)),
-            y = math.floor(cy - (size / 2)),
+
+    local function makeNodeAt(x, y)
+        return PowerNode.new({
+            x = x,
+            y = y,
             width = size,
             height = size,
             interactRange = opts.interactRange,
             repairDuration = opts.repairDuration
         })
     end
+
+    local function isFarEnough(x, y)
+        local cx = x + (size / 2)
+        local cy = y + (size / 2)
+        for _, node in ipairs(nodes) do
+            local nx = (node.x or 0) + ((node.width or size) / 2)
+            local ny = (node.y or 0) + ((node.height or size) / 2)
+            if centerDistanceSq(cx, cy, nx, ny) < minSpacingSq then
+                return false
+            end
+        end
+        return true
+    end
+
+    local minX = pad
+    local maxX = math.max(minX, w - size - pad)
+    local minY = pad
+    local maxY = math.max(minY, h - size - pad)
+
+    for _ = 1, count do
+        local placed = false
+
+        for _ = 1, maxAttemptsPerNode do
+            local x = rng(minX, maxX)
+            local y = rng(minY, maxY)
+            if isFarEnough(x, y) then
+                nodes[#nodes + 1] = makeNodeAt(x, y)
+                placed = true
+                break
+            end
+        end
+
+        if not placed then
+            -- Fallback: place anyway to guarantee required node count.
+            local x = rng(minX, maxX)
+            local y = rng(minY, maxY)
+            nodes[#nodes + 1] = makeNodeAt(x, y)
+        end
+    end
+
     return nodes
+end
+
+function PowerNode.buildGrid(playWidth, playHeight, opts)
+    -- Backward-compatible alias kept for existing call sites.
+    return PowerNode.buildRandom(playWidth, playHeight, opts)
+end
+
+function PowerNode.getNodeCenters(nodes)
+    -- Returns center points for systems that need spawn constraints around nodes.
+    local centers = {}
+    if not nodes then
+        return centers
+    end
+
+    for _, node in ipairs(nodes) do
+        centers[#centers + 1] = {
+            x = (node.x or 0) + ((node.width or 0) / 2),
+            y = (node.y or 0) + ((node.height or 0) / 2),
+            node = node
+        }
+    end
+    return centers
 end
 
 function PowerNode.isPlayerStationarySinceLastFrame(player)

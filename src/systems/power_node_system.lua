@@ -9,11 +9,12 @@ local nodes = {}
 function PowerNodeSystem.reset(playWidth, playHeight, context)
     -- Creates a new node set for the current run using context overrides.
     local cfg = context or {}
-    nodes = PowerNode.buildGrid(playWidth, playHeight, {
+    nodes = PowerNode.buildRandom(playWidth, playHeight, {
         size = cfg.powerNodeSize or cfg.nodeSize,
         count = cfg.powerNodeCount or cfg.nodeCount,
         interactRange = cfg.powerNodeInteractRange or cfg.nodeInteractRange,
-        repairDuration = cfg.powerNodeRepairDuration or cfg.nodeRepairDuration
+        repairDuration = cfg.powerNodeRepairDuration or cfg.nodeRepairDuration,
+        minSpacing = cfg.powerNodeMinSpacing or cfg.nodeMinSpacing
     })
 end
 
