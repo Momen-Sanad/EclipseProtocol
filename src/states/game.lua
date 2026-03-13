@@ -4,6 +4,7 @@ local AbilitySystem = require("src/systems/ability_system")
 local MovementSystem = require("src/systems/movement_system")
 local AudioSystem = require("src/systems/audio_system")
 local DamageSystem = require("src/systems/damage_system")
+local HealthSystem = require("src/systems/health_system")
 local PlayfieldSystem = require("src/systems/playfield_system")
 local PlayerSystem = require("src/systems/player_system")
 local EnemySystem = require("src/systems/enemy_system")
@@ -94,14 +95,16 @@ function GameState.enter(context, prevName)
 end
 
 function GameState.update(dt, context)
-    -- Update order matters: invulnerability, movement, enemies, collisions, then HUD-facing data.
+    -- Update order matters: invulnerability/resources, abilities, movement, collisions, then HUD-facing data.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
     local player, w, h = ensureRuntime(context)
     local playerSize = context.playerSize or 35
 
     ScreenFlashSystem.update(dt)
     player.hitThisFrame = false
+    HealthSystem.ensureValid(player)
     DamageSystem.updatePlayerInvulnerability(player, dt)
+    EnergySystem.update(player, dt, context.energyRegenRate or 0)
     Kinematics.capturePreviousPosition(player)
 
     local bounds = {
@@ -111,13 +114,15 @@ function GameState.update(dt, context)
         maxY = h - playerSize
     }
 
-    MovementSystem.update(player, InputSystem, dt, bounds)
     AbilitySystem.update(player, EnemySystem.getDrones(), EnemySystem.getHunters(), InputSystem, dt, playerSize)
+    MovementSystem.update(player, InputSystem, dt, bounds)
     EnemySystem.update(player, dt, playerSize)
 
     -- Resolve node solidity before and after enemy/player collision exchange.
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
-    EnemySystem.resolvePlayerCollisions(player, playerSize)
+    local hitEvents = EnemySystem.resolvePlayerCollisions(player, playerSize)
+    local healthRequests = DamageSystem.processPlayerEnemyContacts(player, hitEvents, playerSize)
+    HealthSystem.applyRequests(player, healthRequests)
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())
     if player.hitThisFrame then
         ScreenFlashSystem.trigger(
@@ -129,7 +134,7 @@ function GameState.update(dt, context)
 
     Kinematics.clampPosition(player, bounds)
 
-    if player.health and player.health <= 0 then
+    if HealthSystem.isDead(player) then
         StateManager.change("transition", "gameover")
         return
     end
