@@ -39,11 +39,17 @@ function HunterDrone.new(opts)
     self.lookY = lookY / length
 
     -- Velocity & state.
+    self.isHunter = true
     self.vx = 0
     self.vy = 0
     self.state = (AISystem.HUNTER_STATES and AISystem.HUNTER_STATES.IDLE) or "idle"
     self.chasing = false
     self.detectedPlayer = false
+    self.avoidX = nil
+    self.avoidY = nil
+    self.avoidTimer = 0
+    self.lastTargetX = nil
+    self.lastTargetY = nil
 
     AnimationSystem.attachDirectional(self, {
         spriteDir = opts.spriteDir or "assets/sprites/hunter_drone",

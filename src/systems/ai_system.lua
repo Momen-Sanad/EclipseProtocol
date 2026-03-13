@@ -89,6 +89,12 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     dt = dt or 0
 
+    enemy.avoidTimer = math.max(0, (enemy.avoidTimer or 0) - dt)
+    if enemy.avoidTimer <= 0 then
+        enemy.avoidX = nil
+        enemy.avoidY = nil
+    end
+
     enemy.state = enemy.state or AISystem.HUNTER_STATES.IDLE
 
     if enemy.pauseTimer and enemy.pauseTimer > 0 then
@@ -106,15 +112,41 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     local cx = enemy.x + (enemy.width or 0) / 2
     local cy = enemy.y + (enemy.height or 0) / 2
 
-    local toPx = px - cx
-    local toPy = py - cy
-    local dirX, dirY, dist = normalize(toPx, toPy)
+    enemy.lastTargetX = px
+    enemy.lastTargetY = py
 
-    local inRange = dist <= (enemy.visionRange or 0)
-    local facing = dot(enemy.lookX or 1, enemy.lookY or 0, dirX, dirY) >= (enemy.dotThreshold or 0.5)
+    local toPlayerX = px - cx
+    local toPlayerY = py - cy
+    local playerDirX, playerDirY, playerDist = normalize(toPlayerX, toPlayerY)
+
+    local inRange = playerDist <= (enemy.visionRange or 0)
+    local facing = dot(enemy.lookX or 1, enemy.lookY or 0, playerDirX, playerDirY) >= (enemy.dotThreshold or 0.5)
     local canChase = inRange and facing
 
-    if canChase then
+    local targetX = px
+    local targetY = py
+    local usingAvoidWaypoint = false
+    if enemy.avoidTimer > 0 and enemy.avoidX and enemy.avoidY then
+        targetX = enemy.avoidX
+        targetY = enemy.avoidY
+        usingAvoidWaypoint = true
+    end
+
+    local toTargetX = targetX - cx
+    local toTargetY = targetY - cy
+    local dirX, dirY, targetDist = normalize(toTargetX, toTargetY)
+
+    if usingAvoidWaypoint and targetDist <= (enemy.avoidArriveRadius or 28) then
+        enemy.avoidTimer = 0
+        enemy.avoidX = nil
+        enemy.avoidY = nil
+        usingAvoidWaypoint = false
+        targetX = px
+        targetY = py
+        dirX, dirY, targetDist = normalize(targetX - cx, targetY - cy)
+    end
+
+    if canChase or usingAvoidWaypoint then
         enemy.state = AISystem.HUNTER_STATES.CHASE
         enemy.detectedPlayer = true
         enemy.chasing = true
@@ -142,7 +174,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         end
     end
 
-    if enemy.chasing and dist < 40 then
+    if enemy.chasing and (not usingAvoidWaypoint) and playerDist < 40 then
         enemy.vx, enemy.vy = 0, 0
         return
     end
