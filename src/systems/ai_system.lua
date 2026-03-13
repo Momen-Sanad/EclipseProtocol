@@ -2,6 +2,11 @@
 -- Keeps behavior decisions out of entity constructors and animation code.
 local AISystem = {}
 
+AISystem.HUNTER_STATES = {
+    IDLE = "idle",
+    CHASE = "chase"
+}
+
 local function normalize(dx, dy)
     local len = math.sqrt(dx * dx + dy * dy)
     if len == 0 then
@@ -33,6 +38,8 @@ function AISystem.updatePatrol(enemy, dt)
     end
 
     dt = dt or 0
+
+    enemy.state = enemy.state or "patrol"
 
     if enemy.pauseTimer and enemy.pauseTimer > 0 then
         enemy.pauseTimer = math.max(0, enemy.pauseTimer - dt)
@@ -82,10 +89,14 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     dt = dt or 0
 
+    enemy.state = enemy.state or AISystem.HUNTER_STATES.IDLE
+
     if enemy.pauseTimer and enemy.pauseTimer > 0 then
         enemy.pauseTimer = enemy.pauseTimer - dt
         enemy.vx, enemy.vy = 0, 0
         enemy.chasing = false
+        enemy.state = AISystem.HUNTER_STATES.IDLE
+        enemy.detectedPlayer = false
         return
     end
 
@@ -101,20 +112,19 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     local inRange = dist <= (enemy.visionRange or 0)
     local facing = dot(enemy.lookX or 1, enemy.lookY or 0, dirX, dirY) >= (enemy.dotThreshold or 0.5)
-    if inRange and facing then
-        enemy.detectedPlayer = true
-    elseif not inRange then
-        enemy.detectedPlayer = false
-    end
+    local canChase = inRange and facing
 
-    local shouldChase = inRange and enemy.detectedPlayer
-    if shouldChase then
+    if canChase then
+        enemy.state = AISystem.HUNTER_STATES.CHASE
+        enemy.detectedPlayer = true
         enemy.chasing = true
         enemy.vx = dirX * (enemy.speed or 0)
         enemy.vy = dirY * (enemy.speed or 0)
         enemy.lookX, enemy.lookY = dirX, dirY
         enemy.spinAngle = math.atan(enemy.lookY, enemy.lookX)
     else
+        enemy.state = AISystem.HUNTER_STATES.IDLE
+        enemy.detectedPlayer = false
         enemy.chasing = false
         enemy.vx, enemy.vy = 0, 0
         enemy.spinAngle = enemy.spinAngle or math.atan(enemy.lookY or 0, enemy.lookX or 1)
