@@ -138,8 +138,9 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     local oh = blockedNode.height or 0
     local nodeCx = ox + (ow * 0.5)
     local nodeCy = oy + (oh * 0.5)
+    local cornerBuffer = enemy.rerouteCornerBuffer or 12
     local nodeSpan = math.max(ow, oh, ew, eh, 40)
-    local step = nodeSpan + math.max(18, math.floor(nodeSpan * 0.35))
+    local step = nodeSpan + math.max(18, math.floor(nodeSpan * 0.35)) + cornerBuffer
     local rx, ry, rw, rh = getExpandedBlockedNodeBounds(enemy, blockedNode)
     local candidates = {
         { axis = "x", dir = 1, x = cx + step, y = cy },
