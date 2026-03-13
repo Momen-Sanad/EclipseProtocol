@@ -10,9 +10,60 @@ local hunters = {}
 
 local DEFAULT_DRONE_SIZE = 90
 local DEFAULT_HUNTER_SIZE = 90
+local DEFAULT_PATROL_SPEED = 170
+local DEFAULT_HUNTER_SPEED = 180
+local DEFAULT_HUNTER_VISION = 420
+local DEFAULT_PATROL_DAMAGE = 12
+local DEFAULT_HUNTER_DAMAGE = 15
+
+local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
+    -- Spread patrols vertically so higher counts remain readable/playable.
+    local lane = index / (total + 1)
+    local y = math.floor(h * (0.15 + (0.7 * lane)))
+    local margin = droneSize + 40
+    local x1 = margin
+    local x2 = math.max(margin, w - margin)
+
+    drones[#drones + 1] = PatrolDrone.new({
+        x = x1,
+        y = y,
+        x1 = x1,
+        y1 = y,
+        x2 = x2,
+        y2 = y,
+        size = droneSize,
+        speed = opts.patrolSpeed or DEFAULT_PATROL_SPEED,
+        damage = opts.patrolDamage or DEFAULT_PATROL_DAMAGE,
+        invulDuration = opts.enemyInvulDuration or 1.5,
+        color = { 0.95, 0.4, 0.25, 1.0 }
+    })
+end
+
+local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
+    -- Spread hunters across the lower half so they pressure approach angles.
+    local lane = index / (total + 1)
+    local x = math.floor(w * (0.15 + (0.7 * lane)))
+    local y = math.floor(h * (0.62 + (0.18 * ((index % 2) * 2 - 1))))
+    y = math.max(hunterSize, math.min(h - hunterSize, y))
+
+    hunters[#hunters + 1] = HunterDrone.new({
+        x = x,
+        y = y,
+        size = hunterSize,
+        speed = opts.hunterSpeed or DEFAULT_HUNTER_SPEED,
+        visionRange = opts.hunterVisionRange or DEFAULT_HUNTER_VISION,
+        dotThreshold = opts.hunterDotThreshold or 0.5,
+        damage = opts.hunterDamage or DEFAULT_HUNTER_DAMAGE,
+        invulDuration = opts.enemyInvulDuration or 1.5,
+        color = { 0.2, 0.85, 1.0, 1.0 },
+        coneColor = { 0.2, 0.8, 1.0, 0.18 },
+        lineColor = { 0.9, 0.9, 1.0, 0.7 },
+        lookColor = { 0.2, 0.9, 1.0, 0.9 }
+    })
+end
 
 function EnemySystem.reset(playWidth, playHeight, opts)
-    -- Rebuilds enemy lists and places one patrol + one hunter for the run start.
+    -- Rebuilds enemy lists using scaled counts/damage values provided by caller.
     opts = opts or {}
     drones = {}
     hunters = {}
@@ -21,41 +72,15 @@ function EnemySystem.reset(playWidth, playHeight, opts)
     local h = playHeight or 0
     local droneSize = opts.droneSize or DEFAULT_DRONE_SIZE
     local hunterSize = opts.hunterSize or DEFAULT_HUNTER_SIZE
+    local patrolCount = math.max(1, math.floor(opts.patrolCount or 1))
+    local hunterCount = math.max(1, math.floor(opts.hunterCount or 1))
 
-    local margin = droneSize + 40
-    local x1 = margin
-    local y1 = math.floor(h * 0.3)
-    local x2 = math.max(margin, w - margin)
-    local y2 = y1
-
-    drones[#drones + 1] = PatrolDrone.new({
-        x = x1,
-        y = y1,
-        x1 = x1,
-        y1 = y1,
-        x2 = x2,
-        y2 = y2,
-        size = droneSize,
-        speed = 170,
-        damage = 12,
-        invulDuration = 1.5,
-        color = { 0.95, 0.4, 0.25, 1.0 }
-    })
-
-    hunters[#hunters + 1] = HunterDrone.new({
-        x = math.floor(w * 0.2),
-        y = math.floor(h * 0.7),
-        size = hunterSize,
-        speed = 180,
-        visionRange = 420,
-        dotThreshold = 0.5,
-        damage = 15,
-        invulDuration = 1.5,
-        color = { 0.2, 0.85, 1.0, 1.0 },
-        coneColor = { 0.2, 0.8, 1.0, 0.18 },
-        lineColor = { 0.9, 0.9, 1.0, 0.7 },
-        lookColor = { 0.2, 0.9, 1.0, 0.9 }
-    })
+    for i = 1, patrolCount do
+        spawnPatrolDrone(w, h, droneSize, i, patrolCount, opts)
+    end
+    for i = 1, hunterCount do
+        spawnHunterDrone(w, h, hunterSize, i, hunterCount, opts)
+    end
 end
 
 function EnemySystem.update(player, dt, playerSize)
