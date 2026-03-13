@@ -11,6 +11,7 @@ local EnemySystem = require("src/systems/enemy_system")
 local CellSystem = require("src/systems/cell_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
 local EnergySystem = require("src/systems/energy_system")
+local DifficultySystem = require("src/systems/difficulty_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
@@ -27,6 +28,11 @@ local DEFAULT_HUNTER_SIZE = 90
 local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
+local DEFAULT_ROOMS_TO_ESCAPE = 3
+
+local activeDifficulty = nil
+local roomsCleared = 0
+local roomsToEscape = DEFAULT_ROOMS_TO_ESCAPE
 
 local function getPlayAreaSize(context)
     -- Uses live background-scaled viewport size with context fallback.
@@ -43,24 +49,68 @@ local function ensureRuntime(context)
     return player, w, h
 end
 
-local function resetRun(context)
-    -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
-    local player, w, h = ensureRuntime(context)
-    PlayerSystem.resetForRun(context, w, h)
-    ScreenFlashSystem.reset()
-    elapsedTime = 0
+local function buildPlayerResetConfig(context, difficulty)
+    -- Applies difficulty-scaled ability costs without mutating shared global context.
+    local cfg = {}
+    for key, value in pairs(context or {}) do
+        cfg[key] = value
+    end
+    if difficulty then
+        cfg.playerDashEnergyCost = difficulty.dashEnergyCost
+    end
+    return cfg
+end
 
+local function buildAbilityConfig(context, difficulty)
+    -- Ability system receives scaled stun-gun cost plus shared base tuning.
+    return {
+        stunGunStunDuration = context.stunGunStunDuration,
+        stunGunCooldown = context.stunGunCooldown,
+        stunGunRange = context.stunGunRange,
+        stunGunEnergyCost = difficulty and difficulty.stunGunEnergyCost or context.stunGunEnergyCost,
+        stunGunLaserLifetime = context.stunGunLaserLifetime,
+        stunGunSoundPath = context.stunGunSoundPath
+    }
+end
+
+local function setupRoom(context, w, h, difficulty, preserveCells)
+    -- Rebuilds entities/objectives for the current room using difficulty-scaled values.
+    local scaled = difficulty or {}
     CellSystem.reset(w, h, {
-        count = context.cellCount or DEFAULT_CELL_COUNT,
+        count = scaled.cellCount or context.cellCount or DEFAULT_CELL_COUNT,
         size = context.cellSize or DEFAULT_CELL_SIZE,
-        spritePath = context.cellSpritePath or "assets/ui/Cell.png"
+        spritePath = context.cellSpritePath or "assets/ui/Cell.png",
+        preserveCollectedTotal = preserveCells and true or false
     })
     EnemySystem.reset(w, h, {
         droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
-        hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE
+        hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE,
+        patrolCount = scaled.patrolCount,
+        hunterCount = scaled.hunterCount,
+        patrolDamage = scaled.patrolDamage,
+        hunterDamage = scaled.hunterDamage
     })
-    PowerNodeSystem.reset(w, h, context)
-    AbilitySystem.reset(context)
+    PowerNodeSystem.reset(w, h, {
+        powerNodeSize = context.powerNodeSize,
+        powerNodeCount = scaled.powerNodeCount or context.powerNodeCount,
+        powerNodeInteractRange = context.powerNodeInteractRange,
+        powerNodeRepairDuration = context.powerNodeRepairDuration
+    })
+end
+
+local function resetRun(context)
+    -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
+    activeDifficulty = DifficultySystem.buildRuntimeValues(context)
+    roomsCleared = 0
+    roomsToEscape = activeDifficulty.roomsToEscape or DEFAULT_ROOMS_TO_ESCAPE
+
+    local _, w, h = ensureRuntime(context)
+    local player = PlayerSystem.resetForRun(buildPlayerResetConfig(context, activeDifficulty), w, h)
+    ScreenFlashSystem.reset()
+    elapsedTime = 0
+
+    setupRoom(context, w, h, activeDifficulty, false)
+    AbilitySystem.reset(buildAbilityConfig(context, activeDifficulty))
 
     return player
 end
@@ -140,7 +190,18 @@ function GameState.update(dt, context)
     end
 
     if PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
-        StateManager.change("transition", "victory")
+        roomsCleared = roomsCleared + 1
+        if roomsCleared >= roomsToEscape then
+            StateManager.change("transition", "victory")
+            return
+        end
+
+        -- Advance to next room while preserving run stats and resources.
+        player.x = w / 2
+        player.y = h / 2
+        Kinematics.stop(player)
+        setupRoom(context, w, h, activeDifficulty, true)
+        InputSystem.update()
         return
     end
 
@@ -194,6 +255,14 @@ function GameState.draw(context)
     end
 
     Hud.draw(player, elapsedTime, CellSystem.getCollectedTotal())
+
+    local roomProgress = ("ROOMS STABILIZED %d/%d"):format(roomsCleared, roomsToEscape)
+    local diffLabel = (activeDifficulty and activeDifficulty.profileLabel) or "Medium"
+    local status = roomProgress .. "  |  DIFFICULTY " .. string.upper(diffLabel)
+    local statusW = love.graphics.getFont():getWidth(status)
+    love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
+    love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, 20)
+
     ScreenFlashSystem.draw()
 end
 
