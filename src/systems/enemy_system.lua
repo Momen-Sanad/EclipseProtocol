@@ -134,6 +134,28 @@ local function resolvePatrolLineY(baseY, minY, maxY, droneSize, repairNodes, opt
     return y
 end
 
+local function resolvePatrolOverlapY(x, y, droneSize, minY, maxY, padding)
+    if not overlapsExistingPatrols(x, y, droneSize, droneSize, padding) then
+        return y
+    end
+
+    local step = math.max(8, math.floor(droneSize * 0.5))
+    local maxSteps = math.max(1, math.floor((maxY - minY) / step) + 2)
+    for i = 1, maxSteps do
+        local upY = clamp(y - (i * step), minY, maxY)
+        if not overlapsExistingPatrols(x, upY, droneSize, droneSize, padding) then
+            return upY
+        end
+
+        local downY = clamp(y + (i * step), minY, maxY)
+        if not overlapsExistingPatrols(x, downY, droneSize, droneSize, padding) then
+            return downY
+        end
+    end
+
+    return y
+end
+
 local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     -- Spread patrols vertically with randomization, while keeping distance from repair nodes.
     local margin = droneSize + 40
@@ -215,6 +237,9 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
             end
         end
     end
+
+    -- Final hard guarantee: separate patrol bodies from each other even if node-friendly searches fail.
+    y = resolvePatrolOverlapY(x1, y, droneSize, minY, maxY, patrolPadding)
 
     drones[#drones + 1] = PatrolDrone.new({
         x = x1,
