@@ -30,6 +30,8 @@ local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 local DEFAULT_ROOMS_TO_ESCAPE = 3
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
+local SAFE_SPAWN_PADDING = 12
+local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
 
 local activeDifficulty = nil
 local roomsCleared = 0
@@ -74,6 +76,106 @@ local function buildAbilityConfig(context, difficulty)
     }
 end
 
+local function overlaps(aX, aY, aW, aH, bX, bY, bW, bH)
+    return aX < bX + bW and bX < aX + aW and aY < bY + bH and bY < aY + aH
+end
+
+local function inHunterDetectionRange(x, y, playerSize, hunter)
+    local px = x + (playerSize / 2)
+    local py = y + (playerSize / 2)
+    local hx = (hunter.x or 0) + ((hunter.width or 0) / 2)
+    local hy = (hunter.y or 0) + ((hunter.height or 0) / 2)
+    local dx = px - hx
+    local dy = py - hy
+    local distSq = (dx * dx) + (dy * dy)
+    local range = math.max(0, hunter.visionRange or 0) + (playerSize * 0.35)
+    return distSq <= (range * range)
+end
+
+local function inPatrolLine(x, y, playerSize, patrol)
+    local playerCenterY = y + (playerSize / 2)
+    local patrolCenterY = (patrol.y or 0) + ((patrol.height or 0) / 2)
+    local lineBand = math.max(playerSize * 0.5, (patrol.height or playerSize) * 0.55)
+    return math.abs(playerCenterY - patrolCenterY) <= lineBand
+end
+
+local function isSafePlayerSpawn(x, y, playerSize)
+    local drones = EnemySystem.getDrones()
+    local hunters = EnemySystem.getHunters()
+    local nodes = PowerNodeSystem.getNodes()
+
+    for _, hunter in ipairs(hunters) do
+        if inHunterDetectionRange(x, y, playerSize, hunter) then
+            return false
+        end
+    end
+
+    for _, drone in ipairs(drones) do
+        if inPatrolLine(x, y, playerSize, drone) then
+            return false
+        end
+    end
+
+    -- Also avoid immediate overlap with solid power nodes and enemy bodies.
+    for _, node in ipairs(nodes) do
+        if overlaps(x, y, playerSize, playerSize, node.x or 0, node.y or 0, node.width or 0, node.height or 0) then
+            return false
+        end
+    end
+    for _, drone in ipairs(drones) do
+        if overlaps(x, y, playerSize, playerSize, drone.x or 0, drone.y or 0, drone.width or 0, drone.height or 0) then
+            return false
+        end
+    end
+    for _, hunter in ipairs(hunters) do
+        if overlaps(x, y, playerSize, playerSize, hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0) then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function findSafePlayerSpawn(w, h, playerSize)
+    local minX = SAFE_SPAWN_PADDING
+    local minY = SAFE_SPAWN_PADDING
+    local maxX = math.max(minX, (w or 0) - playerSize - SAFE_SPAWN_PADDING)
+    local maxY = math.max(minY, (h or 0) - playerSize - SAFE_SPAWN_PADDING)
+    local centerX = math.floor(((w or 0) - playerSize) / 2)
+    local centerY = math.floor(((h or 0) - playerSize) / 2)
+    local rng = (love and love.math and love.math.random) or math.random
+
+    if isSafePlayerSpawn(centerX, centerY, playerSize) then
+        return centerX, centerY
+    end
+
+    for _ = 1, SAFE_SPAWN_RANDOM_ATTEMPTS do
+        local x = rng(minX, maxX)
+        local y = rng(minY, maxY)
+        if isSafePlayerSpawn(x, y, playerSize) then
+            return x, y
+        end
+    end
+
+    local step = math.max(10, math.floor(playerSize * 0.75))
+    for y = minY, maxY, step do
+        for x = minX, maxX, step do
+            if isSafePlayerSpawn(x, y, playerSize) then
+                return x, y
+            end
+        end
+    end
+
+    return centerX, centerY
+end
+
+local function placePlayerInSafeSpawn(player, w, h, playerSize)
+    local spawnX, spawnY = findSafePlayerSpawn(w, h, playerSize)
+    player.x = spawnX
+    player.y = spawnY
+    Kinematics.stop(player)
+end
+
 local function setupRoom(context, w, h, difficulty, preserveCells)
     -- Rebuilds entities/objectives for the current room using difficulty-scaled values.
     local scaled = difficulty or {}
@@ -111,11 +213,13 @@ local function resetRun(context)
     roomsToEscape = activeDifficulty.roomsToEscape or DEFAULT_ROOMS_TO_ESCAPE
 
     local _, w, h = ensureRuntime(context)
+    local playerSize = (context and context.playerSize) or 35
     local player = PlayerSystem.resetForRun(buildPlayerResetConfig(context, activeDifficulty), w, h)
     ScreenFlashSystem.reset()
     elapsedTime = 0
 
     setupRoom(context, w, h, activeDifficulty, false)
+    placePlayerInSafeSpawn(player, w, h, playerSize)
     AbilitySystem.reset(buildAbilityConfig(context, activeDifficulty))
 
     return player
@@ -203,10 +307,8 @@ function GameState.update(dt, context)
         end
 
         -- Advance to next room while preserving run stats and resources.
-        player.x = w / 2
-        player.y = h / 2
-        Kinematics.stop(player)
         setupRoom(context, w, h, activeDifficulty, true)
+        placePlayerInSafeSpawn(player, w, h, playerSize)
         InputSystem.update()
         return
     end
