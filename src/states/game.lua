@@ -94,10 +94,19 @@ local function inHunterDetectionRange(x, y, playerSize, hunter)
 end
 
 local function inPatrolLine(x, y, playerSize, patrol)
+    local playerCenterX = x + (playerSize / 2)
     local playerCenterY = y + (playerSize / 2)
     local patrolCenterY = (patrol.y or 0) + ((patrol.height or 0) / 2)
     local lineBand = math.max(playerSize * 0.5, (patrol.height or playerSize) * 0.55)
-    return math.abs(playerCenterY - patrolCenterY) <= lineBand
+    if math.abs(playerCenterY - patrolCenterY) > lineBand then
+        return false
+    end
+
+    local startX = patrol.x1 or patrol.x or 0
+    local endX = patrol.x2 or patrol.x or 0
+    local minX = math.min(startX, endX) - (playerSize * 0.35)
+    local maxX = math.max(startX, endX) + (patrol.width or playerSize) + (playerSize * 0.35)
+    return playerCenterX >= minX and playerCenterX <= maxX
 end
 
 local function isSafePlayerSpawn(x, y, playerSize)
