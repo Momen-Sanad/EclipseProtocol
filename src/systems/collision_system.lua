@@ -1,5 +1,4 @@
 -- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
-local DamageSystem = require("src/systems/damage_system")
 local Kinematics = require("src/utils/kinematics")
 local EnergyCell = require("src/entities/energy_cell")
 
@@ -28,12 +27,13 @@ function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
 end
 
 function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
-    -- Resolve penetration and report contact; damage rules are delegated to DamageSystem.
+    -- Resolve penetration and return contact events; damage is handled by higher-level systems.
     if not enemies or not player then
-        return false
+        return false, {}
     end
     local size = playerSize or 35
     local blocked = false
+    local hitEvents = {}
 
     for _, enemy in ipairs(enemies) do
         if CollisionSystem.playerEnemyOverlap(player, enemy, size) then
@@ -64,7 +64,10 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 end
             end
 
-            DamageSystem.applyPlayerEnemyHit(player, enemy, size)
+            hitEvents[#hitEvents + 1] = {
+                type = "player_enemy_contact",
+                enemy = enemy
+            }
 
             -- rewind enemy to previous pos (prevents tunneling) and pause it briefly
             Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
@@ -77,7 +80,7 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
         end
     end
 
-    return blocked
+    return blocked, hitEvents
 end
 
 function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
