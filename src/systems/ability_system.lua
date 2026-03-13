@@ -1,6 +1,8 @@
 -- Stun-gun ability: fires a short-lived laser that stuns one enemy on hit.
 local AudioSystem = require("src/systems/audio_system")
+local EnergySystem = require("src/systems/energy_system")
 local EnemyBase = require("src/entities/enemy_base")
+local Kinematics = require("src/utils/kinematics")
 
 local AbilitySystem = {}
 
@@ -23,6 +25,75 @@ local beamStartX = 0
 local beamStartY = 0
 local beamEndX = 0
 local beamEndY = 0
+
+local function updateDashTimers(player, dt)
+    -- Dash timers are ability-owned: movement only consumes the current dash state.
+    if player.dashCooldownTimer and player.dashCooldownTimer > 0 then
+        player.dashCooldownTimer = math.max(0, player.dashCooldownTimer - dt)
+    end
+
+    if player.isDashing then
+        player.dashTimer = (player.dashTimer or 0) - dt
+        if player.dashTimer <= 0 then
+            player.isDashing = false
+            player.dashTimer = 0
+        end
+    end
+end
+
+local function getDashDirection(player, input)
+    -- Prefer current movement intent; fallback to the last movement direction.
+    local dirX, dirY = 0, 0
+    if input and input.getMoveDir then
+        dirX, dirY = input.getMoveDir()
+    end
+
+    if dirX ~= 0 or dirY ~= 0 then
+        player.lastMoveX = dirX
+        player.lastMoveY = dirY
+        return Kinematics.normalize(dirX, dirY)
+    end
+
+    local lastX = player.lastMoveX or 0
+    local lastY = player.lastMoveY or 0
+    if lastX == 0 and lastY == 0 then
+        return 0, 0, 0
+    end
+    return Kinematics.normalize(lastX, lastY)
+end
+
+local function tryActivateDash(player, input)
+    -- Consumes energy and starts dash when input and cooldown rules allow it.
+    local dashPressed = input and input.dashPressed and input.dashPressed() or false
+    if not dashPressed then
+        return false
+    end
+    if player.isDashing then
+        return false
+    end
+    if (player.dashCooldownTimer or 0) > 0 then
+        return false
+    end
+
+    local dashEnergyCost = math.max(0, player.dashEnergyCost or 0)
+    if not EnergySystem.canSpend(player, dashEnergyCost) then
+        return false
+    end
+
+    local dirX, dirY, dirLen = getDashDirection(player, input)
+    if dirLen == 0 then
+        return false
+    end
+
+    EnergySystem.spend(player, dashEnergyCost)
+    player.isDashing = true
+    player.dashTimer = player.dashDuration or 0.18
+    player.dashDirX = dirX
+    player.dashDirY = dirY
+    player.dashCooldownTimer = player.dashCooldown or 0.35
+    AudioSystem.playSfx(player.dashSoundPath or "assets/audio/sfx/Dash.mp3")
+    return true
+end
 
 local function getAimDir(player)
     -- Aim follows current movement; if idle, fallback to last movement direction.
@@ -141,19 +212,22 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
         return false
     end
 
+    updateDashTimers(player, dt)
+    local dashTriggered = tryActivateDash(player, input)
+
     player.stunGunEnergyCost = energyCost
     player.stunGunCooldown = cooldown
     player.stunGunCooldownTimer = cooldownTimer
 
     local pressed = input and input.stunGunPressed and input.stunGunPressed() or false
     if not pressed then
-        return false
+        return dashTriggered
     end
     if cooldownTimer > 0 then
-        return false
+        return dashTriggered
     end
-    if type(player.energy) == "number" and player.energy < energyCost then
-        return false
+    if not EnergySystem.canSpend(player, energyCost) then
+        return dashTriggered
     end
 
     local size = playerSize or 35
@@ -179,13 +253,11 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
         EnemyBase.applyStunFlicker(hitEnemy, 0.35, 5)
     end
 
-    if type(player.energy) == "number" then
-        player.energy = math.max(0, player.energy - energyCost)
-    end
+    EnergySystem.spend(player, energyCost)
     cooldownTimer = cooldown
     player.stunGunCooldownTimer = cooldownTimer
 
-    return hitEnemy ~= nil
+    return dashTriggered or (hitEnemy ~= nil)
 end
 
 function AbilitySystem.draw()
