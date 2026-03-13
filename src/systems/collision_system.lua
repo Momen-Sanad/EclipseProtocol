@@ -8,6 +8,66 @@ local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
     return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
 
+local function distanceSq(ax, ay, bx, by)
+    local dx = (ax or 0) - (bx or 0)
+    local dy = (ay or 0) - (by or 0)
+    return (dx * dx) + (dy * dy)
+end
+
+local function chooseHunterBypassWaypoint(enemy, obstacle)
+    if not enemy or not obstacle then
+        return nil, nil
+    end
+
+    local ew = enemy.width or 0
+    local eh = enemy.height or 0
+    local halfW = ew / 2
+    local halfH = eh / 2
+    local ox = obstacle.x or 0
+    local oy = obstacle.y or 0
+    local ow = obstacle.width or 0
+    local oh = obstacle.height or 0
+    local obstacleCenterX = ox + (ow / 2)
+    local obstacleCenterY = oy + (oh / 2)
+    local enemyCenterX = (enemy.x or 0) + halfW
+    local enemyCenterY = (enemy.y or 0) + halfH
+    local targetX = enemy.lastTargetX or obstacleCenterX
+    local targetY = enemy.lastTargetY or obstacleCenterY
+
+    local clearance = math.max(16, math.floor(math.max(ew, eh) * 0.35))
+    local candidates = {
+        { x = ox - halfW - clearance, y = obstacleCenterY },
+        { x = ox + ow + halfW + clearance, y = obstacleCenterY },
+        { x = obstacleCenterX, y = oy - halfH - clearance },
+        { x = obstacleCenterX, y = oy + oh + halfH + clearance }
+    }
+
+    local bestCandidate = nil
+    local bestScore = math.huge
+
+    for _, candidate in ipairs(candidates) do
+        local ex = candidate.x - halfW
+        local ey = candidate.y - halfH
+        local intersectsObstacle = aabb(ex, ey, ew, eh, ox, oy, ow, oh)
+        if not intersectsObstacle then
+            -- Prefer bypass points that both progress toward the player and stay near current heading.
+            local scoreToTarget = distanceSq(candidate.x, candidate.y, targetX, targetY)
+            local scoreFromEnemy = distanceSq(candidate.x, candidate.y, enemyCenterX, enemyCenterY)
+            local score = scoreToTarget + (scoreFromEnemy * 0.35)
+            if score < bestScore then
+                bestScore = score
+                bestCandidate = candidate
+            end
+        end
+    end
+
+    if not bestCandidate then
+        return nil, nil
+    end
+
+    return bestCandidate.x, bestCandidate.y
+end
+
 function CollisionSystem.overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
     return aabb(x1, y1, w1, h1, x2, y2, w2, h2)
 end
@@ -177,10 +237,20 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
             blocked = true
             Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
             Kinematics.stop(enemy)
-            enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pause)
-            enemy.chasing = false
-            if enemy.state ~= nil then
-                enemy.state = "idle"
+            if enemy.isHunter then
+                local bypassX, bypassY = chooseHunterBypassWaypoint(enemy, obstacle)
+                if bypassX and bypassY then
+                    enemy.avoidX = bypassX
+                    enemy.avoidY = bypassY
+                    enemy.avoidTimer = math.max(enemy.avoidTimer or 0, 1.0)
+                end
+                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, math.min(0.06, pause))
+            else
+                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pause)
+                enemy.chasing = false
+                if enemy.state ~= nil then
+                    enemy.state = "idle"
+                end
             end
         end
     end
