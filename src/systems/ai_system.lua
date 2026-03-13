@@ -179,6 +179,8 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         enemy.rerouteY = nil
     end
 
+    enemy.chaseMemoryTimer = math.max(0, (enemy.chaseMemoryTimer or 0) - dt)
+
     enemy.blockedNodeTimer = math.max(0, (enemy.blockedNodeTimer or 0) - dt)
     if enemy.blockedNodeTimer <= 0 then
         enemy.lastBlockedNode = nil
@@ -236,6 +238,13 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     end
 
     if canChase or usingReroute then
+        enemy.chaseMemoryTimer = math.max(enemy.chaseMemoryTimer or 0, enemy.chaseMemoryDuration or 1.1)
+    end
+
+    local hasChaseMemory = (enemy.chaseMemoryTimer or 0) > 0
+    local shouldChase = canChase or usingReroute or (hasChaseMemory and inRange)
+
+    if shouldChase then
         enemy.state = AISystem.HUNTER_STATES.CHASE
         enemy.detectedPlayer = true
         enemy.chasing = true
