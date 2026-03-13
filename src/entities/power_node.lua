@@ -28,6 +28,10 @@ local function centerDistanceSq(ax, ay, bx, by)
     return (dx * dx) + (dy * dy)
 end
 
+local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
+    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
+end
+
 function PowerNode.buildRandom(playWidth, playHeight, opts)
     -- Randomly distributes nodes while keeping spacing so repair zones do not overlap excessively.
     opts = opts or {}
@@ -40,6 +44,8 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     local minSpacingSq = minSpacing * minSpacing
     local maxAttemptsPerNode = 80
     local rng = (love and love.math and love.math.random) or math.random
+    local patrolLanes = opts.patrolLanes
+    local lanePadding = math.max(0, opts.patrolLanePadding or math.floor(size * 0.15))
 
     local nodes = {}
 
@@ -67,10 +73,48 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         return true
     end
 
+    local function intersectsPatrolLane(x, y)
+        if type(patrolLanes) ~= "table" or #patrolLanes == 0 then
+            return false
+        end
+
+        for _, lane in ipairs(patrolLanes) do
+            local lx1 = math.min(lane.x1 or 0, lane.x2 or 0) - lanePadding
+            local lx2 = math.max(lane.x1 or 0, lane.x2 or 0) + lanePadding
+            local laneThickness = math.max(8, math.floor((lane.thickness or size) * 0.45))
+            local ly = (lane.y or 0) - laneThickness - lanePadding
+            local lh = (laneThickness * 2) + (lanePadding * 2)
+            if aabb(x, y, size, size, lx1, ly, math.max(1, lx2 - lx1), lh) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function isValidPlacement(x, y)
+        return isFarEnough(x, y) and (not intersectsPatrolLane(x, y))
+    end
+
     local minX = pad
     local maxX = math.max(minX, w - size - pad)
     local minY = pad
     local maxY = math.max(minY, h - size - pad)
+
+    local candidatePoints = {}
+    local scanStep = math.max(8, math.floor(size * 0.4))
+    for y = minY, maxY, scanStep do
+        for x = minX, maxX, scanStep do
+            if not intersectsPatrolLane(x, y) then
+                candidatePoints[#candidatePoints + 1] = { x = x, y = y }
+            end
+        end
+    end
+
+    for i = #candidatePoints, 2, -1 do
+        local j = rng(1, i)
+        candidatePoints[i], candidatePoints[j] = candidatePoints[j], candidatePoints[i]
+    end
 
     for _ = 1, count do
         local placed = false
@@ -78,7 +122,7 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         for _ = 1, maxAttemptsPerNode do
             local x = rng(minX, maxX)
             local y = rng(minY, maxY)
-            if isFarEnough(x, y) then
+            if isValidPlacement(x, y) then
                 nodes[#nodes + 1] = makeNodeAt(x, y)
                 placed = true
                 break
@@ -86,10 +130,18 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         end
 
         if not placed then
-            -- Fallback: place anyway to guarantee required node count.
-            local x = rng(minX, maxX)
-            local y = rng(minY, maxY)
-            nodes[#nodes + 1] = makeNodeAt(x, y)
+            for _, point in ipairs(candidatePoints) do
+                if isValidPlacement(point.x, point.y) then
+                    nodes[#nodes + 1] = makeNodeAt(point.x, point.y)
+                    placed = true
+                    break
+                end
+            end
+        end
+
+        if not placed then
+            -- Keep spacing/route guarantees strict; stop adding nodes if no valid slots remain.
+            break
         end
     end
 

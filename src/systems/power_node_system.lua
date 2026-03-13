@@ -14,7 +14,9 @@ function PowerNodeSystem.reset(playWidth, playHeight, context)
         count = cfg.powerNodeCount or cfg.nodeCount,
         interactRange = cfg.powerNodeInteractRange or cfg.nodeInteractRange,
         repairDuration = cfg.powerNodeRepairDuration or cfg.nodeRepairDuration,
-        minSpacing = cfg.powerNodeMinSpacing or cfg.nodeMinSpacing
+        minSpacing = cfg.powerNodeMinSpacing or cfg.nodeMinSpacing,
+        patrolLanes = cfg.patrolLanes,
+        patrolLanePadding = cfg.patrolLanePadding
     })
 end
 

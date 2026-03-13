@@ -30,6 +30,7 @@ local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 local DEFAULT_ROOMS_TO_ESCAPE = 3
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
+local DEFAULT_POWER_NODE_PATROL_PADDING = 16
 local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
 
@@ -186,23 +187,28 @@ local function setupRoom(context, w, h, difficulty, preserveCells)
         minGap = context.cellMinGap,
         preserveCollectedTotal = preserveCells and true or false
     })
+    EnemySystem.resetPatrols(w, h, {
+        droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
+        patrolCount = scaled.patrolCount,
+        patrolDamage = scaled.patrolDamage,
+        patrolMinDistanceToNode = context.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
+    })
+
     PowerNodeSystem.reset(w, h, {
         powerNodeSize = context.powerNodeSize,
         powerNodeCount = scaled.powerNodeCount or context.powerNodeCount,
         powerNodeInteractRange = context.powerNodeInteractRange,
         powerNodeRepairDuration = context.powerNodeRepairDuration,
-        powerNodeMinSpacing = context.powerNodeMinSpacing
+        powerNodeMinSpacing = context.powerNodeMinSpacing,
+        patrolLanes = EnemySystem.getPatrolLanes(),
+        patrolLanePadding = context.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING
     })
 
-    EnemySystem.reset(w, h, {
-        droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
+    EnemySystem.resetHunters(w, h, {
         hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE,
-        patrolCount = scaled.patrolCount,
         hunterCount = scaled.hunterCount,
-        patrolDamage = scaled.patrolDamage,
         hunterDamage = scaled.hunterDamage,
-        repairNodes = PowerNodeSystem.getNodes(),
-        patrolMinDistanceToNode = context.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
+        repairNodes = PowerNodeSystem.getNodes()
     })
 end
 
