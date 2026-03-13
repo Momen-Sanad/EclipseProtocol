@@ -41,6 +41,7 @@ function HunterDrone.new(opts)
     -- Velocity & state.
     self.vx = 0
     self.vy = 0
+    self.state = (AISystem.HUNTER_STATES and AISystem.HUNTER_STATES.IDLE) or "idle"
     self.chasing = false
     self.detectedPlayer = false
 

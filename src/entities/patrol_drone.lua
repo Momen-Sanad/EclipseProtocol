@@ -34,6 +34,7 @@ function PatrolDrone.new(opts)
     -- Velocity.
     self.vx = 0
     self.vy = 0
+    self.state = "patrol"
 
     -- Visual fallback.
     self.sprite = opts.sprite
