@@ -161,6 +161,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
 
     y = resolvePatrolLineY(y, minY, maxY, droneSize, repairNodes, opts)
     if overlapsRepairNodes(x1, y, droneSize, droneSize, repairNodes, 4) then
+        local foundSafe = false
         for _ = 1, 80 do
             local candidateY = rng(minY, maxY)
             if
@@ -168,7 +169,21 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
                 and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
             then
                 y = candidateY
+                foundSafe = true
                 break
+            end
+        end
+
+        if not foundSafe then
+            local step = math.max(8, math.floor(droneSize * 0.5))
+            for candidateY = minY, maxY, step do
+                if
+                    not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
+                    and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
+                then
+                    y = candidateY
+                    break
+                end
             end
         end
     end
@@ -231,6 +246,23 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
                     y = candidateY
                     placed = true
                     break
+                end
+            end
+        end
+
+        if not placed then
+            local step = math.max(8, math.floor(hunterSize * 0.5))
+            for candidateY = minY, maxY, step do
+                if placed then
+                    break
+                end
+                for candidateX = minX, maxX, step do
+                    if isSafeSpawn(candidateX, candidateY) then
+                        x = candidateX
+                        y = candidateY
+                        placed = true
+                        break
+                    end
                 end
             end
         end
