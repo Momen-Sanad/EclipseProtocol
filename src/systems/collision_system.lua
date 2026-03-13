@@ -77,6 +77,9 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
             -- We'll decrement this in the enemy update. Default to invulDuration as pause length.
             enemy.pauseTimer = 1.0
             enemy.chasing = false
+            if enemy.state ~= nil then
+                enemy.state = "idle"
+            end
         end
     end
 
@@ -99,6 +102,9 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
             -- set a short pause so enemy won't immediately chase again
             enemy.pauseTimer = 1.0
             enemy.chasing = false
+            if enemy.state ~= nil then
+                enemy.state = "idle"
+            end
         end
     end
     return blocked
@@ -173,6 +179,9 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
             Kinematics.stop(enemy)
             enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pause)
             enemy.chasing = false
+            if enemy.state ~= nil then
+                enemy.state = "idle"
+            end
         end
     end
 
