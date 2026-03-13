@@ -45,6 +45,26 @@ local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
     return false
 end
 
+local function overlapsExistingPatrols(x, y, w, h, padding)
+    local pad = math.max(0, padding or 0)
+    local px = (x or 0) - pad
+    local py = (y or 0) - pad
+    local pw = (w or 0) + (pad * 2)
+    local ph = (h or 0) + (pad * 2)
+
+    for _, drone in ipairs(drones) do
+        local dx = (drone.x or 0) - pad
+        local dy = (drone.y or 0) - pad
+        local dw = (drone.width or w or 0) + (pad * 2)
+        local dh = (drone.height or h or 0) + (pad * 2)
+        if aabb(px, py, pw, ph, dx, dy, dw, dh) then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function getNodeCenter(node)
     return (node.x or 0) + ((node.width or 0) / 2), (node.y or 0) + ((node.height or 0) / 2)
 end
@@ -127,6 +147,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     local laneJitter = math.floor(h * 0.08)
     local minDistance = opts.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
     local repairNodes = opts.repairNodes
+    local patrolPadding = math.max(0, opts.patrolSpawnPadding or 2)
     local y = math.max(minY, math.min(maxY, laneBaseY))
     local placed = false
 
@@ -138,6 +159,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
         if
             not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance)
             and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
+            and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
         then
             y = candidateY
             placed = true
@@ -152,6 +174,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
             if
                 not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance)
                 and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
+                and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
             then
                 y = candidateY
                 break
@@ -160,13 +183,17 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     end
 
     y = resolvePatrolLineY(y, minY, maxY, droneSize, repairNodes, opts)
-    if overlapsRepairNodes(x1, y, droneSize, droneSize, repairNodes, 4) then
+    if
+        overlapsRepairNodes(x1, y, droneSize, droneSize, repairNodes, 4)
+        or overlapsExistingPatrols(x1, y, droneSize, droneSize, patrolPadding)
+    then
         local foundSafe = false
         for _ = 1, 80 do
             local candidateY = rng(minY, maxY)
             if
                 not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
                 and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
+                and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
             then
                 y = candidateY
                 foundSafe = true
@@ -180,6 +207,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
                 if
                     not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
                     and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
+                    and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
                 then
                     y = candidateY
                     break
