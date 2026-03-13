@@ -405,11 +405,21 @@ function EnemySystem.getPatrolLanes()
         local x2 = drone.x2 or x1
         local y1 = drone.y1 or drone.y or 0
         local y2 = drone.y2 or y1
+        local bodyW = drone.width or 0
+        local bodyH = drone.height or 0
+        local left = math.min(x1, x2)
+        local right = math.max(x1, x2) + bodyW
+        local top = math.min(y1, y2)
+        local bottom = math.max(y1, y2) + bodyH
         lanes[#lanes + 1] = {
             x1 = math.min(x1, x2),
             x2 = math.max(x1, x2),
-            y = (y1 + y2) * 0.5,
-            thickness = math.max(drone.height or 0, drone.width or 0, 1)
+            y = (top + bottom) * 0.5,
+            thickness = math.max(bottom - top, 1),
+            left = left,
+            right = right,
+            top = top,
+            bottom = bottom
         }
     end
     return lanes

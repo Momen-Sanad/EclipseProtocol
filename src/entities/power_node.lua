@@ -79,12 +79,25 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         end
 
         for _, lane in ipairs(patrolLanes) do
-            local lx1 = math.min(lane.x1 or 0, lane.x2 or 0) - lanePadding
-            local lx2 = math.max(lane.x1 or 0, lane.x2 or 0) + lanePadding
-            local laneThickness = math.max(8, math.floor((lane.thickness or size) * 0.45))
-            local ly = (lane.y or 0) - laneThickness - lanePadding
-            local lh = (laneThickness * 2) + (lanePadding * 2)
-            if aabb(x, y, size, size, lx1, ly, math.max(1, lx2 - lx1), lh) then
+            local laneLeft = lane.left
+            local laneRight = lane.right
+            local laneTop = lane.top
+            local laneBottom = lane.bottom
+
+            if laneLeft == nil or laneRight == nil or laneTop == nil or laneBottom == nil then
+                -- Backward compatibility for older lane snapshots.
+                laneLeft = math.min(lane.x1 or 0, lane.x2 or 0)
+                laneRight = math.max(lane.x1 or 0, lane.x2 or 0)
+                local laneThickness = math.max(8, math.floor((lane.thickness or size) * 0.45))
+                laneTop = (lane.y or 0) - laneThickness
+                laneBottom = (lane.y or 0) + laneThickness
+            end
+
+            local lx = laneLeft - lanePadding
+            local ly = laneTop - lanePadding
+            local lw = math.max(1, (laneRight - laneLeft) + (lanePadding * 2))
+            local lh = math.max(1, (laneBottom - laneTop) + (lanePadding * 2))
+            if aabb(x, y, size, size, lx, ly, lw, lh) then
                 return true
             end
         end
