@@ -16,6 +16,7 @@ local DEFAULT_HUNTER_VISION = 420
 local DEFAULT_PATROL_DAMAGE = 12
 local DEFAULT_HUNTER_DAMAGE = 15
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
+local DEFAULT_PATROL_LINE_NODE_CLEARANCE = 24
 
 local function getNodeCenter(node)
     return (node.x or 0) + ((node.width or 0) / 2), (node.y or 0) + ((node.height or 0) / 2)
@@ -37,6 +38,53 @@ local function isPatrolSpawnTooCloseToNodes(x, y, repairNodes, minDistance)
         end
     end
     return false
+end
+
+local function doesPatrolLineCrossNodes(y, droneSize, repairNodes, extraClearance)
+    -- Patrol routes are horizontal lines; keep the whole lane away from node bodies.
+    if type(repairNodes) ~= "table" or #repairNodes == 0 then
+        return false
+    end
+
+    local halfThickness = math.max(8, math.floor((droneSize or DEFAULT_DRONE_SIZE) * 0.25))
+    local clearance = math.max(0, extraClearance or DEFAULT_PATROL_LINE_NODE_CLEARANCE)
+    local minLineY = y - halfThickness - clearance
+    local maxLineY = y + halfThickness + clearance
+
+    for _, node in ipairs(repairNodes) do
+        local nodeMinY = node.y or 0
+        local nodeMaxY = nodeMinY + (node.height or 0)
+        if maxLineY >= nodeMinY and minLineY <= nodeMaxY then
+            return true
+        end
+    end
+    return false
+end
+
+local function resolvePatrolLineY(baseY, minY, maxY, droneSize, repairNodes, opts)
+    -- If a lane intersects a node, shift it up/down until the line is clear.
+    local y = math.max(minY, math.min(maxY, baseY))
+    local clearance = opts.patrolLineNodeClearance or DEFAULT_PATROL_LINE_NODE_CLEARANCE
+    if not doesPatrolLineCrossNodes(y, droneSize, repairNodes, clearance) then
+        return y
+    end
+
+    local step = math.max(12, math.floor((droneSize or DEFAULT_DRONE_SIZE) * 0.35))
+    local maxSteps = math.max(1, math.floor((maxY - minY) / step))
+    for i = 1, maxSteps do
+        local upY = math.max(minY, y - (i * step))
+        if not doesPatrolLineCrossNodes(upY, droneSize, repairNodes, clearance) then
+            return upY
+        end
+
+        local downY = math.min(maxY, y + (i * step))
+        if not doesPatrolLineCrossNodes(downY, droneSize, repairNodes, clearance) then
+            return downY
+        end
+    end
+
+    -- Last resort: keep original lane if map is too dense.
+    return y
 end
 
 local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
@@ -77,6 +125,8 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
             end
         end
     end
+
+    y = resolvePatrolLineY(y, minY, maxY, droneSize, repairNodes, opts)
 
     drones[#drones + 1] = PatrolDrone.new({
         x = x1,
