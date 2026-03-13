@@ -115,47 +115,10 @@ function MovementSystem.update(player, input, dt, bounds)
         moveX, moveY = input.getMoveDir()
     end
 
-    -- dash pressed
-    local dashPressed = input and input.dashPressed and input.dashPressed() or false
-
     -- update last move direction for dash fallback
     if moveX ~= 0 or moveY ~= 0 then
         player.lastMoveX = moveX
         player.lastMoveY = moveY
-    end
-
-    -- dash cooldown timer tick
-    if player.dashCooldownTimer and player.dashCooldownTimer > 0 then
-        player.dashCooldownTimer = math.max(0, player.dashCooldownTimer - dt)
-    end
-
-    local dashEnergyCost = math.max(0, player.dashEnergyCost or 0)
-    local hasTrackedEnergy = type(player.energy) == "number"
-    local hasDashEnergy = true
-    if hasTrackedEnergy then
-        hasDashEnergy = player.energy >= dashEnergyCost
-    end
-
-    -- start dash if requested and available
-    if dashPressed and not player.isDashing and (player.dashCooldownTimer or 0) <= 0 and hasDashEnergy then
-        local dirX, dirY = moveX, moveY
-        if dirX == 0 and dirY == 0 then
-            dirX = player.lastMoveX or 0
-            dirY = player.lastMoveY or 0
-        end
-        if dirX ~= 0 or dirY ~= 0 then
-            dirX, dirY = Kinematics.normalize(dirX, dirY)
-            if hasTrackedEnergy and dashEnergyCost > 0 then
-                player.energy = math.max(0, player.energy - dashEnergyCost)
-            end
-            player.isDashing = true
-            player.dashTimer = player.dashDuration or 0.18
-            player.dashDirX = dirX
-            player.dashDirY = dirY
-            player.dashCooldownTimer = player.dashCooldown or 0.35
-            -- Play the dash cue at the exact moment the movement burst begins.
-            AudioSystem.playSfx(player.dashSoundPath or "assets/audio/sfx/Dash.mp3")
-        end
     end
 
     local hasMoveInput = moveX ~= 0 or moveY ~= 0
@@ -171,12 +134,6 @@ function MovementSystem.update(player, input, dt, bounds)
             (player.dashDirX or 0) * (player.dashSpeed or (baseSpeed * 2.5)),
             (player.dashDirY or 0) * (player.dashSpeed or (baseSpeed * 2.5))
         )
-
-        player.dashTimer = (player.dashTimer or 0) - dt
-        if player.dashTimer <= 0 then
-            player.isDashing = false
-            player.dashTimer = 0
-        end
     else
         if not hasMoveInput then
             getWalkSpeed(player, baseSpeed, dt, false)
