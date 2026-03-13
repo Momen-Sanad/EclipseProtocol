@@ -15,14 +15,68 @@ local DEFAULT_HUNTER_SPEED = 180
 local DEFAULT_HUNTER_VISION = 420
 local DEFAULT_PATROL_DAMAGE = 12
 local DEFAULT_HUNTER_DAMAGE = 15
+local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
+
+local function getNodeCenter(node)
+    return (node.x or 0) + ((node.width or 0) / 2), (node.y or 0) + ((node.height or 0) / 2)
+end
+
+local function isPatrolSpawnTooCloseToNodes(x, y, repairNodes, minDistance)
+    if type(repairNodes) ~= "table" or #repairNodes == 0 then
+        return false
+    end
+
+    local threshold = math.max(0, minDistance or 0)
+    local thresholdSq = threshold * threshold
+    for _, node in ipairs(repairNodes) do
+        local nx, ny = getNodeCenter(node)
+        local dx = x - nx
+        local dy = y - ny
+        if ((dx * dx) + (dy * dy)) < thresholdSq then
+            return true
+        end
+    end
+    return false
+end
 
 local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
-    -- Spread patrols vertically so higher counts remain readable/playable.
-    local lane = index / (total + 1)
-    local y = math.floor(h * (0.15 + (0.7 * lane)))
+    -- Spread patrols vertically with randomization, while keeping distance from repair nodes.
     local margin = droneSize + 40
     local x1 = margin
     local x2 = math.max(margin, w - margin)
+    local minY = droneSize + 8
+    local maxY = math.max(minY, h - droneSize - 8)
+    local rng = (love and love.math and love.math.random) or math.random
+    local lane = index / (total + 1)
+    local laneBaseY = math.floor(h * (0.15 + (0.7 * lane)))
+    local laneJitter = math.floor(h * 0.08)
+    local minDistance = opts.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
+    local repairNodes = opts.repairNodes
+    local y = math.max(minY, math.min(maxY, laneBaseY))
+    local placed = false
+
+    for _ = 1, 60 do
+        local candidateY = math.max(
+            minY,
+            math.min(maxY, laneBaseY + rng(-laneJitter, laneJitter))
+        )
+        if not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance) then
+            y = candidateY
+            placed = true
+            break
+        end
+    end
+
+    if not placed then
+        -- Fallback search across full height if local lane jitter fails.
+        for _ = 1, 60 do
+            local candidateY = rng(minY, maxY)
+            if not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance) then
+                y = candidateY
+                break
+            end
+        end
+    end
 
     drones[#drones + 1] = PatrolDrone.new({
         x = x1,

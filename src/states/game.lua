@@ -29,6 +29,7 @@ local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 local DEFAULT_ROOMS_TO_ESCAPE = 3
+local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
 
 local activeDifficulty = nil
 local roomsCleared = 0
@@ -82,19 +83,23 @@ local function setupRoom(context, w, h, difficulty, preserveCells)
         spritePath = context.cellSpritePath or "assets/ui/Cell.png",
         preserveCollectedTotal = preserveCells and true or false
     })
+    PowerNodeSystem.reset(w, h, {
+        powerNodeSize = context.powerNodeSize,
+        powerNodeCount = scaled.powerNodeCount or context.powerNodeCount,
+        powerNodeInteractRange = context.powerNodeInteractRange,
+        powerNodeRepairDuration = context.powerNodeRepairDuration,
+        powerNodeMinSpacing = context.powerNodeMinSpacing
+    })
+
     EnemySystem.reset(w, h, {
         droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
         hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE,
         patrolCount = scaled.patrolCount,
         hunterCount = scaled.hunterCount,
         patrolDamage = scaled.patrolDamage,
-        hunterDamage = scaled.hunterDamage
-    })
-    PowerNodeSystem.reset(w, h, {
-        powerNodeSize = context.powerNodeSize,
-        powerNodeCount = scaled.powerNodeCount or context.powerNodeCount,
-        powerNodeInteractRange = context.powerNodeInteractRange,
-        powerNodeRepairDuration = context.powerNodeRepairDuration
+        hunterDamage = scaled.hunterDamage,
+        repairNodes = PowerNodeSystem.getNodes(),
+        patrolMinDistanceToNode = context.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
     })
 end
 
