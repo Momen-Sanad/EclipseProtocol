@@ -227,14 +227,33 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     local toTargetY = targetY - cy
     local dirX, dirY, targetDist = normalize(toTargetX, toTargetY)
 
-    if usingReroute and targetDist <= (enemy.rerouteArriveRadius or 20) then
-        enemy.rerouteTimer = 0
-        enemy.rerouteX = nil
-        enemy.rerouteY = nil
-        usingReroute = false
-        targetX = px
-        targetY = py
-        dirX, dirY, targetDist = normalize(targetX - cx, targetY - cy)
+    if usingReroute then
+        local shouldExitReroute = targetDist <= (enemy.rerouteArriveRadius or 20)
+        local blockedNode = enemy.lastBlockedNode
+
+        if not shouldExitReroute and blockedNode then
+            local nodeCx = (blockedNode.x or 0) + ((blockedNode.width or 0) / 2)
+            local nodeCy = (blockedNode.y or 0) + ((blockedNode.height or 0) / 2)
+            local nodeDist = math.sqrt(distanceSq(cx, cy, nodeCx, nodeCy))
+            local clearDistance = math.max(
+                24,
+                (math.max(blockedNode.width or 0, blockedNode.height or 0) * 0.5) +
+                (math.max(enemy.width or 0, enemy.height or 0) * 0.65) + 24
+            )
+            if nodeDist >= clearDistance then
+                shouldExitReroute = true
+            end
+        end
+
+        if shouldExitReroute then
+            enemy.rerouteTimer = 0
+            enemy.rerouteX = nil
+            enemy.rerouteY = nil
+            usingReroute = false
+            targetX = px
+            targetY = py
+            dirX, dirY, targetDist = normalize(targetX - cx, targetY - cy)
+        end
     end
 
     if canChase or usingReroute then
