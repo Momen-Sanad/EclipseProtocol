@@ -1,5 +1,6 @@
 -- Level selection screen shown between main menu and gameplay.
 local StateManager = require("src/core/state_manager")
+local DifficultySystem = require("src/systems/difficulty_system")
 
 local LevelSelectState = {}
 
@@ -19,23 +20,23 @@ local bodyFont = nil
 local loaded = false
 local selected = 1
 local animTime = 0
-local levelItems = {}
+local difficultyItems = {}
 
-local FALLBACK_LEVELS = {
+local FALLBACK_DIFFICULTIES = {
     {
-        id = "level_1",
-        label = "Level 1 - Training Deck",
-        description = "Lower threat layout for warm-up runs."
+        id = "easy",
+        label = "Easy",
+        description = "Lower pressure: cheaper abilities, fewer threats, and fewer rooms required to escape."
     },
     {
-        id = "level_2",
-        label = "Level 2 - Core Sector",
-        description = "Balanced station pressure."
+        id = "medium",
+        label = "Medium",
+        description = "Balanced station pressure with baseline values."
     },
     {
-        id = "level_3",
-        label = "Level 3 - Reactor Wing",
-        description = "Dense patrols with aggressive hunters."
+        id = "hard",
+        label = "Hard",
+        description = "Brutal pressure: expensive abilities, stronger enemies, and a longer escape objective."
     }
 }
 
@@ -88,18 +89,18 @@ local function ensureLoaded()
     loaded = true
 end
 
-local function resolveLevels(context)
-    -- Uses configured level presets, falling back to hardcoded defaults.
-    local presets = context and context.levelPresets
-    if type(presets) == "table" and #presets > 0 then
-        return presets
+local function resolveDifficulties(context)
+    -- Uses configured difficulty profiles, falling back to hardcoded defaults.
+    local options = DifficultySystem.getOptions(context)
+    if type(options) == "table" and #options > 0 then
+        return options
     end
-    return FALLBACK_LEVELS
+    return FALLBACK_DIFFICULTIES
 end
 
 local function clampSelection()
     -- Wraps selection index so up/down navigation loops cleanly.
-    local count = #levelItems
+    local count = #difficultyItems
     if count <= 0 then
         selected = 1
         return
@@ -113,12 +114,20 @@ local function clampSelection()
 end
 
 function LevelSelectState.enter(context)
-    -- Refreshes list and applies previously selected level when reopening.
+    -- Refreshes list and applies previously selected difficulty when reopening.
     ensureLoaded()
     refreshDimensions()
     animTime = 0
-    levelItems = resolveLevels(context)
-    selected = (context and context.selectedLevelIndex) or 1
+    difficultyItems = resolveDifficulties(context)
+    selected = (context and context.selectedDifficultyIndex) or 1
+    if context and context.selectedDifficultyId then
+        for i, item in ipairs(difficultyItems) do
+            if item.id == context.selectedDifficultyId then
+                selected = i
+                break
+            end
+        end
+    end
     clampSelection()
 end
 
@@ -128,7 +137,7 @@ function LevelSelectState.update(dt)
 end
 
 function LevelSelectState.keypressed(key, context)
-    -- Handles level list navigation and commit/cancel actions.
+    -- Handles difficulty list navigation and commit/cancel actions.
     if key == "up" or key == "w" then
         selected = selected - 1
         clampSelection()
@@ -147,11 +156,11 @@ function LevelSelectState.keypressed(key, context)
     end
 
     if key == "return" or key == "kpenter" then
-        local chosen = levelItems[selected]
+        local chosen = difficultyItems[selected]
         if context and chosen then
-            context.selectedLevelIndex = selected
-            context.selectedLevelId = chosen.id
-            context.selectedLevelLabel = chosen.label
+            context.selectedDifficultyIndex = selected
+            context.selectedDifficultyId = chosen.id
+            context.selectedDifficultyLabel = chosen.label
         end
         StateManager.change("transition", "game")
     end
@@ -182,7 +191,7 @@ function LevelSelectState.draw()
 
     love.graphics.setFont(titleFont)
     setColor(COL.text)
-    local title = "SELECT LEVEL"
+    local title = "SELECT DIFFICULTY"
     love.graphics.print(title, math.floor((windowWidth - titleFont:getWidth(title)) / 2), panelY + 30)
 
     local listX = panelX + 46
@@ -190,7 +199,7 @@ function LevelSelectState.draw()
     local rowH = 72
 
     love.graphics.setFont(menuFont)
-    for i, item in ipairs(levelItems) do
+    for i, item in ipairs(difficultyItems) do
         local y = listY + (i - 1) * rowH
         local rowW = panelW - 92
         if i == selected then
@@ -201,14 +210,14 @@ function LevelSelectState.draw()
             love.graphics.rectangle("line", listX, y - 10, rowW, 52, 8, 8)
             setColor(COL.text)
             love.graphics.print(">", listX + 14, y + 2)
-            love.graphics.print(item.label or ("Level " .. tostring(i)), listX + 48, y + 2)
+            love.graphics.print(item.label or ("Difficulty " .. tostring(i)), listX + 48, y + 2)
         else
             setColor(COL.textDim)
-            love.graphics.print(item.label or ("Level " .. tostring(i)), listX + 48, y + 2)
+            love.graphics.print(item.label or ("Difficulty " .. tostring(i)), listX + 48, y + 2)
         end
     end
 
-    local chosen = levelItems[selected]
+    local chosen = difficultyItems[selected]
     local desc = ""
     if chosen and chosen.description then
         desc = chosen.description
@@ -217,12 +226,12 @@ function LevelSelectState.draw()
     local descY = panelY + panelH - 160
     love.graphics.setFont(bodyFont)
     setColor(COL.text)
-    love.graphics.print("MISSION BRIEF", listX, descY)
+    love.graphics.print("THREAT BRIEF", listX, descY)
     setColor(COL.textDim)
     love.graphics.printf(desc, listX, descY + 28, panelW - 92, "left")
 
     setColor(COL.textDim)
-    love.graphics.printf("Enter: Confirm level    Esc: Back to main menu", listX, panelY + panelH - 48, panelW - 92, "left")
+    love.graphics.printf("Enter: Confirm difficulty    Esc: Back to main menu", listX, panelY + panelH - 48, panelW - 92, "left")
 end
 
 return LevelSelectState

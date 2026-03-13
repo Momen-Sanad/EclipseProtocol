@@ -92,22 +92,66 @@ function love.load()
         gameOverTextFadeDuration = 1.0,
         transitionDuration = TRANSITION_DURATION,
         fadeDuration = FADE_DURATION,
-        selectedLevelIndex = 1,
-        levelPresets = {
+        selectedDifficultyIndex = 2,
+        selectedDifficultyId = "medium",
+        difficultyBase = {
+            abilities = {
+                dashEnergyCost = 20,
+                stunGunEnergyCost = 60
+            },
+            enemies = {
+                patrolCount = 2,
+                hunterCount = 1,
+                patrolDamage = 12,
+                hunterDamage = 15
+            },
+            objectives = {
+                powerNodeCount = 3,
+                roomsToEscape = 3
+            },
+            resources = {
+                cellCount = 10
+            }
+        },
+        difficultyProfiles = {
             {
-                id = "level_1",
-                label = "Level 1 - Training Deck",
-                description = "Lower threat layout for warm-up runs."
+                id = "easy",
+                label = "Easy",
+                description = "Lower pressure: cheaper abilities, fewer threats, and fewer rooms required to escape.",
+                factors = {
+                    abilityCost = 0.75,
+                    enemyDamage = 0.8,
+                    enemyCount = 0.8,
+                    nodeCount = 0.8,
+                    cellCount = 1.25,
+                    roomsToEscape = 0.7
+                }
             },
             {
-                id = "level_2",
-                label = "Level 2 - Core Sector",
-                description = "Balanced station pressure."
+                id = "medium",
+                label = "Medium",
+                description = "Balanced station pressure with baseline values.",
+                factors = {
+                    abilityCost = 1.0,
+                    enemyDamage = 1.0,
+                    enemyCount = 1.0,
+                    nodeCount = 1.0,
+                    cellCount = 1.0,
+                    roomsToEscape = 1.0
+                }
             },
             {
-                id = "level_3",
-                label = "Level 3 - Reactor Wing",
-                description = "Dense patrols with aggressive hunters."
+                id = "hard",
+                label = "Hard",
+                description = "Brutal pressure: expensive abilities, stronger enemies, and a longer escape objective.",
+                factors = {
+                    abilityCost = 1.35,
+                    enemyDamage = 1.4,
+                    enemyCount = 1.5,
+                    nodeCount = 1.4,
+                    cellCount = 0.8,
+                    roomsToEscape = 1.65
+                }
             }
         }
     })
