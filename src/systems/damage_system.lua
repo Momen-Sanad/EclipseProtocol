@@ -22,21 +22,19 @@ function DamageSystem.updatePlayerInvulnerability(player, dt)
     end
 end
 
-function DamageSystem.applyPlayerEnemyHit(player, enemy, playerSize)
+function DamageSystem.buildPlayerDamageRequest(player, enemy, playerSize)
+    -- Builds one health-delta request and applies hit-reaction state (invul/knockback/flicker).
     if not player or not enemy then
-        return false
+        return nil
     end
 
     if (player.invulTimer or 0) > 0 then
-        return false
+        return nil
     end
 
     local reactionDuration = math.max(0.01, player.damageFlickerDuration or 0.4)
     local hitInvulDuration = enemy.invulDuration or 1.0
 
-    if enemy.damage and player.health then
-        player.health = math.max(0, player.health - (enemy.damage or 0))
-    end
     AudioSystem.playSfx(player.damageSoundPath or "assets/audio/sfx/Damage.mp3")
 
     if type(enemy.onHit) == "function" then
@@ -75,7 +73,37 @@ function DamageSystem.applyPlayerEnemyHit(player, enemy, playerSize)
     player.invulnerable = true
     player.hitThisFrame = true
 
-    return true
+    return {
+        type = "health_delta",
+        target = "player",
+        amount = math.max(0, enemy.damage or 0),
+        source = enemy
+    }
+end
+
+function DamageSystem.processPlayerEnemyContacts(player, hitEvents, playerSize)
+    -- Converts collision events into health requests while applying one hit reaction window.
+    local requests = {}
+    if not player or type(hitEvents) ~= "table" then
+        return requests
+    end
+
+    for _, hitEvent in ipairs(hitEvents) do
+        local enemy = hitEvent and hitEvent.enemy
+        if enemy then
+            local request = DamageSystem.buildPlayerDamageRequest(player, enemy, playerSize)
+            if request then
+                requests[#requests + 1] = request
+            end
+        end
+    end
+
+    return requests
+end
+
+function DamageSystem.applyPlayerEnemyHit(player, enemy, playerSize)
+    -- Backward-compatible helper for older call sites.
+    return DamageSystem.buildPlayerDamageRequest(player, enemy, playerSize) ~= nil
 end
 
 return DamageSystem
