@@ -19,10 +19,82 @@ local function dot(ax, ay, bx, by)
     return ax * bx + ay * by
 end
 
+local function distanceSq(ax, ay, bx, by)
+    local dx = (ax or 0) - (bx or 0)
+    local dy = (ay or 0) - (by or 0)
+    return (dx * dx) + (dy * dy)
+end
+
+local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
+    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
+end
+
 local function rotate(dx, dy, angle)
     local c = math.cos(angle)
     local s = math.sin(angle)
     return dx * c - dy * s, dx * s + dy * c
+end
+
+local function chooseFallbackReroute(enemy, targetX, targetY)
+    local cx = (enemy.x or 0) + ((enemy.width or 0) / 2)
+    local cy = (enemy.y or 0) + ((enemy.height or 0) / 2)
+    local span = math.max(enemy.width or 0, enemy.height or 0)
+    local offset = math.max(24, span)
+
+    if math.abs((targetX or cx) - cx) >= math.abs((targetY or cy) - cy) then
+        local dirY = ((targetY or cy) >= cy) and 1 or -1
+        return cx, cy + (dirY * offset)
+    end
+
+    local dirX = ((targetX or cx) >= cx) and 1 or -1
+    return cx + (dirX * offset), cy
+end
+
+local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
+    if not blockedNode then
+        return chooseFallbackReroute(enemy, targetX, targetY)
+    end
+
+    local ew = enemy.width or 0
+    local eh = enemy.height or 0
+    local halfW = ew / 2
+    local halfH = eh / 2
+    local cx = (enemy.x or 0) + halfW
+    local cy = (enemy.y or 0) + halfH
+    local ox = blockedNode.x or 0
+    local oy = blockedNode.y or 0
+    local ow = blockedNode.width or 0
+    local oh = blockedNode.height or 0
+    local horizontalOffset = math.max(ow, ew, 24)
+    local verticalOffset = math.max(oh, eh, 24)
+    local candidates = {
+        { x = cx + horizontalOffset, y = cy },
+        { x = cx - horizontalOffset, y = cy },
+        { x = cx, y = cy + verticalOffset },
+        { x = cx, y = cy - verticalOffset }
+    }
+
+    local best = nil
+    local bestScore = math.huge
+    for _, candidate in ipairs(candidates) do
+        local ex = candidate.x - halfW
+        local ey = candidate.y - halfH
+        if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
+            local toTarget = distanceSq(candidate.x, candidate.y, targetX, targetY)
+            local fromCurrent = distanceSq(candidate.x, candidate.y, cx, cy)
+            local score = toTarget + (fromCurrent * 0.3)
+            if score < bestScore then
+                bestScore = score
+                best = candidate
+            end
+        end
+    end
+
+    if best then
+        return best.x, best.y
+    end
+
+    return chooseFallbackReroute(enemy, targetX, targetY)
 end
 
 local function getPatrolTarget(enemy)
@@ -89,10 +161,15 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     dt = dt or 0
 
-    enemy.avoidTimer = math.max(0, (enemy.avoidTimer or 0) - dt)
-    if enemy.avoidTimer <= 0 then
-        enemy.avoidX = nil
-        enemy.avoidY = nil
+    enemy.rerouteTimer = math.max(0, (enemy.rerouteTimer or 0) - dt)
+    if enemy.rerouteTimer <= 0 then
+        enemy.rerouteX = nil
+        enemy.rerouteY = nil
+    end
+
+    enemy.blockedNodeTimer = math.max(0, (enemy.blockedNodeTimer or 0) - dt)
+    if enemy.blockedNodeTimer <= 0 then
+        enemy.lastBlockedNode = nil
     end
 
     enemy.state = enemy.state or AISystem.HUNTER_STATES.IDLE
@@ -125,28 +202,28 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     local targetX = px
     local targetY = py
-    local usingAvoidWaypoint = false
-    if enemy.avoidTimer > 0 and enemy.avoidX and enemy.avoidY then
-        targetX = enemy.avoidX
-        targetY = enemy.avoidY
-        usingAvoidWaypoint = true
+    local usingReroute = false
+    if enemy.rerouteTimer > 0 and enemy.rerouteX and enemy.rerouteY then
+        targetX = enemy.rerouteX
+        targetY = enemy.rerouteY
+        usingReroute = true
     end
 
     local toTargetX = targetX - cx
     local toTargetY = targetY - cy
     local dirX, dirY, targetDist = normalize(toTargetX, toTargetY)
 
-    if usingAvoidWaypoint and targetDist <= (enemy.avoidArriveRadius or 28) then
-        enemy.avoidTimer = 0
-        enemy.avoidX = nil
-        enemy.avoidY = nil
-        usingAvoidWaypoint = false
+    if usingReroute and targetDist <= (enemy.rerouteArriveRadius or 20) then
+        enemy.rerouteTimer = 0
+        enemy.rerouteX = nil
+        enemy.rerouteY = nil
+        usingReroute = false
         targetX = px
         targetY = py
         dirX, dirY, targetDist = normalize(targetX - cx, targetY - cy)
     end
 
-    if canChase or usingAvoidWaypoint then
+    if canChase or usingReroute then
         enemy.state = AISystem.HUNTER_STATES.CHASE
         enemy.detectedPlayer = true
         enemy.chasing = true
@@ -167,6 +244,41 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         enemy.lookX, enemy.lookY = rotate(1, 0, enemy.spinAngle)
     end
 
+    if enemy.chasing then
+        local sampleX = enemy.stuckSampleX or enemy.x or 0
+        local sampleY = enemy.stuckSampleY or enemy.y or 0
+        local minMove = enemy.stuckMoveEpsilon or 4
+        if distanceSq(enemy.x or 0, enemy.y or 0, sampleX, sampleY) <= (minMove * minMove) then
+            enemy.stuckTimer = (enemy.stuckTimer or 0) + dt
+        else
+            enemy.stuckTimer = 0
+            enemy.stuckSampleX = enemy.x
+            enemy.stuckSampleY = enemy.y
+        end
+
+        if (enemy.stuckTimer or 0) >= (enemy.stuckThreshold or 0.4) then
+            local rerouteX, rerouteY = chooseNodeReroute(enemy, enemy.lastBlockedNode, px, py)
+            enemy.rerouteX = rerouteX
+            enemy.rerouteY = rerouteY
+            enemy.rerouteTimer = enemy.rerouteDuration or 0.9
+            enemy.stuckTimer = 0
+            enemy.stuckSampleX = enemy.x
+            enemy.stuckSampleY = enemy.y
+
+            local newDx = rerouteX - cx
+            local newDy = rerouteY - cy
+            local newNx, newNy = normalize(newDx, newDy)
+            enemy.vx = newNx * (enemy.speed or 0)
+            enemy.vy = newNy * (enemy.speed or 0)
+            enemy.lookX, enemy.lookY = newNx, newNy
+            usingReroute = true
+        end
+    else
+        enemy.stuckTimer = 0
+        enemy.stuckSampleX = enemy.x
+        enemy.stuckSampleY = enemy.y
+    end
+
     if enemy.vx ~= 0 or enemy.vy ~= 0 then
         local nx, ny = normalize(enemy.vx, enemy.vy)
         if nx ~= 0 or ny ~= 0 then
@@ -174,7 +286,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         end
     end
 
-    if enemy.chasing and (not usingAvoidWaypoint) and playerDist < 40 then
+    if enemy.chasing and (not usingReroute) and playerDist < 40 then
         enemy.vx, enemy.vy = 0, 0
         return
     end

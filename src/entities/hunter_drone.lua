@@ -45,9 +45,19 @@ function HunterDrone.new(opts)
     self.state = (AISystem.HUNTER_STATES and AISystem.HUNTER_STATES.IDLE) or "idle"
     self.chasing = false
     self.detectedPlayer = false
-    self.avoidX = nil
-    self.avoidY = nil
-    self.avoidTimer = 0
+    self.rerouteX = nil
+    self.rerouteY = nil
+    self.rerouteTimer = 0
+    self.rerouteDuration = opts.rerouteDuration or 0.9
+    self.rerouteArriveRadius = opts.rerouteArriveRadius or 20
+    self.stuckTimer = 0
+    self.stuckThreshold = opts.stuckThreshold or 0.4
+    self.stuckMoveEpsilon = opts.stuckMoveEpsilon or 4
+    self.stuckSampleX = nil
+    self.stuckSampleY = nil
+    self.lastBlockedNode = nil
+    self.blockedNodeTimer = 0
+    self.blockedNodeMemory = opts.blockedNodeMemory or 1.2
     self.lastTargetX = nil
     self.lastTargetY = nil
 
