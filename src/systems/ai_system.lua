@@ -35,19 +35,90 @@ local function rotate(dx, dy, angle)
     return dx * c - dy * s, dx * s + dy * c
 end
 
+local function segmentIntersectsAabb(x1, y1, x2, y2, rx, ry, rw, rh)
+    local dx = (x2 or 0) - (x1 or 0)
+    local dy = (y2 or 0) - (y1 or 0)
+    local tMin = 0
+    local tMax = 1
+
+    local function clip(p, q)
+        if p == 0 then
+            return q >= 0
+        end
+
+        local r = q / p
+        if p < 0 then
+            if r > tMax then
+                return false
+            end
+            if r > tMin then
+                tMin = r
+            end
+        else
+            if r < tMin then
+                return false
+            end
+            if r < tMax then
+                tMax = r
+            end
+        end
+        return true
+    end
+
+    if not clip(-dx, (x1 or 0) - (rx or 0)) then
+        return false
+    end
+    if not clip(dx, ((rx or 0) + (rw or 0)) - (x1 or 0)) then
+        return false
+    end
+    if not clip(-dy, (y1 or 0) - (ry or 0)) then
+        return false
+    end
+    if not clip(dy, ((ry or 0) + (rh or 0)) - (y1 or 0)) then
+        return false
+    end
+
+    return tMax >= tMin
+end
+
+local function getExpandedBlockedNodeBounds(enemy, blockedNode)
+    local ox = blockedNode and blockedNode.x or 0
+    local oy = blockedNode and blockedNode.y or 0
+    local ow = blockedNode and blockedNode.width or 0
+    local oh = blockedNode and blockedNode.height or 0
+    local halfW = (enemy and enemy.width or 0) * 0.5
+    local halfH = (enemy and enemy.height or 0) * 0.5
+    local pad = math.max(8, math.floor(math.max(halfW, halfH) * 0.15))
+    local rx = ox - halfW - pad
+    local ry = oy - halfH - pad
+    local rw = ow + ((halfW + pad) * 2)
+    local rh = oh + ((halfH + pad) * 2)
+    return rx, ry, rw, rh
+end
+
+local function hasClearPathToPlayer(enemy, playerX, playerY, blockedNode)
+    if not blockedNode then
+        return true
+    end
+
+    local cx = (enemy.x or 0) + ((enemy.width or 0) / 2)
+    local cy = (enemy.y or 0) + ((enemy.height or 0) / 2)
+    local rx, ry, rw, rh = getExpandedBlockedNodeBounds(enemy, blockedNode)
+    return not segmentIntersectsAabb(cx, cy, playerX, playerY, rx, ry, rw, rh)
+end
+
 local function chooseFallbackReroute(enemy, targetX, targetY)
     local cx = (enemy.x or 0) + ((enemy.width or 0) / 2)
     local cy = (enemy.y or 0) + ((enemy.height or 0) / 2)
-    local span = math.max(enemy.width or 0, enemy.height or 0)
-    local offset = math.max(24, span)
+    local step = math.max(enemy.width or 0, enemy.height or 0, 36)
 
     if math.abs((targetX or cx) - cx) >= math.abs((targetY or cy) - cy) then
         local dirY = ((targetY or cy) >= cy) and 1 or -1
-        return cx, cy + (dirY * offset)
+        return "y", dirY, step
     end
 
     local dirX = ((targetX or cx) >= cx) and 1 or -1
-    return cx + (dirX * offset), cy
+    return "x", dirX, step
 end
 
 local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
@@ -65,45 +136,41 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     local oy = blockedNode.y or 0
     local ow = blockedNode.width or 0
     local oh = blockedNode.height or 0
-    local nodeCx = ox + (ow / 2)
-    local nodeCy = oy + (oh / 2)
-    local centerDistance = math.sqrt(distanceSq(cx, cy, nodeCx, nodeCy))
-    local minSafeDistance = math.max(24, (math.max(ow, oh) * 0.5) + (math.max(ew, eh) * 0.6) + 28)
-    local distanceDeficit = math.max(0, minSafeDistance - centerDistance)
-    local horizontalOffset = math.max(ow, ew, 24) + distanceDeficit + 20
-    local verticalOffset = math.max(oh, eh, 24) + distanceDeficit + 20
-    local preferredXDir = (cx >= nodeCx) and 1 or -1
-    local preferredYDir = (cy >= nodeCy) and 1 or -1
+    local nodeCx = ox + (ow * 0.5)
+    local nodeCy = oy + (oh * 0.5)
+    local nodeSpan = math.max(ow, oh, ew, eh, 40)
+    local step = nodeSpan + math.max(18, math.floor(nodeSpan * 0.35))
+    local rx, ry, rw, rh = getExpandedBlockedNodeBounds(enemy, blockedNode)
     local candidates = {
-        { x = cx + (preferredXDir * horizontalOffset), y = cy },
-        { x = cx - (preferredXDir * horizontalOffset), y = cy },
-        { x = cx, y = cy + (preferredYDir * verticalOffset) },
-        { x = cx, y = cy - (preferredYDir * verticalOffset) }
+        { axis = "x", dir = 1, x = cx + step, y = cy },
+        { axis = "x", dir = -1, x = cx - step, y = cy },
+        { axis = "y", dir = 1, x = cx, y = cy + step },
+        { axis = "y", dir = -1, x = cx, y = cy - step }
     }
 
-    local best = nil
+    local bestAxis = nil
+    local bestDir = nil
     local bestScore = math.huge
     for _, candidate in ipairs(candidates) do
         local ex = candidate.x - halfW
         local ey = candidate.y - halfH
         if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
             local toTarget = distanceSq(candidate.x, candidate.y, targetX, targetY)
-            local fromCurrent = distanceSq(candidate.x, candidate.y, cx, cy)
-            local candidateNodeDistance = math.sqrt(distanceSq(candidate.x, candidate.y, nodeCx, nodeCy))
-            local score = toTarget + (fromCurrent * 0.3)
-            if candidateNodeDistance < (minSafeDistance + 12) then
-                local proximity = (minSafeDistance + 12) - candidateNodeDistance
-                score = score + (proximity * proximity * 6)
+            local clearPathFromCandidate = not segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
+            local score = toTarget - (distanceSq(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
+            if clearPathFromCandidate then
+                score = score - 1000000
             end
             if score < bestScore then
                 bestScore = score
-                best = candidate
+                bestAxis = candidate.axis
+                bestDir = candidate.dir
             end
         end
     end
 
-    if best then
-        return best.x, best.y
+    if bestAxis and bestDir then
+        return bestAxis, bestDir, step
     end
 
     return chooseFallbackReroute(enemy, targetX, targetY)
@@ -177,6 +244,9 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     if enemy.rerouteTimer <= 0 then
         enemy.rerouteX = nil
         enemy.rerouteY = nil
+        enemy.rerouteAxis = nil
+        enemy.rerouteDir = nil
+        enemy.rerouteStep = nil
     end
 
     enemy.chaseMemoryTimer = math.max(0, (enemy.chaseMemoryTimer or 0) - dt)
@@ -216,45 +286,34 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     local targetX = px
     local targetY = py
-    local usingReroute = false
-    if enemy.rerouteTimer > 0 and enemy.rerouteX and enemy.rerouteY then
-        targetX = enemy.rerouteX
-        targetY = enemy.rerouteY
-        usingReroute = true
+    local usingReroute = enemy.rerouteTimer > 0 and enemy.rerouteAxis ~= nil and enemy.rerouteDir ~= nil
+    if usingReroute then
+        local blockedNode = enemy.lastBlockedNode
+        if hasClearPathToPlayer(enemy, px, py, blockedNode) then
+            enemy.rerouteTimer = 0
+            enemy.rerouteX = nil
+            enemy.rerouteY = nil
+            enemy.rerouteAxis = nil
+            enemy.rerouteDir = nil
+            enemy.rerouteStep = nil
+            usingReroute = false
+        else
+            local step = enemy.rerouteStep or math.max(enemy.width or 0, enemy.height or 0, 36)
+            if enemy.rerouteAxis == "x" then
+                targetX = cx + (enemy.rerouteDir * step)
+                targetY = cy
+            else
+                targetX = cx
+                targetY = cy + (enemy.rerouteDir * step)
+            end
+            enemy.rerouteX = targetX
+            enemy.rerouteY = targetY
+        end
     end
 
     local toTargetX = targetX - cx
     local toTargetY = targetY - cy
-    local dirX, dirY, targetDist = normalize(toTargetX, toTargetY)
-
-    if usingReroute then
-        local shouldExitReroute = targetDist <= (enemy.rerouteArriveRadius or 20)
-        local blockedNode = enemy.lastBlockedNode
-
-        if not shouldExitReroute and blockedNode then
-            local nodeCx = (blockedNode.x or 0) + ((blockedNode.width or 0) / 2)
-            local nodeCy = (blockedNode.y or 0) + ((blockedNode.height or 0) / 2)
-            local nodeDist = math.sqrt(distanceSq(cx, cy, nodeCx, nodeCy))
-            local clearDistance = math.max(
-                24,
-                (math.max(blockedNode.width or 0, blockedNode.height or 0) * 0.5) +
-                (math.max(enemy.width or 0, enemy.height or 0) * 0.65) + 24
-            )
-            if nodeDist >= clearDistance then
-                shouldExitReroute = true
-            end
-        end
-
-        if shouldExitReroute then
-            enemy.rerouteTimer = 0
-            enemy.rerouteX = nil
-            enemy.rerouteY = nil
-            usingReroute = false
-            targetX = px
-            targetY = py
-            dirX, dirY, targetDist = normalize(targetX - cx, targetY - cy)
-        end
-    end
+    local dirX, dirY = normalize(toTargetX, toTargetY)
 
     if canChase or usingReroute then
         enemy.chaseMemoryTimer = math.max(enemy.chaseMemoryTimer or 0, enemy.chaseMemoryDuration or 1.1)
@@ -297,7 +356,17 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         end
 
         if (enemy.stuckTimer or 0) >= (enemy.stuckThreshold or 0.4) then
-            local rerouteX, rerouteY = chooseNodeReroute(enemy, enemy.lastBlockedNode, px, py)
+            local rerouteAxis, rerouteDir, rerouteStep = chooseNodeReroute(enemy, enemy.lastBlockedNode, px, py)
+            local rerouteX = cx
+            local rerouteY = cy
+            if rerouteAxis == "x" then
+                rerouteX = cx + (rerouteDir * rerouteStep)
+            else
+                rerouteY = cy + (rerouteDir * rerouteStep)
+            end
+            enemy.rerouteAxis = rerouteAxis
+            enemy.rerouteDir = rerouteDir
+            enemy.rerouteStep = rerouteStep
             enemy.rerouteX = rerouteX
             enemy.rerouteY = rerouteY
             enemy.rerouteTimer = enemy.rerouteDuration or 0.9
