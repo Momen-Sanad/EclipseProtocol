@@ -14,6 +14,7 @@ local EnergySystem = require("src/systems/energy_system")
 local SpawnSystem = require("src/systems/spawn_system")
 local RoomgenSystem = require("src/systems/roomgen_system")
 local ProgressionSystem = require("src/systems/progression_system")
+local EvacuationSystem = require("src/systems/evacuation_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
@@ -25,6 +26,13 @@ local DEFAULT_CELL_ENERGY_RESTORE = 25
 local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
+
+local function getEvacuationStatus()
+    return {
+        timeRemaining = EvacuationSystem.getTimeRemaining(),
+        phaseLabel = EvacuationSystem.getPhaseLabel()
+    }
+end
 
 local function getPlayAreaSize(context)
     -- Uses live background-scaled viewport size with context fallback.
@@ -44,6 +52,7 @@ end
 local function resetRun(context)
     -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
     local difficulty = ProgressionSystem.beginRun(context)
+    EvacuationSystem.beginRun(difficulty)
 
     local _, w, h = ensureRuntime(context)
     local playerSize = (context and context.playerSize) or 35
@@ -92,8 +101,13 @@ function GameState.update(dt, context)
     local player, w, h = ensureRuntime(context)
     local playerSize = context.playerSize or 35
 
-    if ProgressionSystem.tickCountdown(dt) then
+    local evacuationResult = EvacuationSystem.update(dt)
+    if evacuationResult == EvacuationSystem.STATES.FAILED then
         StateManager.change("transition", "gameover")
+        return
+    end
+    if evacuationResult == EvacuationSystem.STATES.SUCCESS then
+        StateManager.change("transition", "victory")
         return
     end
 
@@ -143,9 +157,11 @@ function GameState.update(dt, context)
         return
     end
 
-    if PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
+    if not EvacuationSystem.isEvacuationActive() and PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
+        EvacuationSystem.onRoomCleared()
         if ProgressionSystem.advanceRoom() then
-            StateManager.change("transition", "victory")
+            EvacuationSystem.startEvacuation()
+            InputSystem.update()
             return
         end
 
@@ -207,7 +223,7 @@ function GameState.draw(context)
 
     Hud.draw(player, ProgressionSystem.getElapsedTime(), CellSystem.getCollectedTotal())
 
-    local status = ProgressionSystem.getStatusLine()
+    local status = ProgressionSystem.getStatusLine(getEvacuationStatus())
     local statusW = love.graphics.getFont():getWidth(status)
     love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
     love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, 20)
