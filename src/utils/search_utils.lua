@@ -1,6 +1,25 @@
 -- Shared random/grid search helpers for spawn placement and fallback scans.
 local SearchUtils = {}
 
+function SearchUtils.findRandomValue(minValue, maxValue, attempts, isValid, rng)
+    local minV = minValue or 0
+    local maxV = maxValue or 0
+    local tries = math.max(0, math.floor(attempts or 0))
+    local random = rng or ((love and love.math and love.math.random) or math.random)
+    local validator = isValid or function()
+        return false
+    end
+
+    for _ = 1, tries do
+        local value = random(minV, maxV)
+        if validator(value) then
+            return value
+        end
+    end
+
+    return nil
+end
+
 function SearchUtils.findRandom(bounds, attempts, isValid, rng)
     local minX = bounds and bounds.minX or 0
     local maxX = bounds and bounds.maxX or 0
@@ -67,6 +86,23 @@ function SearchUtils.findGrid(bounds, step, isValid, opts)
     return nil, nil
 end
 
+function SearchUtils.findGridValue(minValue, maxValue, step, isValid)
+    local minV = minValue or 0
+    local maxV = maxValue or 0
+    local scanStep = math.max(1, math.floor(step or 1))
+    local validator = isValid or function()
+        return false
+    end
+
+    for value = minV, maxV, scanStep do
+        if validator(value) then
+            return value
+        end
+    end
+
+    return nil
+end
+
 function SearchUtils.findRandomThenGrid(bounds, randomAttempts, step, isValid, opts)
     local random = (opts and opts.rng) or ((love and love.math and love.math.random) or math.random)
     local x, y = SearchUtils.findRandom(bounds, randomAttempts, isValid, random)
@@ -75,6 +111,15 @@ function SearchUtils.findRandomThenGrid(bounds, randomAttempts, step, isValid, o
     end
 
     return SearchUtils.findGrid(bounds, step, isValid, opts)
+end
+
+function SearchUtils.findRandomThenGridValue(minValue, maxValue, randomAttempts, step, isValid, rng)
+    local value = SearchUtils.findRandomValue(minValue, maxValue, randomAttempts, isValid, rng)
+    if value ~= nil then
+        return value
+    end
+
+    return SearchUtils.findGridValue(minValue, maxValue, step, isValid)
 end
 
 return SearchUtils
