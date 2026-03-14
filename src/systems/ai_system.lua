@@ -11,6 +11,17 @@ AISystem.HUNTER_STATES = {
     CHASE = "chase"
 }
 
+local function updateStunState(enemy, dt)
+    local timer = math.max(0, (enemy and enemy.stunTimer or 0) - (dt or 0))
+    enemy.stunTimer = timer
+    if timer > 0 then
+        enemy.isStunned = true
+        enemy.pauseTimer = math.max(enemy.pauseTimer or 0, timer)
+    else
+        enemy.isStunned = false
+    end
+end
+
 local function getExpandedBlockedNodeBounds(enemy, blockedNode)
     local ox = blockedNode and blockedNode.x or 0
     local oy = blockedNode and blockedNode.y or 0
@@ -120,6 +131,7 @@ function AISystem.updatePatrol(enemy, dt)
     end
 
     dt = dt or 0
+    updateStunState(enemy, dt)
 
     enemy.state = enemy.state or "patrol"
 
@@ -167,6 +179,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     end
 
     dt = dt or 0
+    updateStunState(enemy, dt)
 
     enemy.rerouteTimer = math.max(0, (enemy.rerouteTimer or 0) - dt)
     if enemy.rerouteTimer <= 0 then

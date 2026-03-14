@@ -7,7 +7,7 @@ local function resetEnemyAfterPlayerContact(enemy, pauseDuration)
     -- Shared post-contact recovery to prevent immediate re-penetration.
     Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
     Kinematics.stop(enemy)
-    enemy.pauseTimer = pauseDuration or 1.0
+    enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pauseDuration or 1.0)
     enemy.chasing = false
     if enemy.state ~= nil then
         enemy.state = "idle"

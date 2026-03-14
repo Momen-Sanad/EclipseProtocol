@@ -29,6 +29,8 @@ function EnemyBase.new(opts)
 
     -- Meta flags for gameplay logic
     self.isEnemy = true
+    self.isStunned = false
+    self.stunTimer = 0
     self.stunFlickerTimer = 0
     self.stunFlickerDuration = 0.3
     self.stunFlickerCount = 4

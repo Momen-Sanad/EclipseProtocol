@@ -28,6 +28,10 @@ function DamageSystem.buildPlayerDamageRequest(player, enemy, playerSize)
         return nil
     end
 
+    if enemy.isStunned or (enemy.stunTimer or 0) > 0 then
+        return nil
+    end
+
     if (player.invulTimer or 0) > 0 then
         return nil
     end

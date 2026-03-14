@@ -246,7 +246,9 @@ function AbilitySystem.update(player, drones, hunters, input, dt, playerSize)
 
     if hitEnemy then
         -- Stun effect freezes pursuit and applies a brief flicker feedback.
-        hitEnemy.pauseTimer = math.max(hitEnemy.pauseTimer or 0, stunDuration)
+        hitEnemy.stunTimer = math.max(hitEnemy.stunTimer or 0, stunDuration)
+        hitEnemy.isStunned = true
+        hitEnemy.pauseTimer = math.max(hitEnemy.pauseTimer or 0, hitEnemy.stunTimer)
         hitEnemy.chasing = false
         if hitEnemy.state ~= nil then
             hitEnemy.state = "idle"
