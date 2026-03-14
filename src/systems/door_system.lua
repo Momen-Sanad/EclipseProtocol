@@ -4,6 +4,7 @@ local CollisionSystem = require("src/systems/collision_system")
 local DoorSystem = {}
 
 local door = nil
+local doorOpen = false
 
 local function randomInt(minValue, maxValue)
     local rng = (love and love.math and love.math.random) or math.random
@@ -12,6 +13,7 @@ end
 
 function DoorSystem.reset()
     door = nil
+    doorOpen = false
 end
 
 function DoorSystem.isActive()
@@ -76,11 +78,20 @@ function DoorSystem.spawnRandomDoor(playWidth, playHeight, config)
         height = height,
         edge = edge
     }
+    doorOpen = false
     return door
 end
 
 function DoorSystem.getDoor()
     return door
+end
+
+function DoorSystem.setOpen(isOpen)
+    doorOpen = isOpen and true or false
+end
+
+function DoorSystem.isOpen()
+    return doorOpen
 end
 
 function DoorSystem.isPlayerOverlapping(player, playerSize)
@@ -101,7 +112,13 @@ function DoorSystem.isPlayerOverlapping(player, playerSize)
     )
 end
 
-function DoorSystem.tryEnter(player, playerSize)
+function DoorSystem.tryEnter(player, playerSize, input)
+    if not doorOpen then
+        return false
+    end
+    if not input or not input.interactPressed or not input.interactPressed() then
+        return false
+    end
     if DoorSystem.isPlayerOverlapping(player, playerSize) then
         return true
     end
@@ -113,7 +130,10 @@ function DoorSystem.getPrompt(player, playerSize)
         return nil
     end
     if DoorSystem.isPlayerOverlapping(player, playerSize) then
-        return "MOVE THROUGH THE DOOR TO ENTER NEXT ROOM"
+        if doorOpen then
+            return "PRESS ENTER TO USE THE DOOR"
+        end
+        return "DOOR LOCKED: REPAIR ALL POWER NODES"
     end
     return nil
 end
@@ -123,9 +143,18 @@ function DoorSystem.draw()
         return
     end
 
-    love.graphics.setColor(0.35, 0.95, 0.72, 0.28)
+    local baseFill = { 0.82, 0.12, 0.16, 0.30 }
+    local baseEdge = { 1.0, 0.30, 0.32, 0.92 }
+    if doorOpen then
+        local t = (love and love.timer and love.timer.getTime and love.timer.getTime()) or 0
+        local pulse = 0.55 + (0.45 * math.abs(math.sin(t * 7.5)))
+        baseFill = { 1.0, 1.0, 1.0, 0.18 + (0.22 * pulse) }
+        baseEdge = { 1.0, 1.0, 1.0, 0.55 + (0.45 * pulse) }
+    end
+
+    love.graphics.setColor(baseFill)
     love.graphics.rectangle("fill", door.x, door.y, door.width, door.height, 5, 5)
-    love.graphics.setColor(0.72, 1.0, 0.84, 0.95)
+    love.graphics.setColor(baseEdge)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", door.x, door.y, door.width, door.height, 5, 5)
     love.graphics.setLineWidth(1)
