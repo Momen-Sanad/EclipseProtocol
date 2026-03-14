@@ -106,11 +106,11 @@ local function getAimDir(player)
     if dx == 0 and dy == 0 then
         return 1, 0
     end
-    local len = math.sqrt((dx * dx) + (dy * dy))
+    local nx, ny, len = Kinematics.normalize(dx, dy)
     if len <= 0 then
         return 1, 0
     end
-    return dx / len, dy / len
+    return nx, ny
 end
 
 local function rayAabbHitDistance(originX, originY, dirX, dirY, minX, minY, maxX, maxY, maxDistance)
