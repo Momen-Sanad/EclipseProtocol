@@ -1,6 +1,7 @@
 -- Power node entity helpers: spawn, repair state progression, and placeholder rendering.
 local CollisionSystem = require("src/systems/collision_system")
 local MathUtils = require("src/utils/math_utils")
+local SearchUtils = require("src/utils/search_utils")
 
 local PowerNode = {}
 
@@ -125,14 +126,15 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     for _ = 1, count do
         local placed = false
 
-        for _ = 1, maxAttemptsPerNode do
-            local x = rng(minX, maxX)
-            local y = rng(minY, maxY)
-            if isValidPlacement(x, y) then
-                nodes[#nodes + 1] = makeNodeAt(x, y)
-                placed = true
-                break
-            end
+        local randomX, randomY = SearchUtils.findRandom(
+            { minX = minX, maxX = maxX, minY = minY, maxY = maxY },
+            maxAttemptsPerNode,
+            isValidPlacement,
+            rng
+        )
+        if randomX ~= nil and randomY ~= nil then
+            nodes[#nodes + 1] = makeNodeAt(randomX, randomY)
+            placed = true
         end
 
         if not placed then
