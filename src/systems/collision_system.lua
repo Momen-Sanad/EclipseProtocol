@@ -1,15 +1,10 @@
 -- Collision helpers for player/enemy overlap resolution and collectible pickup checks.
 local Kinematics = require("src/utils/kinematics")
-local EnergyCell = require("src/entities/energy_cell")
 
 local CollisionSystem = {}
 
-local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
-end
-
 function CollisionSystem.overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
-    return aabb(x1, y1, w1, h1, x2, y2, w2, h2)
+    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
 
 function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
@@ -20,7 +15,7 @@ function CollisionSystem.playerEnemyOverlap(player, enemy, playerSize)
     local size = playerSize or 35
     local ew = enemy.width or 0
     local eh = enemy.height or 0
-    return aabb(
+    return CollisionSystem.overlaps(
         player.x, player.y, size, size,
         enemy.x or 0, enemy.y or 0, ew, eh
     )
@@ -125,7 +120,7 @@ function CollisionSystem.resolveEntityOnObstacle(entity, entityW, entityH, obsta
     local ow = obstacle.width or 0
     local oh = obstacle.height or 0
 
-    if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
+    if not CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh) then
         return false
     end
 
@@ -173,7 +168,7 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
     for _, enemy in ipairs(enemies) do
         local ew = enemy.width or 0
         local eh = enemy.height or 0
-        if aabb(enemy.x or 0, enemy.y or 0, ew, eh, ox, oy, ow, oh) then
+        if CollisionSystem.overlaps(enemy.x or 0, enemy.y or 0, ew, eh, ox, oy, ow, oh) then
             blocked = true
             Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
             Kinematics.stop(enemy)
@@ -205,6 +200,7 @@ end
 
 function CollisionSystem.collectCells(player, cells, playerSize)
     -- Backward-compatible wrapper; energy-cell logic now lives in src/entities/energy_cell.lua.
+    local EnergyCell = require("src/entities/energy_cell")
     return EnergyCell.collect(player, cells, playerSize)
 end
 
