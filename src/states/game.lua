@@ -92,6 +92,11 @@ function GameState.update(dt, context)
     local player, w, h = ensureRuntime(context)
     local playerSize = context.playerSize or 35
 
+    if ProgressionSystem.tickCountdown(dt) then
+        StateManager.change("transition", "gameover")
+        return
+    end
+
     ScreenFlashSystem.update(dt)
     player.hitThisFrame = false
     HealthSystem.ensureValid(player)
