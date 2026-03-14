@@ -20,10 +20,6 @@ local DEFAULT_PATROL_LINE_NODE_CLEARANCE = 24
 local DEFAULT_PATROL_ROUTE_MIN_FRACTION = 0.24
 local DEFAULT_PATROL_ROUTE_MAX_FRACTION = 0.62
 
-local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
-end
-
 local function clamp(value, minValue, maxValue)
     return math.max(minValue, math.min(maxValue, value))
 end
@@ -39,7 +35,7 @@ local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
         local ny = (node.y or 0) - pad
         local nw = (node.width or 0) + (pad * 2)
         local nh = (node.height or 0) + (pad * 2)
-        if aabb(x, y, w, h, nx, ny, nw, nh) then
+        if CollisionSystem.overlaps(x, y, w, h, nx, ny, nw, nh) then
             return true
         end
     end
@@ -59,7 +55,7 @@ local function overlapsExistingPatrols(x, y, w, h, padding)
         local dy = (drone.y or 0) - pad
         local dw = (drone.width or w or 0) + (pad * 2)
         local dh = (drone.height or h or 0) + (pad * 2)
-        if aabb(px, py, pw, ph, dx, dy, dw, dh) then
+        if CollisionSystem.overlaps(px, py, pw, ph, dx, dy, dw, dh) then
             return true
         end
     end
