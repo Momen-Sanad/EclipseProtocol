@@ -14,7 +14,9 @@ local DEFAULT_BASE = {
     },
     objectives = {
         powerNodeCount = 3,
-        roomsToEscape = 3
+        roomsToEscape = 3,
+        timeLimitSeconds = 240,
+        roomClearTimeBonusSeconds = 20
     },
     resources = {
         cellCount = 10
@@ -25,14 +27,16 @@ local DEFAULT_PROFILES = {
     {
         id = "easy",
         label = "Easy",
-        description = "Lower pressure: cheaper abilities, fewer threats, fewer rooms to escape.",
+        description = "Lower pressure: cheaper abilities, fewer threats, fewer rooms, and a more generous evacuation timer.",
         factors = {
             abilityCost = 0.75,
             enemyDamage = 0.8,
             enemyCount = 0.8,
             nodeCount = 0.8,
             cellCount = 1.25,
-            roomsToEscape = 0.7
+            roomsToEscape = 0.7,
+            timeLimit = 1.3,
+            roomTimeBonus = 1.25
         }
     },
     {
@@ -45,20 +49,24 @@ local DEFAULT_PROFILES = {
             enemyCount = 1.0,
             nodeCount = 1.0,
             cellCount = 1.0,
-            roomsToEscape = 1.0
+            roomsToEscape = 1.0,
+            timeLimit = 1.0,
+            roomTimeBonus = 1.0
         }
     },
     {
         id = "hard",
         label = "Hard",
-        description = "Higher pressure: expensive abilities, stronger enemies, longer escape run.",
+        description = "Higher pressure: expensive abilities, stronger enemies, longer escape run, and a tighter evacuation timer.",
         factors = {
             abilityCost = 1.35,
             enemyDamage = 1.4,
             enemyCount = 1.5,
             nodeCount = 1.4,
             cellCount = 0.8,
-            roomsToEscape = 1.65
+            roomsToEscape = 1.65,
+            timeLimit = 0.75,
+            roomTimeBonus = 0.8
         }
     }
 }
@@ -133,7 +141,9 @@ function DifficultySystem.buildRuntimeValues(context)
         hunterCount = scaleInt(enemies.hunterCount, factors.enemyCount, 1),
         powerNodeCount = scaleInt(objectives.powerNodeCount, factors.nodeCount, 1),
         cellCount = scaleInt(resources.cellCount, factors.cellCount, 0),
-        roomsToEscape = scaleInt(objectives.roomsToEscape, factors.roomsToEscape, 1)
+        roomsToEscape = scaleInt(objectives.roomsToEscape, factors.roomsToEscape, 1),
+        timeLimitSeconds = scaleInt(objectives.timeLimitSeconds, factors.timeLimit, 30),
+        roomClearTimeBonusSeconds = scaleInt(objectives.roomClearTimeBonusSeconds, factors.roomTimeBonus, 0)
     }
 end
 
