@@ -23,8 +23,10 @@ local function overlapsWithGap(a, b, gap)
     local bw = b.width or 0
     local bh = b.height or 0
 
-    return ax < (bx + bw + pad) and bx < (ax + aw + pad)
-        and ay < (by + bh + pad) and by < (ay + ah + pad)
+    return CollisionSystem.overlaps(
+        ax, ay, aw + pad, ah + pad,
+        bx, by, bw + pad, bh + pad
+    )
 end
 
 local function hasSpawnConflict(candidate)
