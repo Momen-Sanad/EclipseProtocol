@@ -3,6 +3,17 @@ local Kinematics = require("src/utils/kinematics")
 
 local CollisionSystem = {}
 
+local function resetEnemyAfterPlayerContact(enemy, pauseDuration)
+    -- Shared post-contact recovery to prevent immediate re-penetration.
+    Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
+    Kinematics.stop(enemy)
+    enemy.pauseTimer = pauseDuration or 1.0
+    enemy.chasing = false
+    if enemy.state ~= nil then
+        enemy.state = "idle"
+    end
+end
+
 function CollisionSystem.overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
     return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
@@ -64,17 +75,8 @@ function CollisionSystem.stopPlayerOnEnemies(enemies, player, playerSize)
                 enemy = enemy
             }
 
-            -- rewind enemy to previous pos (prevents tunneling) and pause it briefly
-            Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
-            Kinematics.stop(enemy)
-
-            -- pause the enemy so they don't immediately try to re-enter the player.
-            -- We'll decrement this in the enemy update. Default to invulDuration as pause length.
-            enemy.pauseTimer = 1.0
-            enemy.chasing = false
-            if enemy.state ~= nil then
-                enemy.state = "idle"
-            end
+            -- Pause and rewind so enemy does not immediately re-enter the player.
+            resetEnemyAfterPlayerContact(enemy, 1.0)
         end
     end
 
@@ -91,15 +93,7 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
     for _, enemy in ipairs(enemies) do
         if CollisionSystem.playerEnemyOverlap(player, enemy, size) then
             blocked = true
-            Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
-            Kinematics.stop(enemy)
-
-            -- set a short pause so enemy won't immediately chase again
-            enemy.pauseTimer = 1.0
-            enemy.chasing = false
-            if enemy.state ~= nil then
-                enemy.state = "idle"
-            end
+            resetEnemyAfterPlayerContact(enemy, 1.0)
         end
     end
     return blocked
