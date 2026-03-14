@@ -1,6 +1,7 @@
 -- Owns energy-cell spawn, collection, rendering, and score tracking.
 local CollisionSystem = require("src/systems/collision_system")
 local EnergyCell = require("src/entities/energy_cell")
+local SearchUtils = require("src/utils/search_utils")
 
 local CellSystem = {}
 
@@ -43,25 +44,30 @@ local function findFallbackSpawn(playWidth, playHeight)
     local maxX = math.max(0, (playWidth or 0) - cellSize)
     local maxY = math.max(0, (playHeight or 0) - cellSize)
     local step = math.max(8, math.floor(cellSize * 0.2))
-    local rng = (love and love.math and love.math.random) or math.random
-    local startX = (maxX > 0) and rng(0, maxX) or 0
-    local startY = (maxY > 0) and rng(0, maxY) or 0
-
-    for oy = 0, maxY, step do
-        local y = (startY + oy) % math.max(1, maxY + 1)
-        for ox = 0, maxX, step do
-            local x = (startX + ox) % math.max(1, maxX + 1)
+    local x, y = SearchUtils.findGrid(
+        { minX = 0, maxX = maxX, minY = 0, maxY = maxY },
+        step,
+        function(candidateX, candidateY)
             local candidate = EnergyCell.new({
-                x = x,
-                y = y,
+                x = candidateX,
+                y = candidateY,
                 width = cellSize,
                 height = cellSize,
                 spritePath = cellSpritePath
             })
-            if not hasSpawnConflict(candidate) then
-                return candidate
-            end
-        end
+            return not hasSpawnConflict(candidate)
+        end,
+        { randomStart = true, wrap = true }
+    )
+
+    if x ~= nil and y ~= nil then
+        return EnergyCell.new({
+            x = x,
+            y = y,
+            width = cellSize,
+            height = cellSize,
+            spritePath = cellSpritePath
+        })
     end
 
     return nil

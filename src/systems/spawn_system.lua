@@ -4,6 +4,7 @@ local PowerNodeSystem = require("src/systems/power_node_system")
 local CollisionSystem = require("src/systems/collision_system")
 local Kinematics = require("src/utils/kinematics")
 local MathUtils = require("src/utils/math_utils")
+local SearchUtils = require("src/utils/search_utils")
 
 local SpawnSystem = {}
 
@@ -80,27 +81,21 @@ function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize)
     local maxY = math.max(minY, h - playerSize - SAFE_SPAWN_PADDING)
     local centerX = math.floor((w - playerSize) / 2)
     local centerY = math.floor((h - playerSize) / 2)
-    local rng = (love and love.math and love.math.random) or math.random
 
     if SpawnSystem.isSafePlayerSpawn(centerX, centerY, playerSize) then
         return centerX, centerY
     end
 
-    for _ = 1, SAFE_SPAWN_RANDOM_ATTEMPTS do
-        local x = rng(minX, maxX)
-        local y = rng(minY, maxY)
-        if SpawnSystem.isSafePlayerSpawn(x, y, playerSize) then
-            return x, y
+    local x, y = SearchUtils.findRandomThenGrid(
+        { minX = minX, maxX = maxX, minY = minY, maxY = maxY },
+        SAFE_SPAWN_RANDOM_ATTEMPTS,
+        math.max(10, math.floor(playerSize * 0.75)),
+        function(candidateX, candidateY)
+            return SpawnSystem.isSafePlayerSpawn(candidateX, candidateY, playerSize)
         end
-    end
-
-    local step = math.max(10, math.floor(playerSize * 0.75))
-    for y = minY, maxY, step do
-        for x = minX, maxX, step do
-            if SpawnSystem.isSafePlayerSpawn(x, y, playerSize) then
-                return x, y
-            end
-        end
+    )
+    if x ~= nil and y ~= nil then
+        return x, y
     end
 
     return centerX, centerY
