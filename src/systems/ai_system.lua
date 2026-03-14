@@ -1,85 +1,14 @@
 -- Enemy AI / movement intent logic.
 -- Keeps behavior decisions out of entity constructors and animation code.
+local Kinematics = require("src/utils/kinematics")
+local MathUtils = require("src/utils/math_utils")
+
 local AISystem = {}
 
 AISystem.HUNTER_STATES = {
     IDLE = "idle",
     CHASE = "chase"
 }
-
-local function normalize(dx, dy)
-    local len = math.sqrt(dx * dx + dy * dy)
-    if len == 0 then
-        return 0, 0, 0
-    end
-    return dx / len, dy / len, len
-end
-
-local function dot(ax, ay, bx, by)
-    return ax * bx + ay * by
-end
-
-local function distanceSq(ax, ay, bx, by)
-    local dx = (ax or 0) - (bx or 0)
-    local dy = (ay or 0) - (by or 0)
-    return (dx * dx) + (dy * dy)
-end
-
-local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
-end
-
-local function rotate(dx, dy, angle)
-    local c = math.cos(angle)
-    local s = math.sin(angle)
-    return dx * c - dy * s, dx * s + dy * c
-end
-
-local function segmentIntersectsAabb(x1, y1, x2, y2, rx, ry, rw, rh)
-    local dx = (x2 or 0) - (x1 or 0)
-    local dy = (y2 or 0) - (y1 or 0)
-    local tMin = 0
-    local tMax = 1
-
-    local function clip(p, q)
-        if p == 0 then
-            return q >= 0
-        end
-
-        local r = q / p
-        if p < 0 then
-            if r > tMax then
-                return false
-            end
-            if r > tMin then
-                tMin = r
-            end
-        else
-            if r < tMin then
-                return false
-            end
-            if r < tMax then
-                tMax = r
-            end
-        end
-        return true
-    end
-
-    if not clip(-dx, (x1 or 0) - (rx or 0)) then
-        return false
-    end
-    if not clip(dx, ((rx or 0) + (rw or 0)) - (x1 or 0)) then
-        return false
-    end
-    if not clip(-dy, (y1 or 0) - (ry or 0)) then
-        return false
-    end
-    if not clip(dy, ((ry or 0) + (rh or 0)) - (y1 or 0)) then
-        return false
-    end
-
-    return tMax >= tMin
-end
 
 local function getExpandedBlockedNodeBounds(enemy, blockedNode)
     local ox = blockedNode and blockedNode.x or 0
@@ -104,7 +33,7 @@ local function hasClearPathToPlayer(enemy, playerX, playerY, blockedNode)
     local cx = (enemy.x or 0) + ((enemy.width or 0) / 2)
     local cy = (enemy.y or 0) + ((enemy.height or 0) / 2)
     local rx, ry, rw, rh = getExpandedBlockedNodeBounds(enemy, blockedNode)
-    return not segmentIntersectsAabb(cx, cy, playerX, playerY, rx, ry, rw, rh)
+    return not MathUtils.segmentIntersectsAabb(cx, cy, playerX, playerY, rx, ry, rw, rh)
 end
 
 local function chooseFallbackReroute(enemy, targetX, targetY)
@@ -155,10 +84,10 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     for _, candidate in ipairs(candidates) do
         local ex = candidate.x - halfW
         local ey = candidate.y - halfH
-        if not aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
-            local toTarget = distanceSq(candidate.x, candidate.y, targetX, targetY)
-            local clearPathFromCandidate = not segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
-            local score = toTarget - (distanceSq(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
+        if not MathUtils.aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
+            local toTarget = MathUtils.distanceSquared(candidate.x, candidate.y, targetX, targetY)
+            local clearPathFromCandidate = not MathUtils.segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
+            local score = toTarget - (MathUtils.distanceSquared(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
             if clearPathFromCandidate then
                 score = score - 1000000
             end
@@ -195,8 +124,7 @@ function AISystem.updatePatrol(enemy, dt)
 
     if enemy.pauseTimer and enemy.pauseTimer > 0 then
         enemy.pauseTimer = math.max(0, enemy.pauseTimer - dt)
-        enemy.vx = 0
-        enemy.vy = 0
+        Kinematics.stop(enemy)
         enemy.chasing = false
         return
     end
@@ -204,12 +132,12 @@ function AISystem.updatePatrol(enemy, dt)
     local tx, ty = getPatrolTarget(enemy)
     local dx = tx - enemy.x
     local dy = ty - enemy.y
-    local nx, ny, dist = normalize(dx, dy)
+    local nx, ny, dist = Kinematics.normalize(dx, dy)
     local speed = enemy.speed or 0
 
     if dist <= (enemy.arriveThreshold or 0) or speed <= 0 then
         enemy.x, enemy.y = tx, ty
-        enemy.vx, enemy.vy = 0, 0
+        Kinematics.stop(enemy)
         enemy.forward = not enemy.forward
         if (enemy.pauseDuration or 0) > 0 then
             enemy.pauseTimer = enemy.pauseDuration
@@ -220,7 +148,7 @@ function AISystem.updatePatrol(enemy, dt)
     local step = speed * dt
     if step >= dist then
         enemy.x, enemy.y = tx, ty
-        enemy.vx, enemy.vy = 0, 0
+        Kinematics.stop(enemy)
         enemy.forward = not enemy.forward
         if (enemy.pauseDuration or 0) > 0 then
             enemy.pauseTimer = enemy.pauseDuration
@@ -228,10 +156,8 @@ function AISystem.updatePatrol(enemy, dt)
         return
     end
 
-    enemy.vx = nx * speed
-    enemy.vy = ny * speed
-    enemy.x = enemy.x + enemy.vx * dt
-    enemy.y = enemy.y + enemy.vy * dt
+    Kinematics.setVelocity(enemy, nx * speed, ny * speed)
+    Kinematics.integrate(enemy, dt)
 end
 
 function AISystem.updateHunter(enemy, player, dt, playerSize)
@@ -261,7 +187,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     if enemy.pauseTimer and enemy.pauseTimer > 0 then
         enemy.pauseTimer = enemy.pauseTimer - dt
-        enemy.vx, enemy.vy = 0, 0
+        Kinematics.stop(enemy)
         enemy.chasing = false
         enemy.state = AISystem.HUNTER_STATES.IDLE
         enemy.detectedPlayer = false
@@ -279,10 +205,10 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     local toPlayerX = px - cx
     local toPlayerY = py - cy
-    local playerDirX, playerDirY, playerDist = normalize(toPlayerX, toPlayerY)
+    local playerDirX, playerDirY, playerDist = Kinematics.normalize(toPlayerX, toPlayerY)
 
     local inRange = playerDist <= (enemy.visionRange or 0)
-    local facing = dot(enemy.lookX or 1, enemy.lookY or 0, playerDirX, playerDirY) >= (enemy.dotThreshold or 0.5)
+    local facing = MathUtils.dot(enemy.lookX or 1, enemy.lookY or 0, playerDirX, playerDirY) >= (enemy.dotThreshold or 0.5)
     local canChase = inRange and facing
 
     local targetX = px
@@ -314,7 +240,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
     local toTargetX = targetX - cx
     local toTargetY = targetY - cy
-    local dirX, dirY = normalize(toTargetX, toTargetY)
+    local dirX, dirY = Kinematics.normalize(toTargetX, toTargetY)
 
     if canChase or usingReroute then
         enemy.chaseMemoryTimer = math.max(enemy.chaseMemoryTimer or 0, enemy.chaseMemoryDuration or 1.1)
@@ -327,28 +253,27 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         enemy.state = AISystem.HUNTER_STATES.CHASE
         enemy.detectedPlayer = true
         enemy.chasing = true
-        enemy.vx = dirX * (enemy.speed or 0)
-        enemy.vy = dirY * (enemy.speed or 0)
+        Kinematics.setVelocity(enemy, dirX * (enemy.speed or 0), dirY * (enemy.speed or 0))
         enemy.lookX, enemy.lookY = dirX, dirY
         enemy.spinAngle = math.atan(enemy.lookY, enemy.lookX)
     else
         enemy.state = AISystem.HUNTER_STATES.IDLE
         enemy.detectedPlayer = false
         enemy.chasing = false
-        enemy.vx, enemy.vy = 0, 0
+        Kinematics.stop(enemy)
         enemy.spinAngle = enemy.spinAngle or math.atan(enemy.lookY or 0, enemy.lookX or 1)
         enemy.spinAngle = enemy.spinAngle + (enemy.spinSpeed or 0) * dt
         if enemy.spinAngle > math.pi * 2 then
             enemy.spinAngle = enemy.spinAngle - math.pi * 2
         end
-        enemy.lookX, enemy.lookY = rotate(1, 0, enemy.spinAngle)
+        enemy.lookX, enemy.lookY = MathUtils.rotate(1, 0, enemy.spinAngle)
     end
 
     if enemy.chasing then
         local sampleX = enemy.stuckSampleX or enemy.x or 0
         local sampleY = enemy.stuckSampleY or enemy.y or 0
         local minMove = enemy.stuckMoveEpsilon or 4
-        if distanceSq(enemy.x or 0, enemy.y or 0, sampleX, sampleY) <= (minMove * minMove) then
+        if MathUtils.distanceSquared(enemy.x or 0, enemy.y or 0, sampleX, sampleY) <= (minMove * minMove) then
             enemy.stuckTimer = (enemy.stuckTimer or 0) + dt
         else
             enemy.stuckTimer = 0
@@ -377,9 +302,8 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
 
             local newDx = rerouteX - cx
             local newDy = rerouteY - cy
-            local newNx, newNy = normalize(newDx, newDy)
-            enemy.vx = newNx * (enemy.speed or 0)
-            enemy.vy = newNy * (enemy.speed or 0)
+            local newNx, newNy = Kinematics.normalize(newDx, newDy)
+            Kinematics.setVelocity(enemy, newNx * (enemy.speed or 0), newNy * (enemy.speed or 0))
             enemy.lookX, enemy.lookY = newNx, newNy
             usingReroute = true
         end
@@ -390,19 +314,18 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     end
 
     if enemy.vx ~= 0 or enemy.vy ~= 0 then
-        local nx, ny = normalize(enemy.vx, enemy.vy)
+        local nx, ny = Kinematics.normalize(enemy.vx, enemy.vy)
         if nx ~= 0 or ny ~= 0 then
             enemy.lookX, enemy.lookY = nx, ny
         end
     end
 
     if enemy.chasing and (not usingReroute) and playerDist < 40 then
-        enemy.vx, enemy.vy = 0, 0
+        Kinematics.stop(enemy)
         return
     end
 
-    enemy.x = enemy.x + enemy.vx * dt
-    enemy.y = enemy.y + enemy.vy * dt
+    Kinematics.integrate(enemy, dt)
 end
 
 return AISystem
