@@ -1,6 +1,10 @@
 -- Reusable scalar/vector geometry helpers used across gameplay systems.
 local MathUtils = {}
 
+function MathUtils.clamp(value, minValue, maxValue)
+    return math.max(minValue, math.min(maxValue, value))
+end
+
 function MathUtils.dot(ax, ay, bx, by)
     return (ax or 0) * (bx or 0) + (ay or 0) * (by or 0)
 end
@@ -9,6 +13,10 @@ function MathUtils.distanceSquared(ax, ay, bx, by)
     local dx = (ax or 0) - (bx or 0)
     local dy = (ay or 0) - (by or 0)
     return (dx * dx) + (dy * dy)
+end
+
+function MathUtils.rectCenter(x, y, width, height)
+    return (x or 0) + ((width or 0) * 0.5), (y or 0) + ((height or 0) * 0.5)
 end
 
 function MathUtils.rotate(x, y, angle)
