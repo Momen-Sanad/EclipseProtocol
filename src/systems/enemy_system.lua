@@ -22,6 +22,29 @@ local DEFAULT_PATROL_LINE_NODE_CLEARANCE = 24
 local DEFAULT_PATROL_ROUTE_MIN_FRACTION = 0.24
 local DEFAULT_PATROL_ROUTE_MAX_FRACTION = 0.62
 
+local function buildConfig(opts)
+    local raw = opts or {}
+    return {
+        droneSize = raw.droneSize or raw.patrolSize or raw.enemySize or DEFAULT_DRONE_SIZE,
+        hunterSize = raw.hunterSize or raw.enemySize or DEFAULT_HUNTER_SIZE,
+        patrolCount = math.max(1, math.floor(raw.patrolCount or raw.droneCount or 1)),
+        hunterCount = math.max(1, math.floor(raw.hunterCount or raw.enemyCount or 1)),
+        patrolSpeed = raw.patrolSpeed or DEFAULT_PATROL_SPEED,
+        hunterSpeed = raw.hunterSpeed or DEFAULT_HUNTER_SPEED,
+        hunterVisionRange = raw.hunterVisionRange or DEFAULT_HUNTER_VISION,
+        hunterDotThreshold = raw.hunterDotThreshold or 0.5,
+        patrolDamage = raw.patrolDamage or DEFAULT_PATROL_DAMAGE,
+        hunterDamage = raw.hunterDamage or DEFAULT_HUNTER_DAMAGE,
+        enemyInvulDuration = raw.enemyInvulDuration or raw.invulDuration or 1.5,
+        repairNodes = raw.repairNodes or raw.powerNodes or raw.nodes,
+        patrolMinDistanceToNode = raw.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
+        patrolLineNodeClearance = raw.patrolLineNodeClearance or DEFAULT_PATROL_LINE_NODE_CLEARANCE,
+        patrolRouteMinFraction = raw.patrolRouteMinFraction or DEFAULT_PATROL_ROUTE_MIN_FRACTION,
+        patrolRouteMaxFraction = raw.patrolRouteMaxFraction or DEFAULT_PATROL_ROUTE_MAX_FRACTION,
+        patrolSpawnPadding = math.max(0, raw.patrolSpawnPadding or 2)
+    }
+end
+
 local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
     if type(repairNodes) ~= "table" or #repairNodes == 0 then
         return false
@@ -317,39 +340,39 @@ end
 
 function EnemySystem.reset(playWidth, playHeight, opts)
     -- Rebuilds enemy lists using scaled counts/damage values provided by caller.
-    opts = opts or {}
-    EnemySystem.resetPatrols(playWidth, playHeight, opts)
-    EnemySystem.resetHunters(playWidth, playHeight, opts)
+    local cfg = buildConfig(opts)
+    EnemySystem.resetPatrols(playWidth, playHeight, cfg)
+    EnemySystem.resetHunters(playWidth, playHeight, cfg)
 end
 
 function EnemySystem.resetPatrols(playWidth, playHeight, opts)
     -- Rebuild patrol drones first so other systems can consume finalized lanes.
-    opts = opts or {}
+    local cfg = buildConfig(opts)
     drones = {}
     hunters = {}
 
     local w = playWidth or 0
     local h = playHeight or 0
-    local droneSize = opts.droneSize or DEFAULT_DRONE_SIZE
-    local patrolCount = math.max(1, math.floor(opts.patrolCount or 1))
+    local droneSize = cfg.droneSize
+    local patrolCount = cfg.patrolCount
 
     for i = 1, patrolCount do
-        spawnPatrolDrone(w, h, droneSize, i, patrolCount, opts)
+        spawnPatrolDrone(w, h, droneSize, i, patrolCount, cfg)
     end
 end
 
 function EnemySystem.resetHunters(playWidth, playHeight, opts)
     -- Spawn/rebuild hunters without touching finalized patrol list.
-    opts = opts or {}
+    local cfg = buildConfig(opts)
     hunters = {}
 
     local w = playWidth or 0
     local h = playHeight or 0
-    local hunterSize = opts.hunterSize or DEFAULT_HUNTER_SIZE
-    local hunterCount = math.max(1, math.floor(opts.hunterCount or 1))
+    local hunterSize = cfg.hunterSize
+    local hunterCount = cfg.hunterCount
 
     for i = 1, hunterCount do
-        spawnHunterDrone(w, h, hunterSize, i, hunterCount, opts)
+        spawnHunterDrone(w, h, hunterSize, i, hunterCount, cfg)
     end
 end
 
