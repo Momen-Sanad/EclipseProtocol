@@ -2,6 +2,7 @@
 -- Keeps behavior decisions out of entity constructors and animation code.
 local Kinematics = require("src/utils/kinematics")
 local MathUtils = require("src/utils/math_utils")
+local CollisionSystem = require("src/systems/collision_system")
 
 local AISystem = {}
 
@@ -84,7 +85,7 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     for _, candidate in ipairs(candidates) do
         local ex = candidate.x - halfW
         local ey = candidate.y - halfH
-        if not MathUtils.aabb(ex, ey, ew, eh, ox, oy, ow, oh) then
+        if not CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh) then
             local toTarget = MathUtils.distanceSquared(candidate.x, candidate.y, targetX, targetY)
             local clearPathFromCandidate = not MathUtils.segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
             local score = toTarget - (MathUtils.distanceSquared(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
