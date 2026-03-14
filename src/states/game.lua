@@ -58,6 +58,7 @@ local function resetRun(context)
     local playerSize = (context and context.playerSize) or 35
     local player = PlayerSystem.resetForRun(ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     ScreenFlashSystem.reset()
+    EvacuationSystem.configureEscapeZone(w, h)
 
     RoomgenSystem.setupRoom(context, w, h, difficulty, false)
     SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
@@ -100,14 +101,11 @@ function GameState.update(dt, context)
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
     local player, w, h = ensureRuntime(context)
     local playerSize = context.playerSize or 35
+    EvacuationSystem.configureEscapeZone(w, h)
 
     local evacuationResult = EvacuationSystem.update(dt)
     if evacuationResult == EvacuationSystem.STATES.FAILED then
         StateManager.change("transition", "gameover")
-        return
-    end
-    if evacuationResult == EvacuationSystem.STATES.SUCCESS then
-        StateManager.change("transition", "victory")
         return
     end
 
@@ -154,6 +152,11 @@ function GameState.update(dt, context)
 
     if HealthSystem.isDead(player) then
         StateManager.change("transition", "gameover")
+        return
+    end
+
+    if EvacuationSystem.tryComplete(player, playerSize, InputSystem) then
+        StateManager.change("transition", "victory")
         return
     end
 
@@ -207,12 +210,16 @@ function GameState.draw(context)
     local playerSize = context.playerSize or 35
 
     EnemySystem.draw(player, playerSize)
+    EvacuationSystem.draw()
     PlayerSystem.draw()
     AbilitySystem.draw()
     PowerNodeSystem.draw()
     CellSystem.draw()
 
-    local promptText = PowerNodeSystem.getPrompt(player, playerSize)
+    local promptText = EvacuationSystem.getPrompt(player, playerSize)
+    if not promptText then
+        promptText = PowerNodeSystem.getPrompt(player, playerSize)
+    end
     if promptText then
         local w = love.graphics.getWidth()
         local h = love.graphics.getHeight()
