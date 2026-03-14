@@ -15,8 +15,8 @@ local DEFAULT_BASE = {
     objectives = {
         powerNodeCount = 3,
         roomsToEscape = 3,
-        timeLimitSeconds = 240,
-        roomClearTimeBonusSeconds = 20
+        roomTimeBudgetSeconds = 30,
+        roomClearTimeBonusSeconds = 5
     },
     resources = {
         cellCount = 10
@@ -35,8 +35,8 @@ local DEFAULT_PROFILES = {
             nodeCount = 0.8,
             cellCount = 1.25,
             roomsToEscape = 0.7,
-            timeLimit = 1.3,
-            roomTimeBonus = 1.25
+            roomTimeBudget = 1.35,
+            roomTimeBonus = 1.35
         }
     },
     {
@@ -50,14 +50,14 @@ local DEFAULT_PROFILES = {
             nodeCount = 1.0,
             cellCount = 1.0,
             roomsToEscape = 1.0,
-            timeLimit = 1.0,
-            roomTimeBonus = 1.0
+            roomTimeBudget = 1.15,
+            roomTimeBonus = 1.15
         }
     },
     {
         id = "hard",
         label = "Hard",
-        description = "Higher pressure: expensive abilities, stronger enemies, longer escape run, and a tighter evacuation timer.",
+        description = "Higher pressure: expensive abilities, stronger enemies, longer escape run, and tighter timing pressure.",
         factors = {
             abilityCost = 1.35,
             enemyDamage = 1.4,
@@ -65,8 +65,8 @@ local DEFAULT_PROFILES = {
             nodeCount = 1.4,
             cellCount = 0.8,
             roomsToEscape = 1.65,
-            timeLimit = 0.75,
-            roomTimeBonus = 0.8
+            roomTimeBudget = 1.0,
+            roomTimeBonus = 1.0
         }
     }
 }
@@ -81,15 +81,67 @@ local function scaleInt(baseValue, factor, minValue)
 end
 
 local function getProfiles(context)
-    local profiles = context and context.difficultyProfiles
-    if type(profiles) == "table" and #profiles > 0 then
-        return profiles
+    local customProfiles = context and context.difficultyProfiles
+    if type(customProfiles) == "table" and #customProfiles > 0 then
+        local defaultsById = {}
+        for _, profile in ipairs(DEFAULT_PROFILES) do
+            defaultsById[profile.id] = profile
+        end
+
+        local merged = {}
+        for i, profile in ipairs(customProfiles) do
+            local defaultProfile = defaultsById[profile.id] or {}
+            local defaultFactors = (defaultProfile and defaultProfile.factors) or {}
+            local customFactors = profile and profile.factors or {}
+            local factors = {}
+            for key, value in pairs(defaultFactors) do
+                factors[key] = value
+            end
+            for key, value in pairs(customFactors) do
+                factors[key] = value
+            end
+
+            merged[i] = {
+                id = (profile and profile.id) or (defaultProfile and defaultProfile.id) or ("profile_" .. tostring(i)),
+                label = (profile and profile.label) or (defaultProfile and defaultProfile.label) or ("Profile " .. tostring(i)),
+                description = (profile and profile.description) or (defaultProfile and defaultProfile.description),
+                factors = factors
+            }
+        end
+        return merged
     end
     return DEFAULT_PROFILES
 end
 
 local function getBase(context)
-    return (context and context.difficultyBase) or DEFAULT_BASE
+    local customBase = (context and context.difficultyBase) or {}
+    local merged = {
+        abilities = {},
+        enemies = {},
+        objectives = {},
+        resources = {}
+    }
+
+    local categories = { "abilities", "enemies", "objectives", "resources" }
+    for _, category in ipairs(categories) do
+        local defaults = DEFAULT_BASE[category] or {}
+        local custom = customBase[category] or {}
+        for key, value in pairs(defaults) do
+            merged[category][key] = value
+        end
+        for key, value in pairs(custom) do
+            merged[category][key] = value
+        end
+    end
+
+    -- Backward compatibility: if only total time was provided in custom config, convert to per-room budget.
+    local customObjectives = customBase.objectives or {}
+    if customObjectives.roomTimeBudgetSeconds == nil and customObjectives.timeLimitSeconds ~= nil then
+        local rooms = math.max(1, merged.objectives.roomsToEscape or DEFAULT_BASE.objectives.roomsToEscape or 1)
+        merged.objectives.roomTimeBudgetSeconds = math.max(1, round((customObjectives.timeLimitSeconds or 0) / rooms))
+    end
+
+    return merged
 end
 
 function DifficultySystem.resolveSelection(context)
@@ -128,6 +180,18 @@ function DifficultySystem.buildRuntimeValues(context)
     local enemies = base.enemies or DEFAULT_BASE.enemies
     local objectives = base.objectives or DEFAULT_BASE.objectives
     local resources = base.resources or DEFAULT_BASE.resources
+    local roomsToEscape = scaleInt(objectives.roomsToEscape, factors.roomsToEscape, 1)
+    local roomTimeBudgetSeconds = scaleInt(
+        objectives.roomTimeBudgetSeconds,
+        factors.roomTimeBudget or factors.timeLimit,
+        1
+    )
+    local roomClearTimeBonusSeconds = scaleInt(
+        objectives.roomClearTimeBonusSeconds,
+        factors.roomTimeBonus,
+        0
+    )
+    local timeLimitSeconds = roomTimeBudgetSeconds * roomsToEscape
 
     return {
         profileId = (profile and profile.id) or "easy",
@@ -141,9 +205,10 @@ function DifficultySystem.buildRuntimeValues(context)
         hunterCount = scaleInt(enemies.hunterCount, factors.enemyCount, 1),
         powerNodeCount = scaleInt(objectives.powerNodeCount, factors.nodeCount, 1),
         cellCount = scaleInt(resources.cellCount, factors.cellCount, 0),
-        roomsToEscape = scaleInt(objectives.roomsToEscape, factors.roomsToEscape, 1),
-        timeLimitSeconds = scaleInt(objectives.timeLimitSeconds, factors.timeLimit, 30),
-        roomClearTimeBonusSeconds = scaleInt(objectives.roomClearTimeBonusSeconds, factors.roomTimeBonus, 0)
+        roomsToEscape = roomsToEscape,
+        roomTimeBudgetSeconds = roomTimeBudgetSeconds,
+        timeLimitSeconds = timeLimitSeconds,
+        roomClearTimeBonusSeconds = roomClearTimeBonusSeconds
     }
 end
 
