@@ -1,4 +1,6 @@
 -- Energy-cell entity helpers: spawn and render behavior with shared sprite caching.
+local CollisionSystem = require("src/systems/collision_system")
+
 local EnergyCell = {}
 
 local sprite = nil
@@ -16,11 +18,6 @@ local function ensureSprite(path)
     sprite = love.graphics.newImage(nextPath)
     spritePath = nextPath
     return sprite
-end
-
-local function overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
-    -- Standard AABB overlap check (axis-aligned rectangle collision).
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
 
 function EnergyCell.new(opts)
@@ -70,7 +67,7 @@ function EnergyCell.collect(player, cells, playerSize)
         local cell = cells[i]
         local cellW = cell.width or 0
         local cellH = cell.height or 0
-        if overlaps(player.x, player.y, size, size, cell.x or 0, cell.y or 0, cellW, cellH) then
+        if CollisionSystem.overlaps(player.x, player.y, size, size, cell.x or 0, cell.y or 0, cellW, cellH) then
             table.remove(cells, i)
             collected = collected + 1
         end
