@@ -1,16 +1,13 @@
 -- Provides safe spawn placement checks for player start/room transitions.
 local EnemySystem = require("src/systems/enemy_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
+local CollisionSystem = require("src/systems/collision_system")
 local Kinematics = require("src/utils/kinematics")
 
 local SpawnSystem = {}
 
 local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
-
-local function overlaps(aX, aY, aW, aH, bX, bY, bW, bH)
-    return aX < bX + bW and bX < aX + aW and aY < bY + bH and bY < aY + aH
-end
 
 local function inHunterDetectionRange(x, y, playerSize, hunter)
     local px = x + (playerSize / 2)
@@ -59,17 +56,17 @@ function SpawnSystem.isSafePlayerSpawn(x, y, playerSize)
 
     -- Also avoid immediate overlap with solid power nodes and enemy bodies.
     for _, node in ipairs(nodes) do
-        if overlaps(x, y, playerSize, playerSize, node.x or 0, node.y or 0, node.width or 0, node.height or 0) then
+        if CollisionSystem.overlaps(x, y, playerSize, playerSize, node.x or 0, node.y or 0, node.width or 0, node.height or 0) then
             return false
         end
     end
     for _, drone in ipairs(drones) do
-        if overlaps(x, y, playerSize, playerSize, drone.x or 0, drone.y or 0, drone.width or 0, drone.height or 0) then
+        if CollisionSystem.overlaps(x, y, playerSize, playerSize, drone.x or 0, drone.y or 0, drone.width or 0, drone.height or 0) then
             return false
         end
     end
     for _, hunter in ipairs(hunters) do
-        if overlaps(x, y, playerSize, playerSize, hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0) then
+        if CollisionSystem.overlaps(x, y, playerSize, playerSize, hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0) then
             return false
         end
     end
