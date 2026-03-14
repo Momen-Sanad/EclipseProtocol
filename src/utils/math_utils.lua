@@ -19,13 +19,6 @@ function MathUtils.rotate(x, y, angle)
     return vx * c - vy * s, vx * s + vy * c
 end
 
-function MathUtils.aabb(x1, y1, w1, h1, x2, y2, w2, h2)
-    return (x1 or 0) < (x2 or 0) + (w2 or 0)
-        and (x2 or 0) < (x1 or 0) + (w1 or 0)
-        and (y1 or 0) < (y2 or 0) + (h2 or 0)
-        and (y2 or 0) < (y1 or 0) + (h1 or 0)
-end
-
 function MathUtils.segmentIntersectsAabb(x1, y1, x2, y2, rx, ry, rw, rh)
     -- Liang-Barsky clipping of a segment against an axis-aligned rectangle.
     local sx = x1 or 0
