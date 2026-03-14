@@ -4,7 +4,8 @@ local DifficultySystem = {}
 local DEFAULT_BASE = {
     abilities = {
         dashEnergyCost = 20,
-        stunGunEnergyCost = 60
+        stunGunEnergyCost = 60,
+        stunGunCostRoundStep = 5
     },
     enemies = {
         patrolCount = 2,
@@ -78,6 +79,16 @@ end
 local function scaleInt(baseValue, factor, minValue)
     local scaled = round((baseValue or 0) * (factor or 1))
     return math.max(minValue or 0, scaled)
+end
+
+local function roundToNearestStep(value, step, minValue)
+    local stepValue = math.max(1, math.floor(step or 1))
+    if stepValue <= 1 then
+        return math.max(minValue or 0, round(value or 0))
+    end
+
+    local rounded = round((value or 0) / stepValue) * stepValue
+    return math.max(minValue or 0, rounded)
 end
 
 local function getProfiles(context)
@@ -193,12 +204,15 @@ function DifficultySystem.buildRuntimeValues(context)
     )
     local timeLimitSeconds = roomTimeBudgetSeconds * roomsToEscape
 
+    local stunGunEnergyCost = scaleInt(abilities.stunGunEnergyCost, factors.abilityCost, 1)
+    stunGunEnergyCost = roundToNearestStep(stunGunEnergyCost, abilities.stunGunCostRoundStep, 1)
+
     return {
         profileId = (profile and profile.id) or "easy",
         profileLabel = (profile and profile.label) or "Easy",
         selectedIndex = selectedIndex,
         dashEnergyCost = scaleInt(abilities.dashEnergyCost, factors.abilityCost, 1),
-        stunGunEnergyCost = scaleInt(abilities.stunGunEnergyCost, factors.abilityCost, 1),
+        stunGunEnergyCost = stunGunEnergyCost,
         patrolDamage = scaleInt(enemies.patrolDamage, factors.enemyDamage, 1),
         hunterDamage = scaleInt(enemies.hunterDamage, factors.enemyDamage, 1),
         patrolCount = scaleInt(enemies.patrolCount, factors.enemyCount, 1),
