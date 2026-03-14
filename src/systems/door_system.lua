@@ -20,6 +20,19 @@ local function normalizeEdge(edge)
     return nil
 end
 
+local function cloneDoor(door)
+    if not door then
+        return nil
+    end
+    return {
+        x = door.x,
+        y = door.y,
+        width = door.width,
+        height = door.height,
+        edge = door.edge
+    }
+end
+
 local function oppositeEdge(edge)
     if edge == "top" then
         return "bottom"
@@ -159,12 +172,32 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     local usedEdges = {}
     local entryEdge = normalizeEdge(cfg.entryEdge)
     local exitEdge = normalizeEdge(cfg.exitEdge)
+    local entrySnapshot = cfg.entryDoor
+    entryDoor = nil
+    exitDoor = nil
 
     if hasEntry then
-        if not entryEdge then
-            entryEdge = chooseRandomEdge(nil)
+        if type(entrySnapshot) == "table" then
+            local snapshotEdge = normalizeEdge(entrySnapshot.edge)
+            if snapshotEdge then
+                entryDoor = {
+                    x = entrySnapshot.x,
+                    y = entrySnapshot.y,
+                    width = entrySnapshot.width,
+                    height = entrySnapshot.height,
+                    edge = snapshotEdge
+                }
+                entryEdge = snapshotEdge
+            end
         end
-        entryDoor = buildDoorForEdge(entryEdge, playWidth, playHeight, cfg)
+
+        if not entryDoor then
+            if not entryEdge then
+                entryEdge = chooseRandomEdge(nil)
+            end
+            entryDoor = buildDoorForEdge(entryEdge, playWidth, playHeight, cfg)
+        end
+
         if entryDoor then
             usedEdges[entryDoor.edge] = true
         end
@@ -174,12 +207,7 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
 
     if hasExit then
         if not exitEdge then
-            if entryEdge then
-                exitEdge = oppositeEdge(entryEdge)
-            end
-            if not exitEdge or usedEdges[exitEdge] then
-                exitEdge = chooseRandomEdge(usedEdges)
-            end
+            exitEdge = chooseRandomEdge(usedEdges)
         end
         exitDoor = buildDoorForEdge(exitEdge, playWidth, playHeight, cfg)
     else
@@ -203,6 +231,10 @@ end
 
 function DoorSystem.getExitEdge()
     return exitDoor and exitDoor.edge or nil
+end
+
+function DoorSystem.getExitDoor()
+    return cloneDoor(exitDoor)
 end
 
 function DoorSystem.tryUseExit(player, playerSize, input)
