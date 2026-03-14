@@ -28,6 +28,29 @@ local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 
+local function isCurrentRoomLast()
+    return (ProgressionSystem.getRoomsCleared() + 1) >= ProgressionSystem.getRoomsToEscape()
+end
+
+local function configureRoomDoors(context, playWidth, playHeight, entryEdge)
+    local roomsCleared = ProgressionSystem.getRoomsCleared()
+    local roomsToEscape = ProgressionSystem.getRoomsToEscape()
+    local currentRoomNumber = roomsCleared + 1
+    local hasEntryDoor = currentRoomNumber > 1
+    local hasExitDoor = currentRoomNumber < roomsToEscape
+
+    DoorSystem.setupRoom(playWidth, playHeight, {
+        hasEntryDoor = hasEntryDoor,
+        hasExitDoor = hasExitDoor,
+        entryEdge = entryEdge,
+        doorEdgeMargin = context and context.doorEdgeMargin,
+        doorThickness = context and context.doorThickness,
+        doorWidthFactor = context and context.doorWidthFactor,
+        doorHeightFactor = context and context.doorHeightFactor
+    })
+    DoorSystem.setExitOpen(false)
+end
+
 local function getEvacuationStatus()
     return {
         timeRemaining = EvacuationSystem.getTimeRemaining(),
@@ -62,8 +85,7 @@ local function resetRun(context)
     EvacuationSystem.configureEscapeZone(w, h)
 
     RoomgenSystem.setupRoom(context, w, h, difficulty, false)
-    DoorSystem.spawnRandomDoor(w, h, context)
-    DoorSystem.setOpen(false)
+    configureRoomDoors(context, w, h, nil)
     SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
     AbilitySystem.reset(ProgressionSystem.buildAbilityConfig(context, difficulty))
 
@@ -165,24 +187,39 @@ function GameState.update(dt, context)
 
     if not EvacuationSystem.isEvacuationActive() then
         local nodesRepaired = PowerNodeSystem.update(player, playerSize, InputSystem, dt)
-        DoorSystem.setOpen(nodesRepaired)
+        local lastRoom = isCurrentRoomLast()
 
-        if nodesRepaired and DoorSystem.tryEnter(player, playerSize, InputSystem) then
-            EvacuationSystem.onRoomCleared()
-            if ProgressionSystem.advanceRoom() then
-                DoorSystem.setOpen(false)
-                EvacuationSystem.startEvacuation()
+        if lastRoom then
+            DoorSystem.setExitOpen(false)
+            if nodesRepaired then
+                EvacuationSystem.onRoomCleared()
+                if ProgressionSystem.advanceRoom() then
+                    EvacuationSystem.startEvacuation()
+                    InputSystem.update()
+                    return
+                end
+            end
+        else
+            DoorSystem.setExitOpen(nodesRepaired)
+            if nodesRepaired and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
+                local usedExitEdge = DoorSystem.getExitEdge()
+                local nextEntryEdge = DoorSystem.getOppositeEdge(usedExitEdge)
+
+                EvacuationSystem.onRoomCleared()
+                if ProgressionSystem.advanceRoom() then
+                    DoorSystem.setExitOpen(false)
+                    EvacuationSystem.startEvacuation()
+                    InputSystem.update()
+                    return
+                end
+
+                -- Advance to next room while preserving run stats and resources.
+                RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
+                configureRoomDoors(context, w, h, nextEntryEdge)
+                SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
                 InputSystem.update()
                 return
             end
-
-            -- Advance to next room while preserving run stats and resources.
-            RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
-            DoorSystem.spawnRandomDoor(w, h, context)
-            DoorSystem.setOpen(false)
-            SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
-            InputSystem.update()
-            return
         end
     end
 
