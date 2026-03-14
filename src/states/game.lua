@@ -15,6 +15,7 @@ local SpawnSystem = require("src/systems/spawn_system")
 local RoomgenSystem = require("src/systems/roomgen_system")
 local ProgressionSystem = require("src/systems/progression_system")
 local EvacuationSystem = require("src/systems/evacuation_system")
+local DoorSystem = require("src/systems/door_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
@@ -59,6 +60,7 @@ local function resetRun(context)
     local player = PlayerSystem.resetForRun(ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     ScreenFlashSystem.reset()
     EvacuationSystem.configureEscapeZone(w, h)
+    DoorSystem.reset()
 
     RoomgenSystem.setupRoom(context, w, h, difficulty, false)
     SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
@@ -160,19 +162,31 @@ function GameState.update(dt, context)
         return
     end
 
-    if not EvacuationSystem.isEvacuationActive() and PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
-        EvacuationSystem.onRoomCleared()
-        if ProgressionSystem.advanceRoom() then
-            EvacuationSystem.startEvacuation()
-            InputSystem.update()
-            return
-        end
+    if not EvacuationSystem.isEvacuationActive() then
+        local nodesRepaired = PowerNodeSystem.update(player, playerSize, InputSystem, dt)
+        if nodesRepaired then
+            if not DoorSystem.isActive() then
+                DoorSystem.spawnRandomDoor(w, h, context)
+            end
 
-        -- Advance to next room while preserving run stats and resources.
-        RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
-        SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
-        InputSystem.update()
-        return
+            if DoorSystem.tryEnter(player, playerSize) then
+                DoorSystem.reset()
+                EvacuationSystem.onRoomCleared()
+                if ProgressionSystem.advanceRoom() then
+                    EvacuationSystem.startEvacuation()
+                    InputSystem.update()
+                    return
+                end
+
+                -- Advance to next room while preserving run stats and resources.
+                RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
+                SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
+                InputSystem.update()
+                return
+            end
+        else
+            DoorSystem.reset()
+        end
     end
 
     PlayerSystem.updateAnimation(dt)
@@ -210,6 +224,7 @@ function GameState.draw(context)
     local playerSize = context.playerSize or 35
 
     EnemySystem.draw(player, playerSize)
+    DoorSystem.draw()
     EvacuationSystem.draw()
     PlayerSystem.draw()
     AbilitySystem.draw()
@@ -217,6 +232,9 @@ function GameState.draw(context)
     CellSystem.draw()
 
     local promptText = EvacuationSystem.getPrompt(player, playerSize)
+    if not promptText then
+        promptText = DoorSystem.getPrompt(player, playerSize)
+    end
     if not promptText then
         promptText = PowerNodeSystem.getPrompt(player, playerSize)
     end
