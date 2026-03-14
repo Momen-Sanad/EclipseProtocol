@@ -111,9 +111,16 @@ function GameState.update(dt, context)
         maxY = h - playerSize
     }
 
+    local worldBounds = {
+        minX = 8,
+        minY = 8,
+        maxX = w - 8,
+        maxY = h - 8
+    }
+
     AbilitySystem.update(player, EnemySystem.getDrones(), EnemySystem.getHunters(), InputSystem, dt, playerSize)
     MovementSystem.update(player, InputSystem, dt, bounds)
-    EnemySystem.update(player, dt, playerSize)
+    EnemySystem.update(player, dt, playerSize, worldBounds)
 
     -- Resolve node solidity before and after enemy/player collision exchange.
     PowerNodeSystem.resolveObstacleCollisions(player, playerSize, EnemySystem.getDrones(), EnemySystem.getHunters())

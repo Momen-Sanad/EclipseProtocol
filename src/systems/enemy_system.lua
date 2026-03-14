@@ -381,8 +381,13 @@ function EnemySystem.getPatrolLanes()
     return lanes
 end
 
-function EnemySystem.update(player, dt, playerSize)
+function EnemySystem.update(player, dt, playerSize, worldBounds)
     -- Advances enemy movement/AI while caching previous positions for collision correction.
+    local minX = worldBounds and worldBounds.minX or nil
+    local minY = worldBounds and worldBounds.minY or nil
+    local maxX = worldBounds and worldBounds.maxX or nil
+    local maxY = worldBounds and worldBounds.maxY or nil
+
     for _, drone in ipairs(drones) do
         drone.prevX = drone.x
         drone.prevY = drone.y
@@ -393,6 +398,18 @@ function EnemySystem.update(player, dt, playerSize)
         hunter.prevX = hunter.x
         hunter.prevY = hunter.y
         hunter:update(player, dt, playerSize)
+
+        -- Keep hunters inside the play area even when reroute logic chooses aggressive offsets.
+        if minX ~= nil and maxX ~= nil then
+            local bodyW = hunter.width or 0
+            local hunterMaxX = math.max(minX, maxX - bodyW)
+            hunter.x = MathUtils.clamp(hunter.x or 0, minX, hunterMaxX)
+        end
+        if minY ~= nil and maxY ~= nil then
+            local bodyH = hunter.height or 0
+            local hunterMaxY = math.max(minY, maxY - bodyH)
+            hunter.y = MathUtils.clamp(hunter.y or 0, minY, hunterMaxY)
+        end
     end
 end
 
