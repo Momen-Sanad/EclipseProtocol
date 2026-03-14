@@ -11,7 +11,9 @@ local EnemySystem = require("src/systems/enemy_system")
 local CellSystem = require("src/systems/cell_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
 local EnergySystem = require("src/systems/energy_system")
-local DifficultySystem = require("src/systems/difficulty_system")
+local SpawnSystem = require("src/systems/spawn_system")
+local RoomgenSystem = require("src/systems/roomgen_system")
+local ProgressionSystem = require("src/systems/progression_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
@@ -19,24 +21,10 @@ local StateManager = require("src/core/state_manager")
 
 local GameState = {}
 
-local elapsedTime = 0
-local DEFAULT_CELL_COUNT = 10
-local DEFAULT_CELL_SIZE = 300
 local DEFAULT_CELL_ENERGY_RESTORE = 25
-local DEFAULT_DRONE_SIZE = 90
-local DEFAULT_HUNTER_SIZE = 90
 local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
-local DEFAULT_ROOMS_TO_ESCAPE = 3
-local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
-local DEFAULT_POWER_NODE_PATROL_PADDING = 16
-local SAFE_SPAWN_PADDING = 12
-local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
-
-local activeDifficulty = nil
-local roomsCleared = 0
-local roomsToEscape = DEFAULT_ROOMS_TO_ESCAPE
 
 local function getPlayAreaSize(context)
     -- Uses live background-scaled viewport size with context fallback.
@@ -53,189 +41,18 @@ local function ensureRuntime(context)
     return player, w, h
 end
 
-local function buildPlayerResetConfig(context, difficulty)
-    -- Applies difficulty-scaled ability costs without mutating shared global context.
-    local cfg = {}
-    for key, value in pairs(context or {}) do
-        cfg[key] = value
-    end
-    if difficulty then
-        cfg.playerDashEnergyCost = difficulty.dashEnergyCost
-    end
-    return cfg
-end
-
-local function buildAbilityConfig(context, difficulty)
-    -- Ability system receives scaled stun-gun cost plus shared base tuning.
-    return {
-        stunGunStunDuration = context.stunGunStunDuration,
-        stunGunCooldown = context.stunGunCooldown,
-        stunGunRange = context.stunGunRange,
-        stunGunEnergyCost = difficulty and difficulty.stunGunEnergyCost or context.stunGunEnergyCost,
-        stunGunLaserLifetime = context.stunGunLaserLifetime,
-        stunGunSoundPath = context.stunGunSoundPath
-    }
-end
-
-local function overlaps(aX, aY, aW, aH, bX, bY, bW, bH)
-    return aX < bX + bW and bX < aX + aW and aY < bY + bH and bY < aY + aH
-end
-
-local function inHunterDetectionRange(x, y, playerSize, hunter)
-    local px = x + (playerSize / 2)
-    local py = y + (playerSize / 2)
-    local hx = (hunter.x or 0) + ((hunter.width or 0) / 2)
-    local hy = (hunter.y or 0) + ((hunter.height or 0) / 2)
-    local dx = px - hx
-    local dy = py - hy
-    local distSq = (dx * dx) + (dy * dy)
-    local range = math.max(0, hunter.visionRange or 0) + (playerSize * 0.35)
-    return distSq <= (range * range)
-end
-
-local function inPatrolLine(x, y, playerSize, patrol)
-    local playerCenterX = x + (playerSize / 2)
-    local playerCenterY = y + (playerSize / 2)
-    local patrolCenterY = (patrol.y or 0) + ((patrol.height or 0) / 2)
-    local lineBand = math.max(playerSize * 0.5, (patrol.height or playerSize) * 0.55)
-    if math.abs(playerCenterY - patrolCenterY) > lineBand then
-        return false
-    end
-
-    local startX = patrol.x1 or patrol.x or 0
-    local endX = patrol.x2 or patrol.x or 0
-    local minX = math.min(startX, endX) - (playerSize * 0.35)
-    local maxX = math.max(startX, endX) + (patrol.width or playerSize) + (playerSize * 0.35)
-    return playerCenterX >= minX and playerCenterX <= maxX
-end
-
-local function isSafePlayerSpawn(x, y, playerSize)
-    local drones = EnemySystem.getDrones()
-    local hunters = EnemySystem.getHunters()
-    local nodes = PowerNodeSystem.getNodes()
-
-    for _, hunter in ipairs(hunters) do
-        if inHunterDetectionRange(x, y, playerSize, hunter) then
-            return false
-        end
-    end
-
-    for _, drone in ipairs(drones) do
-        if inPatrolLine(x, y, playerSize, drone) then
-            return false
-        end
-    end
-
-    -- Also avoid immediate overlap with solid power nodes and enemy bodies.
-    for _, node in ipairs(nodes) do
-        if overlaps(x, y, playerSize, playerSize, node.x or 0, node.y or 0, node.width or 0, node.height or 0) then
-            return false
-        end
-    end
-    for _, drone in ipairs(drones) do
-        if overlaps(x, y, playerSize, playerSize, drone.x or 0, drone.y or 0, drone.width or 0, drone.height or 0) then
-            return false
-        end
-    end
-    for _, hunter in ipairs(hunters) do
-        if overlaps(x, y, playerSize, playerSize, hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0) then
-            return false
-        end
-    end
-
-    return true
-end
-
-local function findSafePlayerSpawn(w, h, playerSize)
-    local minX = SAFE_SPAWN_PADDING
-    local minY = SAFE_SPAWN_PADDING
-    local maxX = math.max(minX, (w or 0) - playerSize - SAFE_SPAWN_PADDING)
-    local maxY = math.max(minY, (h or 0) - playerSize - SAFE_SPAWN_PADDING)
-    local centerX = math.floor(((w or 0) - playerSize) / 2)
-    local centerY = math.floor(((h or 0) - playerSize) / 2)
-    local rng = (love and love.math and love.math.random) or math.random
-
-    if isSafePlayerSpawn(centerX, centerY, playerSize) then
-        return centerX, centerY
-    end
-
-    for _ = 1, SAFE_SPAWN_RANDOM_ATTEMPTS do
-        local x = rng(minX, maxX)
-        local y = rng(minY, maxY)
-        if isSafePlayerSpawn(x, y, playerSize) then
-            return x, y
-        end
-    end
-
-    local step = math.max(10, math.floor(playerSize * 0.75))
-    for y = minY, maxY, step do
-        for x = minX, maxX, step do
-            if isSafePlayerSpawn(x, y, playerSize) then
-                return x, y
-            end
-        end
-    end
-
-    return centerX, centerY
-end
-
-local function placePlayerInSafeSpawn(player, w, h, playerSize)
-    local spawnX, spawnY = findSafePlayerSpawn(w, h, playerSize)
-    player.x = spawnX
-    player.y = spawnY
-    Kinematics.stop(player)
-end
-
-local function setupRoom(context, w, h, difficulty, preserveCells)
-    -- Rebuilds entities/objectives for the current room using difficulty-scaled values.
-    local scaled = difficulty or {}
-    CellSystem.reset(w, h, {
-        count = scaled.cellCount or context.cellCount or DEFAULT_CELL_COUNT,
-        size = context.cellSize or DEFAULT_CELL_SIZE,
-        spritePath = context.cellSpritePath or "assets/ui/Cell.png",
-        minGap = context.cellMinGap,
-        preserveCollectedTotal = preserveCells and true or false
-    })
-    EnemySystem.resetPatrols(w, h, {
-        droneSize = context.droneSize or DEFAULT_DRONE_SIZE,
-        patrolCount = scaled.patrolCount,
-        patrolDamage = scaled.patrolDamage,
-        patrolMinDistanceToNode = context.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
-    })
-
-    PowerNodeSystem.reset(w, h, {
-        powerNodeSize = context.powerNodeSize,
-        powerNodeCount = scaled.powerNodeCount or context.powerNodeCount,
-        powerNodeInteractRange = context.powerNodeInteractRange,
-        powerNodeRepairDuration = context.powerNodeRepairDuration,
-        powerNodeMinSpacing = context.powerNodeMinSpacing,
-        patrolLanes = EnemySystem.getPatrolLanes(),
-        patrolLanePadding = context.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING
-    })
-
-    EnemySystem.resetHunters(w, h, {
-        hunterSize = context.hunterSize or DEFAULT_HUNTER_SIZE,
-        hunterCount = scaled.hunterCount,
-        hunterDamage = scaled.hunterDamage,
-        repairNodes = PowerNodeSystem.getNodes()
-    })
-end
-
 local function resetRun(context)
     -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
-    activeDifficulty = DifficultySystem.buildRuntimeValues(context)
-    roomsCleared = 0
-    roomsToEscape = activeDifficulty.roomsToEscape or DEFAULT_ROOMS_TO_ESCAPE
+    local difficulty = ProgressionSystem.beginRun(context)
 
     local _, w, h = ensureRuntime(context)
     local playerSize = (context and context.playerSize) or 35
-    local player = PlayerSystem.resetForRun(buildPlayerResetConfig(context, activeDifficulty), w, h)
+    local player = PlayerSystem.resetForRun(ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     ScreenFlashSystem.reset()
-    elapsedTime = 0
 
-    setupRoom(context, w, h, activeDifficulty, false)
-    placePlayerInSafeSpawn(player, w, h, playerSize)
-    AbilitySystem.reset(buildAbilityConfig(context, activeDifficulty))
+    RoomgenSystem.setupRoom(context, w, h, difficulty, false)
+    SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
+    AbilitySystem.reset(ProgressionSystem.buildAbilityConfig(context, difficulty))
 
     return player
 end
@@ -249,10 +66,10 @@ end
 function GameState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
-    local player = ensureRuntime(context)
+    ensureRuntime(context)
 
     if prevName ~= "pause" then
-        player = resetRun(context)
+        resetRun(context)
     end
 
     if prevName == "gameover" then
@@ -315,22 +132,21 @@ function GameState.update(dt, context)
     end
 
     if PowerNodeSystem.update(player, playerSize, InputSystem, dt) then
-        roomsCleared = roomsCleared + 1
-        if roomsCleared >= roomsToEscape then
+        if ProgressionSystem.advanceRoom() then
             StateManager.change("transition", "victory")
             return
         end
 
         -- Advance to next room while preserving run stats and resources.
-        setupRoom(context, w, h, activeDifficulty, true)
-        placePlayerInSafeSpawn(player, w, h, playerSize)
+        RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
+        SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
         InputSystem.update()
         return
     end
 
     PlayerSystem.updateAnimation(dt)
     InputSystem.update()
-    elapsedTime = elapsedTime + dt
+    ProgressionSystem.addElapsedTime(dt)
 
     local collected = CellSystem.collect(player, playerSize)
     if collected > 0 then
@@ -377,11 +193,9 @@ function GameState.draw(context)
         love.graphics.print(promptText, (w - textW) / 2, h - 56)
     end
 
-    Hud.draw(player, elapsedTime, CellSystem.getCollectedTotal())
+    Hud.draw(player, ProgressionSystem.getElapsedTime(), CellSystem.getCollectedTotal())
 
-    local roomProgress = ("ROOMS STABILIZED %d/%d"):format(roomsCleared, roomsToEscape)
-    local diffLabel = (activeDifficulty and activeDifficulty.profileLabel) or "Medium"
-    local status = roomProgress .. "  |  DIFFICULTY " .. string.upper(diffLabel)
+    local status = ProgressionSystem.getStatusLine()
     local statusW = love.graphics.getFont():getWidth(status)
     love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
     love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, 20)
