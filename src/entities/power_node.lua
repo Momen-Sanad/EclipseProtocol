@@ -1,4 +1,7 @@
 -- Power node entity helpers: spawn, repair state progression, and placeholder rendering.
+local CollisionSystem = require("src/systems/collision_system")
+local MathUtils = require("src/utils/math_utils")
+
 local PowerNode = {}
 
 PowerNode.DEFAULT_SIZE = 120
@@ -20,16 +23,6 @@ function PowerNode.new(opts)
         isRepairing = false,
         isRepaired = false
     }
-end
-
-local function centerDistanceSq(ax, ay, bx, by)
-    local dx = ax - bx
-    local dy = ay - by
-    return (dx * dx) + (dy * dy)
-end
-
-local function aabb(x1, y1, w1, h1, x2, y2, w2, h2)
-    return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
 
 function PowerNode.buildRandom(playWidth, playHeight, opts)
@@ -66,7 +59,7 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         for _, node in ipairs(nodes) do
             local nx = (node.x or 0) + ((node.width or size) / 2)
             local ny = (node.y or 0) + ((node.height or size) / 2)
-            if centerDistanceSq(cx, cy, nx, ny) < minSpacingSq then
+            if MathUtils.distanceSquared(cx, cy, nx, ny) < minSpacingSq then
                 return false
             end
         end
@@ -97,7 +90,7 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
             local ly = laneTop - lanePadding
             local lw = math.max(1, (laneRight - laneLeft) + (lanePadding * 2))
             local lh = math.max(1, (laneBottom - laneTop) + (lanePadding * 2))
-            if aabb(x, y, size, size, lx, ly, lw, lh) then
+            if CollisionSystem.overlaps(x, y, size, size, lx, ly, lw, lh) then
                 return true
             end
         end
