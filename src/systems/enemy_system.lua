@@ -3,6 +3,7 @@ local CollisionSystem = require("src/systems/collision_system")
 local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
 local MathUtils = require("src/utils/math_utils")
+local SearchUtils = require("src/utils/search_utils")
 
 local EnemySystem = {}
 
@@ -184,36 +185,23 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     local repairNodes = opts.repairNodes
     local patrolPadding = math.max(0, opts.patrolSpawnPadding or 2)
     local y = math.max(minY, math.min(maxY, laneBaseY))
-    local placed = false
-
-    for _ = 1, 60 do
-        local candidateY = math.max(
-            minY,
-            math.min(maxY, laneBaseY + rng(-laneJitter, laneJitter))
-        )
-        if
+    local function isBodySafeAtY(candidateY)
+        return
             not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance)
             and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
             and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
-        then
-            y = candidateY
-            placed = true
-            break
-        end
     end
 
-    if not placed then
+    local jitterMinY = math.max(minY, laneBaseY - laneJitter)
+    local jitterMaxY = math.min(maxY, laneBaseY + laneJitter)
+    local jitterY = SearchUtils.findRandomValue(jitterMinY, jitterMaxY, 60, isBodySafeAtY, rng)
+    if jitterY ~= nil then
+        y = jitterY
+    else
         -- Fallback search across full height if local lane jitter fails.
-        for _ = 1, 60 do
-            local candidateY = rng(minY, maxY)
-            if
-                not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance)
-                and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
-                and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
-            then
-                y = candidateY
-                break
-            end
+        local fallbackY = SearchUtils.findRandomValue(minY, maxY, 60, isBodySafeAtY, rng)
+        if fallbackY ~= nil then
+            y = fallbackY
         end
     end
 
@@ -222,32 +210,23 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
         overlapsRepairNodes(x1, y, droneSize, droneSize, repairNodes, 4)
         or overlapsExistingPatrols(x1, y, droneSize, droneSize, patrolPadding)
     then
-        local foundSafe = false
-        for _ = 1, 80 do
-            local candidateY = rng(minY, maxY)
-            if
+        local function isRouteSafeAtY(candidateY)
+            return
                 not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
                 and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
                 and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
-            then
-                y = candidateY
-                foundSafe = true
-                break
-            end
         end
 
-        if not foundSafe then
-            local step = math.max(8, math.floor(droneSize * 0.5))
-            for candidateY = minY, maxY, step do
-                if
-                    not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
-                    and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
-                    and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
-                then
-                    y = candidateY
-                    break
-                end
-            end
+        local resolvedY = SearchUtils.findRandomThenGridValue(
+            minY,
+            maxY,
+            80,
+            math.max(8, math.floor(droneSize * 0.5)),
+            isRouteSafeAtY,
+            rng
+        )
+        if resolvedY ~= nil then
+            y = resolvedY
         end
     end
 
@@ -288,48 +267,34 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
     end
 
     if not isSafeSpawn(x, y) then
-        local placed = false
         local jitterX = math.max(24, math.floor(w * 0.12))
         local jitterY = math.max(24, math.floor(h * 0.12))
+        local jitterCandidateX, jitterCandidateY = SearchUtils.findRandom(
+            {
+                minX = MathUtils.clamp(laneX - jitterX, minX, maxX),
+                maxX = MathUtils.clamp(laneX + jitterX, minX, maxX),
+                minY = MathUtils.clamp(laneY - jitterY, minY, maxY),
+                maxY = MathUtils.clamp(laneY + jitterY, minY, maxY)
+            },
+            90,
+            isSafeSpawn,
+            rng
+        )
 
-        for _ = 1, 90 do
-            local candidateX = MathUtils.clamp(laneX + rng(-jitterX, jitterX), minX, maxX)
-            local candidateY = MathUtils.clamp(laneY + rng(-jitterY, jitterY), minY, maxY)
-            if isSafeSpawn(candidateX, candidateY) then
-                x = candidateX
-                y = candidateY
-                placed = true
-                break
-            end
-        end
-
-        if not placed then
-            for _ = 1, 140 do
-                local candidateX = rng(minX, maxX)
-                local candidateY = rng(minY, maxY)
-                if isSafeSpawn(candidateX, candidateY) then
-                    x = candidateX
-                    y = candidateY
-                    placed = true
-                    break
-                end
-            end
-        end
-
-        if not placed then
-            local step = math.max(8, math.floor(hunterSize * 0.5))
-            for candidateY = minY, maxY, step do
-                if placed then
-                    break
-                end
-                for candidateX = minX, maxX, step do
-                    if isSafeSpawn(candidateX, candidateY) then
-                        x = candidateX
-                        y = candidateY
-                        placed = true
-                        break
-                    end
-                end
+        if jitterCandidateX ~= nil and jitterCandidateY ~= nil then
+            x = jitterCandidateX
+            y = jitterCandidateY
+        else
+            local fallbackX, fallbackY = SearchUtils.findRandomThenGrid(
+                { minX = minX, maxX = maxX, minY = minY, maxY = maxY },
+                140,
+                math.max(8, math.floor(hunterSize * 0.5)),
+                isSafeSpawn,
+                { rng = rng }
+            )
+            if fallbackX ~= nil and fallbackY ~= nil then
+                x = fallbackX
+                y = fallbackY
             end
         end
     end
