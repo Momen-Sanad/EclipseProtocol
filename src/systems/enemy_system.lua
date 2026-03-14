@@ -2,6 +2,7 @@
 local CollisionSystem = require("src/systems/collision_system")
 local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
+local MathUtils = require("src/utils/math_utils")
 
 local EnemySystem = {}
 
@@ -19,10 +20,6 @@ local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
 local DEFAULT_PATROL_LINE_NODE_CLEARANCE = 24
 local DEFAULT_PATROL_ROUTE_MIN_FRACTION = 0.24
 local DEFAULT_PATROL_ROUTE_MAX_FRACTION = 0.62
-
-local function clamp(value, minValue, maxValue)
-    return math.max(minValue, math.min(maxValue, value))
-end
 
 local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
     if type(repairNodes) ~= "table" or #repairNodes == 0 then
@@ -64,7 +61,7 @@ local function overlapsExistingPatrols(x, y, w, h, padding)
 end
 
 local function getNodeCenter(node)
-    return (node.x or 0) + ((node.width or 0) / 2), (node.y or 0) + ((node.height or 0) / 2)
+    return MathUtils.rectCenter(node.x or 0, node.y or 0, node.width or 0, node.height or 0)
 end
 
 local function isPatrolSpawnTooCloseToNodes(x, y, repairNodes, minDistance)
@@ -76,9 +73,7 @@ local function isPatrolSpawnTooCloseToNodes(x, y, repairNodes, minDistance)
     local thresholdSq = threshold * threshold
     for _, node in ipairs(repairNodes) do
         local nx, ny = getNodeCenter(node)
-        local dx = x - nx
-        local dy = y - ny
-        if ((dx * dx) + (dy * dy)) < thresholdSq then
+        if MathUtils.distanceSquared(x, y, nx, ny) < thresholdSq then
             return true
         end
     end
@@ -140,12 +135,12 @@ local function resolvePatrolOverlapY(x, y, droneSize, minY, maxY, padding)
     local step = math.max(8, math.floor(droneSize * 0.5))
     local maxSteps = math.max(1, math.floor((maxY - minY) / step) + 2)
     for i = 1, maxSteps do
-        local upY = clamp(y - (i * step), minY, maxY)
+        local upY = MathUtils.clamp(y - (i * step), minY, maxY)
         if not overlapsExistingPatrols(x, upY, droneSize, droneSize, padding) then
             return upY
         end
 
-        local downY = clamp(y + (i * step), minY, maxY)
+        local downY = MathUtils.clamp(y + (i * step), minY, maxY)
         if not overlapsExistingPatrols(x, downY, droneSize, droneSize, padding) then
             return downY
         end
@@ -165,7 +160,7 @@ local function buildPatrolRouteX(w, droneSize, lane, opts, rng)
     local anchorX = math.floor(w * (0.1 + (0.8 * lane)))
     local jitterX = math.max(24, math.floor(w * 0.12))
     local maxStartX = math.max(minX, maxX - routeLen)
-    local x1 = clamp(anchorX - math.floor(routeLen * 0.5) + rng(-jitterX, jitterX), minX, maxStartX)
+    local x1 = MathUtils.clamp(anchorX - math.floor(routeLen * 0.5) + rng(-jitterX, jitterX), minX, maxStartX)
     local x2 = x1 + routeLen
     if x2 > maxX then
         x2 = maxX
@@ -285,8 +280,8 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
     local maxY = math.max(minY, h - hunterSize - 8)
     local laneX = math.floor(w * (0.15 + (0.7 * lane)))
     local laneY = math.floor(h * (0.62 + (0.18 * ((index % 2) * 2 - 1))))
-    local x = clamp(laneX, minX, maxX)
-    local y = clamp(laneY, minY, maxY)
+    local x = MathUtils.clamp(laneX, minX, maxX)
+    local y = MathUtils.clamp(laneY, minY, maxY)
 
     local function isSafeSpawn(candidateX, candidateY)
         return not overlapsRepairNodes(candidateX, candidateY, hunterSize, hunterSize, repairNodes, 6)
@@ -298,8 +293,8 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
         local jitterY = math.max(24, math.floor(h * 0.12))
 
         for _ = 1, 90 do
-            local candidateX = clamp(laneX + rng(-jitterX, jitterX), minX, maxX)
-            local candidateY = clamp(laneY + rng(-jitterY, jitterY), minY, maxY)
+            local candidateX = MathUtils.clamp(laneX + rng(-jitterX, jitterX), minX, maxX)
+            local candidateY = MathUtils.clamp(laneY + rng(-jitterY, jitterY), minY, maxY)
             if isSafeSpawn(candidateX, candidateY) then
                 x = candidateX
                 y = candidateY

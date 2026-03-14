@@ -3,6 +3,7 @@ local EnemySystem = require("src/systems/enemy_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
 local CollisionSystem = require("src/systems/collision_system")
 local Kinematics = require("src/utils/kinematics")
+local MathUtils = require("src/utils/math_utils")
 
 local SpawnSystem = {}
 
@@ -10,13 +11,9 @@ local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
 
 local function inHunterDetectionRange(x, y, playerSize, hunter)
-    local px = x + (playerSize / 2)
-    local py = y + (playerSize / 2)
-    local hx = (hunter.x or 0) + ((hunter.width or 0) / 2)
-    local hy = (hunter.y or 0) + ((hunter.height or 0) / 2)
-    local dx = px - hx
-    local dy = py - hy
-    local distSq = (dx * dx) + (dy * dy)
+    local px, py = MathUtils.rectCenter(x, y, playerSize, playerSize)
+    local hx, hy = MathUtils.rectCenter(hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0)
+    local distSq = MathUtils.distanceSquared(px, py, hx, hy)
     local range = math.max(0, hunter.visionRange or 0) + (playerSize * 0.35)
     return distSq <= (range * range)
 end

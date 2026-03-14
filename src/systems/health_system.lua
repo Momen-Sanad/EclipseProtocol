@@ -1,4 +1,6 @@
 -- Health resource rules: applies health deltas and exposes death checks.
+local MathUtils = require("src/utils/math_utils")
+
 local HealthSystem = {}
 
 local function clampHealth(player)
@@ -10,7 +12,7 @@ local function clampHealth(player)
     if player.health == nil then
         player.health = maxHealth
     end
-    player.health = math.max(0, math.min(maxHealth, player.health))
+    player.health = MathUtils.clamp(player.health, 0, maxHealth)
 end
 
 function HealthSystem.applyDelta(player, delta)

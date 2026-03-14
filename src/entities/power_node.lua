@@ -192,9 +192,7 @@ end
 local function getPlayerCenter(player, playerSize)
     -- Computes player center used for range checks.
     local size = playerSize or 35
-    local px = (player and player.x or 0) + (size / 2)
-    local py = (player and player.y or 0) + (size / 2)
-    return px, py
+    return MathUtils.rectCenter(player and player.x or 0, player and player.y or 0, size, size)
 end
 
 function PowerNode.getNearestInRange(player, nodes, playerSize)
@@ -209,11 +207,8 @@ function PowerNode.getNearestInRange(player, nodes, playerSize)
 
     for _, node in ipairs(nodes) do
         if not node.isRepaired then
-            local nx = (node.x or 0) + ((node.width or 0) / 2)
-            local ny = (node.y or 0) + ((node.height or 0) / 2)
-            local dx = px - nx
-            local dy = py - ny
-            local distSq = (dx * dx) + (dy * dy)
+            local nx, ny = MathUtils.rectCenter(node.x or 0, node.y or 0, node.width or 0, node.height or 0)
+            local distSq = MathUtils.distanceSquared(px, py, nx, ny)
             local range = node.interactRange or PowerNode.DEFAULT_INTERACT_RANGE
             if distSq <= (range * range) and (closestDistSq == nil or distSq < closestDistSq) then
                 closestNode = node

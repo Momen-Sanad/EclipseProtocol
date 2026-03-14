@@ -1,4 +1,6 @@
 -- Energy helpers for restoring/spending resource values with max-cap enforcement.
+local MathUtils = require("src/utils/math_utils")
+
 local EnergySystem = {}
 
 local function clampEnergy(player)
@@ -7,7 +9,7 @@ local function clampEnergy(player)
     end
 
     local maxEnergy = math.max(0, player.maxEnergy or 0)
-    player.energy = math.max(0, math.min(maxEnergy, player.energy))
+    player.energy = MathUtils.clamp(player.energy, 0, maxEnergy)
 end
 
 function EnergySystem.restoreFromCells(player, collectedCount, energyPerCell)
