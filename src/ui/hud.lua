@@ -155,7 +155,7 @@ function Hud.draw(player, elapsedTime, score)
     -- Timer/FPS are drawn after bars so text remains visually on top.
     if elapsedTime ~= nil then
         local w = love.graphics.getWidth()
-        local label = "TIME " .. formatTime(elapsedTime)
+        local label = "ELAPSED " .. formatTime(elapsedTime)
         local textW = font:getWidth(label)
         love.graphics.setColor(0.78, 0.90, 0.95, 1.0)
         love.graphics.print(label, w - textW - padding, padding)
