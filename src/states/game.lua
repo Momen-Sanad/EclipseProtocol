@@ -60,9 +60,10 @@ local function resetRun(context)
     local player = PlayerSystem.resetForRun(ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     ScreenFlashSystem.reset()
     EvacuationSystem.configureEscapeZone(w, h)
-    DoorSystem.reset()
 
     RoomgenSystem.setupRoom(context, w, h, difficulty, false)
+    DoorSystem.spawnRandomDoor(w, h, context)
+    DoorSystem.setOpen(false)
     SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
     AbilitySystem.reset(ProgressionSystem.buildAbilityConfig(context, difficulty))
 
@@ -164,28 +165,24 @@ function GameState.update(dt, context)
 
     if not EvacuationSystem.isEvacuationActive() then
         local nodesRepaired = PowerNodeSystem.update(player, playerSize, InputSystem, dt)
-        if nodesRepaired then
-            if not DoorSystem.isActive() then
-                DoorSystem.spawnRandomDoor(w, h, context)
-            end
+        DoorSystem.setOpen(nodesRepaired)
 
-            if DoorSystem.tryEnter(player, playerSize) then
-                DoorSystem.reset()
-                EvacuationSystem.onRoomCleared()
-                if ProgressionSystem.advanceRoom() then
-                    EvacuationSystem.startEvacuation()
-                    InputSystem.update()
-                    return
-                end
-
-                -- Advance to next room while preserving run stats and resources.
-                RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
-                SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
+        if nodesRepaired and DoorSystem.tryEnter(player, playerSize, InputSystem) then
+            EvacuationSystem.onRoomCleared()
+            if ProgressionSystem.advanceRoom() then
+                DoorSystem.setOpen(false)
+                EvacuationSystem.startEvacuation()
                 InputSystem.update()
                 return
             end
-        else
-            DoorSystem.reset()
+
+            -- Advance to next room while preserving run stats and resources.
+            RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
+            DoorSystem.spawnRandomDoor(w, h, context)
+            DoorSystem.setOpen(false)
+            SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
+            InputSystem.update()
+            return
         end
     end
 
