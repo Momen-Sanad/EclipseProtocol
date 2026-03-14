@@ -32,7 +32,7 @@ local function isCurrentRoomLast()
     return (ProgressionSystem.getRoomsCleared() + 1) >= ProgressionSystem.getRoomsToEscape()
 end
 
-local function configureRoomDoors(context, playWidth, playHeight, entryEdge)
+local function configureRoomDoors(context, playWidth, playHeight, entryDoor)
     local roomsCleared = ProgressionSystem.getRoomsCleared()
     local roomsToEscape = ProgressionSystem.getRoomsToEscape()
     local currentRoomNumber = roomsCleared + 1
@@ -42,7 +42,7 @@ local function configureRoomDoors(context, playWidth, playHeight, entryEdge)
     DoorSystem.setupRoom(playWidth, playHeight, {
         hasEntryDoor = hasEntryDoor,
         hasExitDoor = hasExitDoor,
-        entryEdge = entryEdge,
+        entryDoor = entryDoor,
         doorEdgeMargin = context and context.doorEdgeMargin,
         doorThickness = context and context.doorThickness,
         doorWidthFactor = context and context.doorWidthFactor,
@@ -202,8 +202,7 @@ function GameState.update(dt, context)
         else
             DoorSystem.setExitOpen(nodesRepaired)
             if nodesRepaired and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
-                local usedExitEdge = DoorSystem.getExitEdge()
-                local nextEntryEdge = DoorSystem.getOppositeEdge(usedExitEdge)
+                local nextEntryDoor = DoorSystem.getExitDoor()
 
                 EvacuationSystem.onRoomCleared()
                 if ProgressionSystem.advanceRoom() then
@@ -215,7 +214,7 @@ function GameState.update(dt, context)
 
                 -- Advance to next room while preserving run stats and resources.
                 RoomgenSystem.setupRoom(context, w, h, ProgressionSystem.getDifficulty(), true)
-                configureRoomDoors(context, w, h, nextEntryEdge)
+                configureRoomDoors(context, w, h, nextEntryDoor)
                 SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
                 InputSystem.update()
                 return
