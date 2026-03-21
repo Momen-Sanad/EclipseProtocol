@@ -173,37 +173,46 @@ local function resolvePatrolOverlapY(x, y, droneSize, minY, maxY, padding)
     return y
 end
 
-local function buildPatrolRouteX(w, droneSize, lane, opts, rng)
-    local minX = 8
-    local maxX = math.max(minX, w - droneSize - 8)
+local function buildPatrolRouteX(minX, maxX, droneSize, lane, opts, rng)
+    local safeMinX = minX or 8
+    local safeMaxX = math.max(safeMinX, maxX or safeMinX)
+    local spanX = math.max(1, safeMaxX - safeMinX)
     local routeMinFrac = opts.patrolRouteMinFraction or DEFAULT_PATROL_ROUTE_MIN_FRACTION
     local routeMaxFrac = opts.patrolRouteMaxFraction or DEFAULT_PATROL_ROUTE_MAX_FRACTION
-    local minRouteLen = math.max(droneSize * 2, math.floor(w * routeMinFrac))
-    local maxRouteLen = math.max(minRouteLen, math.floor(w * routeMaxFrac))
+    local minRouteLen = math.max(droneSize * 2, math.floor(spanX * routeMinFrac))
+    local maxRouteLen = math.max(minRouteLen, math.floor(spanX * routeMaxFrac))
+    minRouteLen = math.min(minRouteLen, spanX)
+    maxRouteLen = math.min(maxRouteLen, spanX)
     local routeLen = rng(minRouteLen, maxRouteLen)
-    local anchorX = math.floor(w * (0.1 + (0.8 * lane)))
-    local jitterX = math.max(24, math.floor(w * 0.12))
-    local maxStartX = math.max(minX, maxX - routeLen)
-    local x1 = MathUtils.clamp(anchorX - math.floor(routeLen * 0.5) + rng(-jitterX, jitterX), minX, maxStartX)
+    local anchorX = safeMinX + math.floor(spanX * (0.1 + (0.8 * lane)))
+    local jitterX = math.max(18, math.floor(spanX * 0.12))
+    local maxStartX = math.max(safeMinX, safeMaxX - routeLen)
+    local x1 = MathUtils.clamp(anchorX - math.floor(routeLen * 0.5) + rng(-jitterX, jitterX), safeMinX, maxStartX)
     local x2 = x1 + routeLen
-    if x2 > maxX then
-        x2 = maxX
-        x1 = math.max(minX, x2 - routeLen)
+    if x2 > safeMaxX then
+        x2 = safeMaxX
+        x1 = math.max(safeMinX, x2 - routeLen)
     end
     return x1, x2
 end
 
 local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     -- Spread patrols vertically with randomization, while keeping distance from repair nodes.
-    local x1 = 8
-    local x2 = math.max(x1 + droneSize, w - droneSize - 8)
-    local minY = droneSize + 8
-    local maxY = math.max(minY, h - droneSize - 8)
+    local patrolBounds = opts.patrolSpawnBounds or opts.spawnBounds or {}
+    local minX = math.max(8, math.floor(patrolBounds.minX or 8))
+    local maxX = patrolBounds.maxX and math.floor(patrolBounds.maxX - droneSize) or math.floor(w - droneSize - 8)
+    maxX = math.max(minX, math.min(math.max(minX, w - droneSize), maxX))
+    local minY = math.max(8, math.floor(patrolBounds.minY or (droneSize + 8)))
+    local maxY = patrolBounds.maxY and math.floor(patrolBounds.maxY - droneSize) or math.floor(h - droneSize - 8)
+    maxY = math.max(minY, math.min(math.max(minY, h - droneSize), maxY))
+    local x1 = minX
+    local x2 = math.max(x1 + droneSize, maxX)
     local rng = (love and love.math and love.math.random) or math.random
     local lane = index / (total + 1)
-    x1, x2 = buildPatrolRouteX(w, droneSize, lane, opts, rng)
-    local laneBaseY = math.floor(h * (0.15 + (0.7 * lane)))
-    local laneJitter = math.floor(h * 0.08)
+    x1, x2 = buildPatrolRouteX(minX, maxX, droneSize, lane, opts, rng)
+    local spanY = math.max(1, maxY - minY)
+    local laneBaseY = minY + math.floor(spanY * (0.15 + (0.7 * lane)))
+    local laneJitter = math.max(8, math.floor(spanY * 0.08))
     local minDistance = opts.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
     local repairNodes = opts.repairNodes
     local patrolPadding = math.max(0, opts.patrolSpawnPadding or 2)
@@ -276,12 +285,17 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
     local rng = (love and love.math and love.math.random) or math.random
     local repairNodes = opts.repairNodes
     local lane = index / (total + 1)
-    local minX = 8
-    local maxX = math.max(minX, w - hunterSize - 8)
-    local minY = 8
-    local maxY = math.max(minY, h - hunterSize - 8)
-    local laneX = math.floor(w * (0.15 + (0.7 * lane)))
-    local laneY = math.floor(h * (0.62 + (0.18 * ((index % 2) * 2 - 1))))
+    local hunterBounds = opts.hunterSpawnBounds or opts.spawnBounds or {}
+    local minX = math.max(8, math.floor(hunterBounds.minX or 8))
+    local maxX = hunterBounds.maxX and math.floor(hunterBounds.maxX - hunterSize) or math.floor(w - hunterSize - 8)
+    maxX = math.max(minX, math.min(math.max(minX, w - hunterSize), maxX))
+    local minY = math.max(8, math.floor(hunterBounds.minY or 8))
+    local maxY = hunterBounds.maxY and math.floor(hunterBounds.maxY - hunterSize) or math.floor(h - hunterSize - 8)
+    maxY = math.max(minY, math.min(math.max(minY, h - hunterSize), maxY))
+    local spanX = math.max(1, maxX - minX)
+    local spanY = math.max(1, maxY - minY)
+    local laneX = minX + math.floor(spanX * (0.15 + (0.7 * lane)))
+    local laneY = minY + math.floor(spanY * (0.62 + (0.18 * ((index % 2) * 2 - 1))))
     local x = MathUtils.clamp(laneX, minX, maxX)
     local y = MathUtils.clamp(laneY, minY, maxY)
 

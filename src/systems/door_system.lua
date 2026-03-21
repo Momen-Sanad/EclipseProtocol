@@ -173,6 +173,7 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     local entryEdge = normalizeEdge(cfg.entryEdge)
     local exitEdge = normalizeEdge(cfg.exitEdge)
     local entrySnapshot = cfg.entryDoor
+    local exitSnapshot = cfg.exitDoor
     entryDoor = nil
     exitDoor = nil
 
@@ -206,10 +207,26 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     end
 
     if hasExit then
-        if not exitEdge then
-            exitEdge = chooseRandomEdge(usedEdges)
+        if type(exitSnapshot) == "table" then
+            local snapshotEdge = normalizeEdge(exitSnapshot.edge)
+            if snapshotEdge then
+                exitDoor = {
+                    x = exitSnapshot.x,
+                    y = exitSnapshot.y,
+                    width = exitSnapshot.width,
+                    height = exitSnapshot.height,
+                    edge = snapshotEdge
+                }
+                exitEdge = snapshotEdge
+            end
         end
-        exitDoor = buildDoorForEdge(exitEdge, playWidth, playHeight, cfg)
+
+        if not exitDoor then
+            if not exitEdge then
+                exitEdge = chooseRandomEdge(usedEdges)
+            end
+            exitDoor = buildDoorForEdge(exitEdge, playWidth, playHeight, cfg)
+        end
     else
         exitDoor = nil
     end

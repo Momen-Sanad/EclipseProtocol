@@ -40,6 +40,7 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     local rng = (love and love.math and love.math.random) or math.random
     local patrolLanes = opts.patrolLanes
     local lanePadding = math.max(0, opts.patrolLanePadding or math.floor(size * 0.15))
+    local spawnBounds = opts.spawnBounds or {}
 
     local nodes = {}
 
@@ -103,10 +104,14 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
         return isFarEnough(x, y) and (not intersectsPatrolLane(x, y))
     end
 
-    local minX = pad
-    local maxX = math.max(minX, w - size - pad)
-    local minY = pad
-    local maxY = math.max(minY, h - size - pad)
+    local maxDefaultX = math.max(0, w - size)
+    local maxDefaultY = math.max(0, h - size)
+    local minX = math.max(0, math.floor(spawnBounds.minX or pad))
+    local minY = math.max(0, math.floor(spawnBounds.minY or pad))
+    local maxX = spawnBounds.maxX and math.floor(spawnBounds.maxX - size) or (w - size - pad)
+    local maxY = spawnBounds.maxY and math.floor(spawnBounds.maxY - size) or (h - size - pad)
+    maxX = math.min(maxDefaultX, math.max(minX, maxX))
+    maxY = math.min(maxDefaultY, math.max(minY, maxY))
 
     local candidatePoints = {}
     local scanStep = math.max(8, math.floor(size * 0.4))

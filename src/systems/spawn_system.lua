@@ -72,15 +72,22 @@ function SpawnSystem.isSafePlayerSpawn(x, y, playerSize)
     return true
 end
 
-function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize)
+function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds)
     local w = playWidth or 0
     local h = playHeight or 0
-    local minX = SAFE_SPAWN_PADDING
-    local minY = SAFE_SPAWN_PADDING
-    local maxX = math.max(minX, w - playerSize - SAFE_SPAWN_PADDING)
-    local maxY = math.max(minY, h - playerSize - SAFE_SPAWN_PADDING)
+    local bounds = spawnBounds or {}
+    local minX = math.max(SAFE_SPAWN_PADDING, math.floor(bounds.minX or SAFE_SPAWN_PADDING))
+    local minY = math.max(SAFE_SPAWN_PADDING, math.floor(bounds.minY or SAFE_SPAWN_PADDING))
+    local maxDefaultX = math.max(minX, w - playerSize - SAFE_SPAWN_PADDING)
+    local maxDefaultY = math.max(minY, h - playerSize - SAFE_SPAWN_PADDING)
+    local maxX = bounds.maxX and math.floor(bounds.maxX - playerSize) or maxDefaultX
+    local maxY = bounds.maxY and math.floor(bounds.maxY - playerSize) or maxDefaultY
+    maxX = math.max(minX, math.min(maxDefaultX, maxX))
+    maxY = math.max(minY, math.min(maxDefaultY, maxY))
     local centerX = math.floor((w - playerSize) / 2)
     local centerY = math.floor((h - playerSize) / 2)
+    centerX = math.max(minX, math.min(maxX, centerX))
+    centerY = math.max(minY, math.min(maxY, centerY))
 
     if SpawnSystem.isSafePlayerSpawn(centerX, centerY, playerSize) then
         return centerX, centerY
@@ -101,8 +108,8 @@ function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize)
     return centerX, centerY
 end
 
-function SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize)
-    local spawnX, spawnY = SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize)
+function SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize, spawnBounds)
+    local spawnX, spawnY = SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds)
     player.x = spawnX
     player.y = spawnY
     Kinematics.stop(player)

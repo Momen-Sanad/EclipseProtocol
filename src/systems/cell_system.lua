@@ -11,6 +11,29 @@ local cellCount = 10
 local cellSize = 300
 local cellSpritePath = "assets/ui/Cell.png"
 local cellMinGap = 20
+local cellSpawnBounds = nil
+
+local function getSpawnBounds(playWidth, playHeight)
+    local maxDefaultX = math.max(0, (playWidth or 0) - cellSize)
+    local maxDefaultY = math.max(0, (playHeight or 0) - cellSize)
+    local bounds = cellSpawnBounds or {}
+    local minX = math.max(0, math.floor(bounds.minX or 0))
+    local minY = math.max(0, math.floor(bounds.minY or 0))
+    local maxX = bounds.maxX and math.floor(bounds.maxX - cellSize) or maxDefaultX
+    local maxY = bounds.maxY and math.floor(bounds.maxY - cellSize) or maxDefaultY
+
+    maxX = math.min(maxDefaultX, maxX)
+    maxY = math.min(maxDefaultY, maxY)
+
+    if maxX < minX then
+        maxX = minX
+    end
+    if maxY < minY then
+        maxY = minY
+    end
+
+    return minX, maxX, minY, maxY
+end
 
 local function overlapsWithGap(a, b, gap)
     -- Enforces a minimum edge gap between two axis-aligned rectangles.
@@ -41,11 +64,10 @@ end
 
 local function findFallbackSpawn(playWidth, playHeight)
     -- Deterministic coarse search fallback when random retries cannot find a valid slot.
-    local maxX = math.max(0, (playWidth or 0) - cellSize)
-    local maxY = math.max(0, (playHeight or 0) - cellSize)
+    local minX, maxX, minY, maxY = getSpawnBounds(playWidth, playHeight)
     local step = math.max(8, math.floor(cellSize * 0.2))
     local x, y = SearchUtils.findGrid(
-        { minX = 0, maxX = maxX, minY = 0, maxY = maxY },
+        { minX = minX, maxX = maxX, minY = minY, maxY = maxY },
         step,
         function(candidateX, candidateY)
             local candidate = EnergyCell.new({
@@ -75,9 +97,15 @@ end
 
 local function spawnCell(playWidth, playHeight)
     -- Random spawn with retries + fallback scan to keep a minimum distance from existing cells.
+    local minX, maxX, minY, maxY = getSpawnBounds(playWidth, playHeight)
+    local rng = (love and love.math and love.math.random) or math.random
     local maxAttempts = 120
     for _ = 1, maxAttempts do
-        local candidate = EnergyCell.spawnRandom(playWidth, playHeight, cellSize, {
+        local candidate = EnergyCell.new({
+            x = rng(minX, maxX),
+            y = rng(minY, maxY),
+            width = cellSize,
+            height = cellSize,
             spritePath = cellSpritePath
         })
         if not hasSpawnConflict(candidate) then
@@ -93,7 +121,11 @@ local function spawnCell(playWidth, playHeight)
     end
 
     -- Last resort: place one anyway so game setup cannot deadlock on impossible packing.
-    cells[#cells + 1] = EnergyCell.spawnRandom(playWidth, playHeight, cellSize, {
+    cells[#cells + 1] = EnergyCell.new({
+        x = minX,
+        y = minY,
+        width = cellSize,
+        height = cellSize,
         spritePath = cellSpritePath
     })
 end
@@ -105,6 +137,7 @@ function CellSystem.reset(playWidth, playHeight, opts)
     cellSize = math.max(1, math.floor(opts.size or 300))
     cellSpritePath = opts.spritePath or "assets/ui/Cell.png"
     cellMinGap = math.max(0, math.floor(opts.minGap or opts.minDistance or 20))
+    cellSpawnBounds = opts.spawnBounds
     if not opts.preserveCollectedTotal then
         totalCollected = 0
     end
