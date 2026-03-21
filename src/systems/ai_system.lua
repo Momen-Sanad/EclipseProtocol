@@ -62,9 +62,39 @@ local function chooseFallbackReroute(enemy, targetX, targetY)
     return "x", dirX, step
 end
 
+local function isFailedRerouteCandidate(enemy, axis, dir)
+    return
+        (enemy.failedRerouteTimer or 0) > 0
+        and enemy.failedRerouteAxis == axis
+        and enemy.failedRerouteDir == dir
+end
+
+local function chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
+    local axis, dir, step = chooseFallbackReroute(enemy, targetX, targetY)
+    if not isFailedRerouteCandidate(enemy, axis, dir) then
+        return axis, dir, step
+    end
+
+    local cx = (enemy.x or 0) + ((enemy.width or 0) / 2)
+    local cy = (enemy.y or 0) + ((enemy.height or 0) / 2)
+    if axis == "x" then
+        local altDir = ((targetY or cy) >= cy) and 1 or -1
+        if not isFailedRerouteCandidate(enemy, "y", altDir) then
+            return "y", altDir, step
+        end
+        return "y", -altDir, step
+    end
+
+    local altDir = ((targetX or cx) >= cx) and 1 or -1
+    if not isFailedRerouteCandidate(enemy, "x", altDir) then
+        return "x", altDir, step
+    end
+    return "x", -altDir, step
+end
+
 local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     if not blockedNode then
-        return chooseFallbackReroute(enemy, targetX, targetY)
+        return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
     end
 
     local ew = enemy.width or 0
@@ -90,32 +120,41 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
         { axis = "y", dir = -1, x = cx, y = cy - step }
     }
 
-    local bestAxis = nil
-    local bestDir = nil
-    local bestScore = math.huge
-    for _, candidate in ipairs(candidates) do
-        local ex = candidate.x - halfW
-        local ey = candidate.y - halfH
-        if not CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh) then
-            local toTarget = MathUtils.distanceSquared(candidate.x, candidate.y, targetX, targetY)
-            local clearPathFromCandidate = not MathUtils.segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
-            local score = toTarget - (MathUtils.distanceSquared(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
-            if clearPathFromCandidate then
-                score = score - 1000000
+    local avoidFailed = (enemy.failedRerouteTimer or 0) > 0
+    local passes = avoidFailed and 2 or 1
+    for pass = 1, passes do
+        local skipFailed = avoidFailed and pass == 1
+        local bestAxis = nil
+        local bestDir = nil
+        local bestScore = math.huge
+        for _, candidate in ipairs(candidates) do
+            if not (skipFailed and isFailedRerouteCandidate(enemy, candidate.axis, candidate.dir)) then
+                local ex = candidate.x - halfW
+                local ey = candidate.y - halfH
+                local overlapsBlockedNode = CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh)
+                local pathToCandidateBlocked = MathUtils.segmentIntersectsAabb(cx, cy, candidate.x, candidate.y, rx, ry, rw, rh)
+                if not overlapsBlockedNode and not pathToCandidateBlocked then
+                    local toTarget = MathUtils.distanceSquared(candidate.x, candidate.y, targetX, targetY)
+                    local clearPathFromCandidate = not MathUtils.segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
+                    local score = toTarget - (MathUtils.distanceSquared(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
+                    if clearPathFromCandidate then
+                        score = score - 1000000
+                    end
+                    if score < bestScore then
+                        bestScore = score
+                        bestAxis = candidate.axis
+                        bestDir = candidate.dir
+                    end
+                end
             end
-            if score < bestScore then
-                bestScore = score
-                bestAxis = candidate.axis
-                bestDir = candidate.dir
-            end
+        end
+
+        if bestAxis and bestDir then
+            return bestAxis, bestDir, step
         end
     end
 
-    if bestAxis and bestDir then
-        return bestAxis, bestDir, step
-    end
-
-    return chooseFallbackReroute(enemy, targetX, targetY)
+    return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
 end
 
 local function getPatrolTarget(enemy)
@@ -188,6 +227,12 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
         enemy.rerouteAxis = nil
         enemy.rerouteDir = nil
         enemy.rerouteStep = nil
+    end
+
+    enemy.failedRerouteTimer = math.max(0, (enemy.failedRerouteTimer or 0) - dt)
+    if enemy.failedRerouteTimer <= 0 then
+        enemy.failedRerouteAxis = nil
+        enemy.failedRerouteDir = nil
     end
 
     enemy.chaseMemoryTimer = math.max(0, (enemy.chaseMemoryTimer or 0) - dt)

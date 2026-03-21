@@ -274,6 +274,18 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
                     }
                     local memory = enemy.blockedNodeMemory or 1.2
                     enemy.blockedNodeTimer = math.max(enemy.blockedNodeTimer or 0, memory)
+                    if enemy.rerouteAxis ~= nil and enemy.rerouteDir ~= nil and (enemy.rerouteTimer or 0) > 0 then
+                        enemy.failedRerouteAxis = enemy.rerouteAxis
+                        enemy.failedRerouteDir = enemy.rerouteDir
+                        local failureMemory = enemy.failedRerouteMemory or 1.4
+                        enemy.failedRerouteTimer = math.max(enemy.failedRerouteTimer or 0, failureMemory)
+                        enemy.rerouteTimer = 0
+                        enemy.rerouteX = nil
+                        enemy.rerouteY = nil
+                        enemy.rerouteAxis = nil
+                        enemy.rerouteDir = nil
+                        enemy.rerouteStep = nil
+                    end
                 end
                 enemy.pauseTimer = math.max(enemy.pauseTimer or 0, math.min(0.02, pause))
             else

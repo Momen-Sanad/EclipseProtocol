@@ -50,6 +50,10 @@ function HunterDrone.new(opts)
     self.rerouteTimer = 0
     self.rerouteDuration = opts.rerouteDuration or 0.9
     self.rerouteArriveRadius = opts.rerouteArriveRadius or 20
+    self.failedRerouteAxis = nil
+    self.failedRerouteDir = nil
+    self.failedRerouteTimer = 0
+    self.failedRerouteMemory = opts.failedRerouteMemory or 1.4
     self.stuckTimer = 0
     self.stuckThreshold = opts.stuckThreshold or 0.4
     self.stuckMoveEpsilon = opts.stuckMoveEpsilon or 4
