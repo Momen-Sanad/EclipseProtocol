@@ -7,6 +7,43 @@ local musicPath = nil
 local musicVolume = 0.8
 local sfxVolume = 0.9
 local sfxCache = {}
+local globalPlaybackScale = 1.0
+local sourceBasePitches = setmetatable({}, { __mode = "k" })
+
+local function clamp(value, minValue, maxValue)
+    if value == nil then
+        return minValue
+    end
+    if value < minValue then
+        return minValue
+    end
+    if value > maxValue then
+        return maxValue
+    end
+    return value
+end
+
+local function resetTrackedSourcePitches()
+    sourceBasePitches = setmetatable({}, { __mode = "k" })
+end
+
+local function applyGlobalPlaybackScale()
+    if not (love and love.audio and love.audio.getActiveSources) then
+        return
+    end
+
+    local activeSources = love.audio.getActiveSources()
+    for _, src in ipairs(activeSources or {}) do
+        if src and src.getPitch and src.setPitch then
+            local basePitch = sourceBasePitches[src]
+            if not basePitch then
+                basePitch = math.max(0.01, src:getPitch() or 1.0)
+                sourceBasePitches[src] = basePitch
+            end
+            src:setPitch(basePitch * globalPlaybackScale)
+        end
+    end
+end
 
 local function loadSource(path, kind)
     -- Missing audio should fail softly so gameplay can continue.
@@ -72,9 +109,11 @@ function AudioSystem.playMusic(path, opts)
 
     src:setLooping(loop)
     src:setVolume(volume)
+    src:setPitch(1.0)
     src:play()
     musicSource = src
     musicPath = path
+    applyGlobalPlaybackScale()
 end
 
 function AudioSystem.stopMusic()
@@ -92,6 +131,7 @@ function AudioSystem.stopAll()
     end
     musicSource = nil
     musicPath = nil
+    resetTrackedSourcePitches()
 end
 
 function AudioSystem.playSfx(path, opts)
@@ -129,6 +169,7 @@ function AudioSystem.playSfx(path, opts)
     src:setVolume(volume)
     src:setPitch(pitch)
     src:play()
+    applyGlobalPlaybackScale()
 end
 
 function AudioSystem.setMusicVolume(volume)
@@ -168,6 +209,24 @@ function AudioSystem.setCurrentMusicVolume(volume)
     if musicSource then
         musicSource:setVolume(math.max(0, math.min(1, volume)))
     end
+end
+
+function AudioSystem.setGlobalPlaybackScale(scale)
+    local nextScale = clamp(scale or 1.0, 0.5, 2.0)
+    if math.abs(nextScale - globalPlaybackScale) <= 0.0001 then
+        return
+    end
+
+    globalPlaybackScale = nextScale
+    applyGlobalPlaybackScale()
+end
+
+function AudioSystem.getGlobalPlaybackScale()
+    return globalPlaybackScale
+end
+
+function AudioSystem.refreshGlobalPlaybackScale()
+    applyGlobalPlaybackScale()
 end
 
 return AudioSystem

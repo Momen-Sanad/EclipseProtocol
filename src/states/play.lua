@@ -30,9 +30,39 @@ local DEFAULT_CELL_ENERGY_RESTORE = 25
 local DEFAULT_DAMAGE_FLASH_COLOR = { 1.0, 0.15, 0.15 }
 local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
+local DEFAULT_EVAC_WARNING_START_SECONDS = 60
+local DEFAULT_EVAC_WARNING_MAX_PITCH_SCALE = 1.32
 
 local world = nil
 local unpackArgs = (table and table.unpack) or unpack
+
+local function clamp01(value)
+    if value <= 0 then
+        return 0
+    end
+    if value >= 1 then
+        return 1
+    end
+    return value
+end
+
+local function computeEvacuationAudioScale(context)
+    if EvacuationSystem.getState() ~= EvacuationSystem.STATES.ACTIVE then
+        return 1.0
+    end
+
+    local startSeconds = math.max(1, (context and context.evacuationWarningStartSeconds) or DEFAULT_EVAC_WARNING_START_SECONDS)
+    local timeRemaining = math.max(0, EvacuationSystem.getTimeRemaining() or 0)
+    if timeRemaining > startSeconds then
+        return 1.0
+    end
+
+    local progress = clamp01(1 - (timeRemaining / startSeconds))
+    -- Smooth urgency ramp: subtle at first, stronger as timer approaches zero.
+    local eased = progress * progress * (3 - (2 * progress))
+    local maxScale = math.max(1.0, (context and context.evacuationWarningMaxPitchScale) or DEFAULT_EVAC_WARNING_MAX_PITCH_SCALE)
+    return 1.0 + ((maxScale - 1.0) * eased)
+end
 
 local function getEvacuationStatus()
     return {
@@ -191,6 +221,7 @@ local function resetRun(context)
     local player = PlayerSystem.reset(world, ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     local playerSize = (player and player.hitboxSize) or (context and context.playerSize) or 35
     ScreenFlashSystem.reset()
+    AudioSystem.setGlobalPlaybackScale(1.0)
     EvacuationSystem.configureEscapeZone(w, h)
 
     local room = RoomgenSystem.setupRoom(
@@ -259,6 +290,7 @@ function PlayState.update(dt, context)
 
     -- Phase 1: global objectives/timers.
     local evacuationResult = EvacuationSystem.update(dt)
+    AudioSystem.setGlobalPlaybackScale(computeEvacuationAudioScale(context))
     if evacuationResult == EvacuationSystem.STATES.FAILED then
         queueStateChange("transition", "gameover")
         if handleQueuedEvents(context, w, h, player, playerSize) then
@@ -406,6 +438,9 @@ function PlayState.update(dt, context)
         world.events:push("cells_collected", { count = collected })
     end
 
+    -- Re-apply on active sources started outside AudioSystem helpers (for example looping footsteps).
+    AudioSystem.refreshGlobalPlaybackScale()
+
     syncWorldSnapshot(player, w, h)
     handleQueuedEvents(context, w, h, player, playerSize)
 end
@@ -481,6 +516,7 @@ end
 
 function PlayState.exit()
     -- Defensive cleanup for effects that should not leak into other states.
+    AudioSystem.setGlobalPlaybackScale(1.0)
     ScreenFlashSystem.reset()
 end
 
