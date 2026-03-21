@@ -8,6 +8,7 @@ local DEFAULT_SPAWN_MARGIN = 18
 local DEFAULT_DOOR_THICKNESS = 28
 local DEFAULT_DOOR_WIDTH_FACTOR = 0.18
 local DEFAULT_DOOR_HEIGHT_FACTOR = 0.18
+local DEFAULT_PLAYER_SIZE = 35
 local EDGES = { "top", "bottom", "left", "right" }
 
 local function createRng(seed)
@@ -122,7 +123,7 @@ local function buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
     }
 end
 
-local function normalizeDoorSnapshot(door, roomBounds)
+local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
     if type(door) ~= "table" then
         return nil
     end
@@ -132,13 +133,24 @@ local function normalizeDoorSnapshot(door, roomBounds)
         return nil
     end
 
-    local rb = roomBounds
-    local x = clamp(math.floor(door.x or 0), rb.minX, rb.maxX)
-    local y = clamp(math.floor(door.y or 0), rb.minY, rb.maxY)
+    local context = cfg or {}
+    local margin = math.max(0, math.floor(context.doorEdgeMargin or DEFAULT_ROOM_MARGIN))
+    local x = math.floor(door.x or 0)
+    local y = math.floor(door.y or 0)
     local width = math.max(1, math.floor(door.width or 1))
     local height = math.max(1, math.floor(door.height or 1))
-    width = math.min(width, math.max(1, rb.maxX - x))
-    height = math.min(height, math.max(1, rb.maxY - y))
+
+    if edge == "top" or edge == "bottom" then
+        width = math.min(width, math.max(1, roomWidth - (margin * 2)))
+        height = math.min(height, math.max(1, roomHeight))
+        x = clamp(x, margin, math.max(margin, roomWidth - width - margin))
+        y = (edge == "top") and 0 or math.max(0, roomHeight - height)
+    else
+        width = math.min(width, math.max(1, roomWidth))
+        height = math.min(height, math.max(1, roomHeight - (margin * 2)))
+        y = clamp(y, margin, math.max(margin, roomHeight - height - margin))
+        x = (edge == "left") and 0 or math.max(0, roomWidth - width)
+    end
 
     return {
         x = x,
@@ -147,6 +159,18 @@ local function normalizeDoorSnapshot(door, roomBounds)
         height = height,
         edge = edge
     }
+end
+
+local function doorsMatch(a, b)
+    if not a or not b then
+        return false
+    end
+    return
+        a.edge == b.edge
+        and a.x == b.x
+        and a.y == b.y
+        and a.width == b.width
+        and a.height == b.height
 end
 
 local function shrinkBounds(bounds, padding)
@@ -190,6 +214,39 @@ local function buildPlayerAnchor(playerBounds)
     }
 end
 
+local function buildDoorEntrySpawn(door, roomBounds, playerSize)
+    if not door then
+        return nil
+    end
+
+    local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
+    local halfSize = size * 0.5
+    local inset = math.max(6, math.floor(size * 0.35))
+    local centerX = (door.x or 0) + ((door.width or 0) * 0.5)
+    local centerY = (door.y or 0) + ((door.height or 0) * 0.5)
+    local x = centerX - halfSize
+    local y = centerY - halfSize
+
+    if door.edge == "top" then
+        y = (door.y or 0) + (door.height or 0) + inset
+    elseif door.edge == "bottom" then
+        y = (door.y or 0) - size - inset
+    elseif door.edge == "left" then
+        x = (door.x or 0) + (door.width or 0) + inset
+    elseif door.edge == "right" then
+        x = (door.x or 0) - size - inset
+    end
+
+    x = clamp(math.floor(x), roomBounds.minX, math.max(roomBounds.minX, roomBounds.maxX - size))
+    y = clamp(math.floor(y), roomBounds.minY, math.max(roomBounds.minY, roomBounds.maxY - size))
+    return {
+        x = x,
+        y = y,
+        edge = door.edge,
+        size = size
+    }
+end
+
 local function buildObstacles(rng, bounds)
     local obstacles = {}
     local spanX = math.max(0, bounds.maxX - bounds.minX)
@@ -220,6 +277,7 @@ function RoomGenerator.generate(opts)
     local roomsToEscape = math.max(1, math.floor(cfg.roomsToEscape or 1))
     local hasEntryDoor = roomIndex > 1
     local hasExitDoor = roomIndex < roomsToEscape
+    local playerSize = math.max(1, math.floor(context.playerSize or DEFAULT_PLAYER_SIZE))
     local rng = createRng(cfg.seed or ((os.time() or 1) + roomIndex))
 
     local roomBounds = {
@@ -231,7 +289,7 @@ function RoomGenerator.generate(opts)
 
     local entryDoor = nil
     if hasEntryDoor then
-        entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomBounds)
+        entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomWidth, roomHeight, context)
         if not entryDoor then
             entryDoor = buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
         end
@@ -243,8 +301,12 @@ function RoomGenerator.generate(opts)
         if entryDoor and entryDoor.edge then
             excluded[entryDoor.edge] = true
         end
-        local exitEdge = chooseEdge(rng, excluded)
-        exitDoor = buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
+        local attempts = 0
+        repeat
+            local exitEdge = chooseEdge(rng, excluded)
+            exitDoor = buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
+            attempts = attempts + 1
+        until attempts >= 12 or not doorsMatch(exitDoor, entryDoor)
     end
 
     local spawnBase = shrinkBounds(roomBounds, DEFAULT_SPAWN_MARGIN)
@@ -255,6 +317,8 @@ function RoomGenerator.generate(opts)
     local nodeArea = shrinkBounds(spawnBase, 16)
     local hunterArea = shrinkBounds(spawnBase, 6)
     local playerArea = shrinkBounds(spawnBase, 12)
+    local entrySpawn = buildDoorEntrySpawn(entryDoor, roomBounds, playerSize)
+    local playerAnchor = entrySpawn or buildPlayerAnchor(playerArea)
 
     local doors = {
         entry = entryDoor,
@@ -274,7 +338,8 @@ function RoomGenerator.generate(opts)
         spawn = {
             bounds = spawnBase,
             player = playerArea,
-            playerAnchor = buildPlayerAnchor(playerArea),
+            playerAnchor = playerAnchor,
+            entryPoint = entrySpawn,
             cells = spawnBase,
             patrol = spawnBase,
             hunters = hunterArea,

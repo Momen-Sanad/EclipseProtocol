@@ -10,13 +10,107 @@ local SpawnSystem = {}
 
 local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
+local DEFAULT_PLAYER_SIZE = 35
+
+local function normalizeVector(x, y)
+    local vx = x or 0
+    local vy = y or 0
+    local lengthSq = (vx * vx) + (vy * vy)
+    if lengthSq <= 0 then
+        return 1, 0, 0
+    end
+    local length = math.sqrt(lengthSq)
+    return vx / length, vy / length, length
+end
+
+local function clampSpawnPoint(x, y, playerSize, playWidth, playHeight)
+    local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
+    local maxX = math.max(0, math.floor((playWidth or 0) - size))
+    local maxY = math.max(0, math.floor((playHeight or 0) - size))
+    local clampedX = MathUtils.clamp(math.floor(x or 0), 0, maxX)
+    local clampedY = MathUtils.clamp(math.floor(y or 0), 0, maxY)
+    return clampedX, clampedY
+end
+
+local function addCandidate(candidates, seen, x, y, playerSize, playWidth, playHeight)
+    local cx, cy = clampSpawnPoint(x, y, playerSize, playWidth, playHeight)
+    local key = ("%d:%d"):format(cx, cy)
+    if seen[key] then
+        return
+    end
+    seen[key] = true
+    candidates[#candidates + 1] = { x = cx, y = cy }
+end
+
+local function buildDoorEntryCandidates(entryDoor, playerSize, playWidth, playHeight)
+    if type(entryDoor) ~= "table" then
+        return {}
+    end
+
+    local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
+    local inset = math.max(6, math.floor(size * 0.35))
+    local lateral = math.max(8, math.floor(size * 0.45))
+    local centerX = (entryDoor.x or 0) + ((entryDoor.width or 0) * 0.5)
+    local centerY = (entryDoor.y or 0) + ((entryDoor.height or 0) * 0.5)
+    local offsets = { 0, -lateral, lateral, -(lateral * 2), lateral * 2 }
+    local depths = { inset, inset + math.floor(size * 0.5), inset + size }
+    local candidates = {}
+    local seen = {}
+
+    if entryDoor.edge == "top" or entryDoor.edge == "bottom" then
+        for _, depth in ipairs(depths) do
+            local baseY = (entryDoor.edge == "top")
+                    and ((entryDoor.y or 0) + (entryDoor.height or 0) + depth)
+                or ((entryDoor.y or 0) - size - depth)
+            for _, offset in ipairs(offsets) do
+                addCandidate(
+                    candidates,
+                    seen,
+                    (centerX - (size * 0.5)) + offset,
+                    baseY,
+                    size,
+                    playWidth,
+                    playHeight
+                )
+            end
+        end
+    elseif entryDoor.edge == "left" or entryDoor.edge == "right" then
+        for _, depth in ipairs(depths) do
+            local baseX = (entryDoor.edge == "left")
+                    and ((entryDoor.x or 0) + (entryDoor.width or 0) + depth)
+                or ((entryDoor.x or 0) - size - depth)
+            for _, offset in ipairs(offsets) do
+                addCandidate(
+                    candidates,
+                    seen,
+                    baseX,
+                    (centerY - (size * 0.5)) + offset,
+                    size,
+                    playWidth,
+                    playHeight
+                )
+            end
+        end
+    else
+        addCandidate(candidates, seen, centerX - (size * 0.5), centerY - (size * 0.5), size, playWidth, playHeight)
+    end
+
+    return candidates
+end
 
 local function inHunterDetectionRange(x, y, playerSize, hunter)
     local px, py = MathUtils.rectCenter(x, y, playerSize, playerSize)
     local hx, hy = MathUtils.rectCenter(hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0)
     local distSq = MathUtils.distanceSquared(px, py, hx, hy)
     local range = math.max(0, hunter.visionRange or 0) + (playerSize * 0.35)
-    return distSq <= (range * range)
+    if distSq > (range * range) then
+        return false
+    end
+
+    local toPlayerX, toPlayerY = normalizeVector(px - hx, py - hy)
+    local lookX, lookY = normalizeVector(hunter.lookX or 1, hunter.lookY or 0)
+    local dot = MathUtils.dot(lookX, lookY, toPlayerX, toPlayerY)
+    return dot >= (hunter.dotThreshold or 0.5)
 end
 
 local function inPatrolLine(x, y, playerSize, patrol)
@@ -72,33 +166,49 @@ function SpawnSystem.isSafePlayerSpawn(x, y, playerSize)
     return true
 end
 
-function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds)
+function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds, opts)
     local w = playWidth or 0
     local h = playHeight or 0
+    local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
     local bounds = spawnBounds or {}
+    local options = opts or {}
     local minX = math.max(SAFE_SPAWN_PADDING, math.floor(bounds.minX or SAFE_SPAWN_PADDING))
     local minY = math.max(SAFE_SPAWN_PADDING, math.floor(bounds.minY or SAFE_SPAWN_PADDING))
-    local maxDefaultX = math.max(minX, w - playerSize - SAFE_SPAWN_PADDING)
-    local maxDefaultY = math.max(minY, h - playerSize - SAFE_SPAWN_PADDING)
-    local maxX = bounds.maxX and math.floor(bounds.maxX - playerSize) or maxDefaultX
-    local maxY = bounds.maxY and math.floor(bounds.maxY - playerSize) or maxDefaultY
+    local maxDefaultX = math.max(minX, w - size - SAFE_SPAWN_PADDING)
+    local maxDefaultY = math.max(minY, h - size - SAFE_SPAWN_PADDING)
+    local maxX = bounds.maxX and math.floor(bounds.maxX - size) or maxDefaultX
+    local maxY = bounds.maxY and math.floor(bounds.maxY - size) or maxDefaultY
     maxX = math.max(minX, math.min(maxDefaultX, maxX))
     maxY = math.max(minY, math.min(maxDefaultY, maxY))
-    local centerX = math.floor((w - playerSize) / 2)
-    local centerY = math.floor((h - playerSize) / 2)
+    local centerX = math.floor((w - size) / 2)
+    local centerY = math.floor((h - size) / 2)
     centerX = math.max(minX, math.min(maxX, centerX))
     centerY = math.max(minY, math.min(maxY, centerY))
 
-    if SpawnSystem.isSafePlayerSpawn(centerX, centerY, playerSize) then
+    if type(options.preferredSpawn) == "table" then
+        local preferredX, preferredY = clampSpawnPoint(options.preferredSpawn.x, options.preferredSpawn.y, size, w, h)
+        if SpawnSystem.isSafePlayerSpawn(preferredX, preferredY, size) then
+            return preferredX, preferredY
+        end
+    end
+
+    local entryCandidates = buildDoorEntryCandidates(options.entryDoor, size, w, h)
+    for _, candidate in ipairs(entryCandidates) do
+        if SpawnSystem.isSafePlayerSpawn(candidate.x, candidate.y, size) then
+            return candidate.x, candidate.y
+        end
+    end
+
+    if SpawnSystem.isSafePlayerSpawn(centerX, centerY, size) then
         return centerX, centerY
     end
 
     local x, y = SearchUtils.findRandomThenGrid(
         { minX = minX, maxX = maxX, minY = minY, maxY = maxY },
         SAFE_SPAWN_RANDOM_ATTEMPTS,
-        math.max(10, math.floor(playerSize * 0.75)),
+        math.max(10, math.floor(size * 0.75)),
         function(candidateX, candidateY)
-            return SpawnSystem.isSafePlayerSpawn(candidateX, candidateY, playerSize)
+            return SpawnSystem.isSafePlayerSpawn(candidateX, candidateY, size)
         end
     )
     if x ~= nil and y ~= nil then
@@ -108,8 +218,8 @@ function SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spaw
     return centerX, centerY
 end
 
-function SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize, spawnBounds)
-    local spawnX, spawnY = SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds)
+function SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize, spawnBounds, opts)
+    local spawnX, spawnY = SpawnSystem.findSafePlayerSpawn(playWidth, playHeight, playerSize, spawnBounds, opts)
     player.x = spawnX
     player.y = spawnY
     Kinematics.stop(player)

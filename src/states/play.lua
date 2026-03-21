@@ -127,6 +127,21 @@ local function configureRoomDoors(context, playWidth, playHeight, room)
     DoorSystem.setExitOpen(false)
 end
 
+local function placePlayerForRoom(player, room, playWidth, playHeight, playerSize)
+    local spawn = (room and room.spawn) or {}
+    SpawnSystem.placePlayerInSafeSpawn(
+        player,
+        playWidth,
+        playHeight,
+        playerSize,
+        spawn.player,
+        {
+            preferredSpawn = spawn.entryPoint or spawn.playerAnchor,
+            entryDoor = room and room.doors and room.doors.entry or nil
+        }
+    )
+end
+
 local function handleQueuedEvents(context, playWidth, playHeight, player, playerSize)
     if not world or not world.events then
         return false
@@ -156,8 +171,7 @@ local function handleQueuedEvents(context, playWidth, playHeight, player, player
                 }
             )
             configureRoomDoors(context, playWidth, playHeight, room)
-            local spawnBounds = room and room.spawn and room.spawn.player or nil
-            SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize, spawnBounds)
+            placePlayerForRoom(player, room, playWidth, playHeight, playerSize)
         end
     end
 
@@ -192,8 +206,7 @@ local function resetRun(context)
         }
     )
     configureRoomDoors(context, w, h, room)
-    local spawnBounds = room and room.spawn and room.spawn.player or nil
-    SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize, spawnBounds)
+    placePlayerForRoom(player, room, w, h, playerSize)
     AbilitySystem.reset(ProgressionSystem.buildAbilityConfig(context, difficulty))
 
     syncWorldSnapshot(player, w, h)
