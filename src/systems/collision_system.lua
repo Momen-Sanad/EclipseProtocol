@@ -14,6 +14,132 @@ local function resetEnemyAfterPlayerContact(enemy, pauseDuration)
     end
 end
 
+local function clearVelocityAgainstNormal(body, normalX, normalY)
+    if not body then
+        return
+    end
+
+    local nx = normalX or 0
+    local ny = normalY or 0
+    if nx == 0 and ny == 0 then
+        return
+    end
+
+    local vx = body.vx or 0
+    local vy = body.vy or 0
+    local into = (vx * nx) + (vy * ny)
+    if into < 0 then
+        body.vx = vx - (into * nx)
+        body.vy = vy - (into * ny)
+    end
+
+    local inputX = body.vx_input
+    local inputY = body.vy_input
+    if inputX ~= nil and ((inputX * nx) + ((inputY or 0) * ny)) < 0 then
+        body.vx_input = inputX - (((inputX * nx) + ((inputY or 0) * ny)) * nx)
+        body.vy_input = (inputY or 0) - (((inputX * nx) + ((inputY or 0) * ny)) * ny)
+    end
+
+    local impulseX = body.vx_impulse
+    local impulseY = body.vy_impulse
+    if impulseX ~= nil and ((impulseX * nx) + ((impulseY or 0) * ny)) < 0 then
+        body.vx_impulse = impulseX - (((impulseX * nx) + ((impulseY or 0) * ny)) * nx)
+        body.vy_impulse = (impulseY or 0) - (((impulseX * nx) + ((impulseY or 0) * ny)) * ny)
+    end
+end
+
+local function computeObstacleSeparation(entity, entityW, entityH, obstacle)
+    if not entity or not obstacle then
+        return nil
+    end
+
+    local ex = entity.x or 0
+    local ey = entity.y or 0
+    local ew = entityW or 0
+    local eh = entityH or 0
+    local ox = obstacle.x or 0
+    local oy = obstacle.y or 0
+    local ow = obstacle.width or 0
+    local oh = obstacle.height or 0
+
+    if not CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh) then
+        return nil
+    end
+
+    local overlapX = math.min(ex + ew, ox + ow) - math.max(ex, ox)
+    local overlapY = math.min(ey + eh, oy + oh) - math.max(ey, oy)
+    if overlapX <= 0 or overlapY <= 0 then
+        return nil
+    end
+
+    local prevX = entity.prevX
+    local prevY = entity.prevY
+    local dx = 0
+    local dy = 0
+    local usedPrev = false
+
+    if prevX ~= nil and prevY ~= nil then
+        local prevLeft = prevX
+        local prevRight = prevX + ew
+        local prevTop = prevY
+        local prevBottom = prevY + eh
+        local obstacleLeft = ox
+        local obstacleRight = ox + ow
+        local obstacleTop = oy
+        local obstacleBottom = oy + oh
+
+        if prevRight <= obstacleLeft then
+            dx = -overlapX
+            usedPrev = true
+        elseif prevLeft >= obstacleRight then
+            dx = overlapX
+            usedPrev = true
+        elseif prevBottom <= obstacleTop then
+            dy = -overlapY
+            usedPrev = true
+        elseif prevTop >= obstacleBottom then
+            dy = overlapY
+            usedPrev = true
+        end
+    end
+
+    if not usedPrev then
+        local moveX = ex - (prevX or ex)
+        local moveY = ey - (prevY or ey)
+        if math.abs(moveX) > math.abs(moveY) then
+            dx = (moveX >= 0) and -overlapX or overlapX
+        elseif math.abs(moveY) > 0 then
+            dy = (moveY >= 0) and -overlapY or overlapY
+        else
+            local entityCenterX = ex + (ew / 2)
+            local entityCenterY = ey + (eh / 2)
+            local obstacleCenterX = ox + (ow / 2)
+            local obstacleCenterY = oy + (oh / 2)
+
+            if overlapX < overlapY then
+                dx = (entityCenterX < obstacleCenterX) and -overlapX or overlapX
+            else
+                dy = (entityCenterY < obstacleCenterY) and -overlapY or overlapY
+            end
+        end
+    end
+
+    local normalX = 0
+    local normalY = 0
+    if dx ~= 0 then
+        normalX = (dx > 0) and 1 or -1
+    elseif dy ~= 0 then
+        normalY = (dy > 0) and 1 or -1
+    end
+
+    return {
+        dx = dx,
+        dy = dy,
+        normalX = normalX,
+        normalY = normalY
+    }
+end
+
 function CollisionSystem.overlaps(x1, y1, w1, h1, x2, y2, w2, h2)
     return x1 < x2 + w2 and x2 < x1 + w1 and y1 < y2 + h2 and y2 < y1 + h1
 end
@@ -99,55 +225,25 @@ function CollisionSystem.stopEnemiesOnPlayer(enemies, player, playerSize)
     return blocked
 end
 
-function CollisionSystem.resolveEntityOnObstacle(entity, entityW, entityH, obstacle)
-    -- Resolve overlap between one axis-aligned entity and one axis-aligned obstacle.
-    if not entity or not obstacle then
-        return false
+function CollisionSystem.resolveEntityOnObstacle(entity, entityW, entityH, obstacle, opts)
+    -- Resolve overlap and preserve tangential velocity so node contact behaves like ice.
+    local resolution = computeObstacleSeparation(entity, entityW, entityH, obstacle)
+    if not resolution then
+        return false, nil
     end
 
-    local ex = entity.x or 0
-    local ey = entity.y or 0
-    local ew = entityW or 0
-    local eh = entityH or 0
-    local ox = obstacle.x or 0
-    local oy = obstacle.y or 0
-    local ow = obstacle.width or 0
-    local oh = obstacle.height or 0
+    Kinematics.translate(entity, resolution.dx, resolution.dy)
 
-    if not CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh) then
-        return false
+    local cfg = opts or {}
+    if cfg.slideOnContact ~= false then
+        clearVelocityAgainstNormal(entity, resolution.normalX, resolution.normalY)
     end
 
-    local overlapX = math.min(ex + ew, ox + ow) - math.max(ex, ox)
-    local overlapY = math.min(ey + eh, oy + oh) - math.max(ey, oy)
-    if overlapX <= 0 or overlapY <= 0 then
-        return false
-    end
-
-    local entityCenterX = ex + (ew / 2)
-    local entityCenterY = ey + (eh / 2)
-    local obstacleCenterX = ox + (ow / 2)
-    local obstacleCenterY = oy + (oh / 2)
-
-    if overlapX < overlapY then
-        if entityCenterX < obstacleCenterX then
-            Kinematics.translate(entity, -overlapX, 0)
-        else
-            Kinematics.translate(entity, overlapX, 0)
-        end
-    else
-        if entityCenterY < obstacleCenterY then
-            Kinematics.translate(entity, 0, -overlapY)
-        else
-            Kinematics.translate(entity, 0, overlapY)
-        end
-    end
-
-    return true
+    return true, resolution
 end
 
 function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
-    -- Rewind enemies on obstacle overlap to keep static obstacles solid.
+    -- Keep enemies outside obstacle bounds while preserving slide along obstacle faces.
     if not enemies or not obstacle then
         return false
     end
@@ -156,16 +252,17 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
     local oy = obstacle.y or 0
     local ow = obstacle.width or 0
     local oh = obstacle.height or 0
-    local pause = pauseDuration or 0.2
+    local pause = pauseDuration or 0.04
     local blocked = false
 
     for _, enemy in ipairs(enemies) do
         local ew = enemy.width or 0
         local eh = enemy.height or 0
-        if CollisionSystem.overlaps(enemy.x or 0, enemy.y or 0, ew, eh, ox, oy, ow, oh) then
+        local resolved, resolution = CollisionSystem.resolveEntityOnObstacle(enemy, ew, eh, obstacle, {
+            slideOnContact = true
+        })
+        if resolved then
             blocked = true
-            Kinematics.moveTo(enemy, enemy.prevX, enemy.prevY)
-            Kinematics.stop(enemy)
             if enemy.isHunter then
                 local inChase = enemy.chasing or enemy.state == "chase"
                 if inChase then
@@ -178,13 +275,19 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
                     local memory = enemy.blockedNodeMemory or 1.2
                     enemy.blockedNodeTimer = math.max(enemy.blockedNodeTimer or 0, memory)
                 end
-                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, math.min(0.06, pause))
+                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, math.min(0.02, pause))
             else
-                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, pause)
-                enemy.chasing = false
-                if enemy.state ~= nil then
-                    enemy.state = "idle"
+                -- Patrol drones only move on a line; flip direction when a node blocks their lane.
+                if enemy.forward ~= nil and (enemy.pauseTimer or 0) <= 0 then
+                    enemy.forward = not enemy.forward
                 end
+                enemy.pauseTimer = math.max(enemy.pauseTimer or 0, math.min(0.04, pause))
+            end
+
+            if resolution and resolution.normalX ~= 0 then
+                enemy.x = math.floor((enemy.x or 0) + 0.5)
+            elseif resolution and resolution.normalY ~= 0 then
+                enemy.y = math.floor((enemy.y or 0) + 0.5)
             end
         end
     end
