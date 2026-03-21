@@ -2,6 +2,19 @@
 -- Gameplay systems mutate these fields; animation is owned by src/systems/animation_system.lua.
 local Player = {}
 
+local DEFAULT_VISUAL_SIZE = 35
+local DEFAULT_HITBOX_SCALE = 0.68
+
+local function resolveHitboxSize(cfg)
+    local visualSize = math.max(1, math.floor(cfg.size or DEFAULT_VISUAL_SIZE))
+    if cfg.hitboxSize ~= nil then
+        return math.max(1, math.floor(cfg.hitboxSize))
+    end
+
+    local scale = math.max(0.4, math.min(1.0, cfg.hitboxScale or DEFAULT_HITBOX_SCALE))
+    return math.max(1, math.floor((visualSize * scale) + 0.5))
+end
+
 function Player.new(config)
     local cfg = config or {}
     local maxHealth = cfg.maxHealth or 100
@@ -41,7 +54,7 @@ function Player.new(config)
         footstepSourcePath = nil,
 
         -- Health / energy.
-        hitboxSize = cfg.hitboxSize or cfg.size or 35,
+        hitboxSize = resolveHitboxSize(cfg),
         maxHealth = maxHealth,
         health = cfg.health or maxHealth,
         maxEnergy = maxEnergy,

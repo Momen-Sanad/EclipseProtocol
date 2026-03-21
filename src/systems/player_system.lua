@@ -26,6 +26,8 @@ function PlayerSystem.ensure(context, playWidth, playHeight)
         dashSoundPath = cfg.dashSoundPath,
         damageSoundPath = cfg.damageSoundPath,
         size = cfg.playerSize or 35,
+        hitboxSize = cfg.playerHitboxSize,
+        hitboxScale = cfg.playerHitboxScale,
         spritePath = cfg.playerSpritePath or "assets/sprites/player/Robot.png",
         frameDuration = cfg.playerFrameDuration or 0.12,
         animMode = cfg.playerAnimMode,
