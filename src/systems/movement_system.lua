@@ -1,6 +1,7 @@
 -- Handles player locomotion, dash timing, and knockback impulse blending.
 local AudioSystem = require("src/systems/audio_system")
 local Kinematics = require("src/utils/kinematics")
+local MathUtils = require("src/utils/math_utils")
 
 local MovementSystem = {}
 
@@ -9,6 +10,98 @@ local IMPULSE_DECAY_RATE = 6.0    -- higher = knockback decays faster (per secon
 local IMPULSE_EPSILON = 1.0       -- below this value we zero the impulse
 local STAND_STILL_TIMEOUT = 0.5
 local MOVE_EPSILON = 0.001
+local LOW_HEALTH_NO_EFFECT_THRESHOLD = 0.995
+local LOW_HEALTH_SPEED_PENALTY_MAX = 0.34
+local LOW_HEALTH_DRIFT_MAX = 0.32
+local LOW_HEALTH_SWAY_MAX_ANGLE = 0.42
+local LOW_HEALTH_SWAY_FREQUENCY = 7.5
+local LOW_HEALTH_STUMBLE_CHANCE_PER_SECOND = 1.2
+local LOW_HEALTH_STUMBLE_MIN_DURATION = 0.08
+local LOW_HEALTH_STUMBLE_MAX_DURATION = 0.22
+local LOW_HEALTH_STUMBLE_MAX_ANGLE = 0.72
+local LOW_HEALTH_SHAKE_MAX = 1.8
+
+local function getRng()
+    return (love and love.math and love.math.random) or math.random
+end
+
+local function randomUnit(rng)
+    return ((rng() or 0) * 2) - 1
+end
+
+local function clamp01(value)
+    return math.max(0, math.min(1, value or 0))
+end
+
+local function getLowHealthImpairment(player)
+    local maxHealth = math.max(1, player.maxHealth or 1)
+    local health = MathUtils.clamp(player.health or maxHealth, 0, maxHealth)
+    local ratio = health / maxHealth
+    if ratio >= LOW_HEALTH_NO_EFFECT_THRESHOLD then
+        return 0
+    end
+
+    local severity = 1 - ratio
+    -- Ease-in keeps mild damage readable while low HP becomes dramatically unstable.
+    return severity * severity * (2 - severity)
+end
+
+local function updateRenderShake(player, dt, impairment, rng)
+    player.impairmentTime = (player.impairmentTime or 0) + (dt or 0)
+    if impairment <= 0 then
+        player.renderShakeX = 0
+        player.renderShakeY = 0
+        return
+    end
+
+    player.impairmentSeed = player.impairmentSeed or ((rng() or 0) * math.pi * 2)
+    local t = player.impairmentTime + player.impairmentSeed
+    local noiseX = randomUnit(rng)
+    local noiseY = randomUnit(rng)
+    local shakeMag = LOW_HEALTH_SHAKE_MAX * impairment
+    local waveX = math.sin((t * 12.0) + 0.7)
+    local waveY = math.cos((t * 14.0) + 1.2)
+    player.renderShakeX = ((waveX * 0.65) + (noiseX * 0.35)) * shakeMag
+    player.renderShakeY = ((waveY * 0.65) + (noiseY * 0.35)) * shakeMag
+end
+
+local function distortInputByHealth(player, moveX, moveY, dt, impairment, rng)
+    if impairment <= 0 or (moveX == 0 and moveY == 0) then
+        player.stumbleTimer = 0
+        return moveX, moveY, 1.0
+    end
+
+    local nx, ny = Kinematics.normalize(moveX, moveY)
+    player.impairmentSeed = player.impairmentSeed or ((rng() or 0) * math.pi * 2)
+
+    local swayAngle = math.sin((player.impairmentTime or 0) * LOW_HEALTH_SWAY_FREQUENCY + player.impairmentSeed)
+        * LOW_HEALTH_SWAY_MAX_ANGLE
+        * impairment
+    nx, ny = MathUtils.rotate(nx, ny, swayAngle)
+
+    player.stumbleTimer = math.max(0, (player.stumbleTimer or 0) - (dt or 0))
+    if player.stumbleTimer <= 0 then
+        local stumbleChance = LOW_HEALTH_STUMBLE_CHANCE_PER_SECOND * impairment * impairment
+        if (rng() or 0) < (stumbleChance * (dt or 0)) then
+            local durationRange = LOW_HEALTH_STUMBLE_MAX_DURATION - LOW_HEALTH_STUMBLE_MIN_DURATION
+            player.stumbleTimer = LOW_HEALTH_STUMBLE_MIN_DURATION + (durationRange * (rng() or 0))
+            player.stumbleSign = ((rng() or 0) < 0.5) and -1 or 1
+        end
+    end
+
+    if player.stumbleTimer > 0 then
+        local stumbleAngle = player.stumbleSign * LOW_HEALTH_STUMBLE_MAX_ANGLE * (0.35 + (impairment * 0.65))
+        nx, ny = MathUtils.rotate(nx, ny, stumbleAngle)
+    end
+
+    local driftMag = LOW_HEALTH_DRIFT_MAX * impairment
+    nx = nx + (randomUnit(rng) * driftMag)
+    ny = ny + (randomUnit(rng) * driftMag)
+    nx, ny = Kinematics.normalize(nx, ny)
+
+    local speedMultiplier = 1 - (LOW_HEALTH_SPEED_PENALTY_MAX * impairment)
+    return nx, ny, speedMultiplier
+end
 
 local function syncMoveFlags(player)
     local moveX, moveY, speed = Kinematics.normalize(player.vx or 0, player.vy or 0)
@@ -85,6 +178,9 @@ function MovementSystem.update(player, input, dt, bounds)
     -- Combines live input with temporary impulses, then clamps the result to the play area.
     if not player then return end
     dt = dt or 0
+    local rng = getRng()
+    local impairment = getLowHealthImpairment(player)
+    updateRenderShake(player, dt, impairment, rng)
 
     -- Ensure input velocity and impulse velocity can be composed into one body velocity.
     Kinematics.ensureCompositeVelocity(player)
@@ -139,9 +235,9 @@ function MovementSystem.update(player, input, dt, bounds)
             getWalkSpeed(player, baseSpeed, dt, false)
             Kinematics.setInputVelocity(player, 0, 0)
         else
-            local nx, ny = Kinematics.normalize(moveX, moveY)
+            local nx, ny, speedMultiplier = distortInputByHealth(player, moveX, moveY, dt, impairment, rng)
             local walkSpeed = getWalkSpeed(player, baseSpeed, dt, true)
-            Kinematics.setInputVelocity(player, nx * walkSpeed, ny * walkSpeed)
+            Kinematics.setInputVelocity(player, nx * walkSpeed * speedMultiplier, ny * walkSpeed * speedMultiplier)
         end
     end
 

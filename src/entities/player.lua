@@ -25,6 +25,12 @@ function Player.new(config)
         isDashing = false,
         isMoving = false,
         standStillTimer = 0,
+        impairmentTime = 0,
+        impairmentSeed = nil,
+        stumbleTimer = 0,
+        stumbleSign = 1,
+        renderShakeX = 0,
+        renderShakeY = 0,
 
         -- Audio hooks consumed by movement/collision systems.
         dashSoundPath = cfg.dashSoundPath or "assets/audio/sfx/Dash.wav",

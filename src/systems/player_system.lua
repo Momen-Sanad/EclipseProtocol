@@ -64,6 +64,12 @@ function PlayerSystem.resetForRun(context, playWidth, playHeight)
     p.hitThisFrame = false
     p.damageFlickerTimer = 0
     p.damageLockTimer = 0
+    p.impairmentTime = 0
+    p.impairmentSeed = nil
+    p.stumbleTimer = 0
+    p.stumbleSign = 1
+    p.renderShakeX = 0
+    p.renderShakeY = 0
 
     -- Apply per-run tunables so difficulty selection can override ability costs.
     if cfg.playerDashEnergyCost ~= nil then

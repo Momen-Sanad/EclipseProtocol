@@ -560,6 +560,8 @@ function AnimationSystem.drawPlayer(player)
 
     local drawX = player.x
     local drawY = player.y
+    drawX = drawX + (player.renderShakeX or 0)
+    drawY = drawY + (player.renderShakeY or 0)
     if player.pixelPerfect then
         drawX = math.floor(drawX + 0.5)
         drawY = math.floor(drawY + 0.5)
