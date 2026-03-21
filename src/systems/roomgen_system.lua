@@ -2,6 +2,7 @@
 local CellSystem = require("src/systems/cell_system")
 local EnemySystem = require("src/systems/enemy_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
+local Map = require("src/world/map")
 
 local RoomgenSystem = {}
 
@@ -12,26 +13,62 @@ local DEFAULT_HUNTER_SIZE = 90
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
 local DEFAULT_POWER_NODE_PATROL_PADDING = 16
 
-function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, preserveCells)
-    -- Rebuild entities/objectives for the current room using difficulty-scaled values.
+local activeMap = nil
+local currentRoom = nil
+
+local function getRunSeed(context)
+    local cfg = context or {}
+    return cfg.roomSeed or cfg.mapSeed or cfg.worldSeed or os.time()
+end
+
+local function ensureMap(context, playWidth, playHeight, opts)
+    local options = opts or {}
+    if options.resetMap or not activeMap then
+        activeMap = Map.new({
+            seed = getRunSeed(context),
+            width = playWidth,
+            height = playHeight
+        })
+        currentRoom = nil
+    end
+    return activeMap
+end
+
+function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, preserveCells, opts)
+    -- Rebuild entities/objectives for the generated room using difficulty-scaled values.
+    local options = opts or {}
     local cfg = context or {}
     local scaled = difficulty or {}
     local w = playWidth or 0
     local h = playHeight or 0
+    local map = ensureMap(context, w, h, options)
+
+    currentRoom = Map.nextRoom(map, {
+        width = w,
+        height = h,
+        entryDoor = options.entryDoor,
+        roomsCleared = options.roomsCleared or 0,
+        roomsToEscape = options.roomsToEscape or 1,
+        context = cfg
+    })
+
+    local spawn = (currentRoom and currentRoom.spawn) or {}
 
     CellSystem.reset(w, h, {
         count = scaled.cellCount or cfg.cellCount or DEFAULT_CELL_COUNT,
         size = cfg.cellSize or DEFAULT_CELL_SIZE,
         spritePath = cfg.cellSpritePath or "assets/ui/Cell.png",
         minGap = cfg.cellMinGap,
-        preserveCollectedTotal = preserveCells and true or false
+        preserveCollectedTotal = preserveCells and true or false,
+        spawnBounds = spawn.cells
     })
 
     EnemySystem.resetPatrols(w, h, {
         droneSize = cfg.droneSize or DEFAULT_DRONE_SIZE,
         patrolCount = scaled.patrolCount,
         patrolDamage = scaled.patrolDamage,
-        patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE
+        patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
+        patrolSpawnBounds = spawn.patrol
     })
 
     PowerNodeSystem.reset(w, h, {
@@ -41,15 +78,27 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         powerNodeRepairDuration = cfg.powerNodeRepairDuration,
         powerNodeMinSpacing = cfg.powerNodeMinSpacing,
         patrolLanes = EnemySystem.getPatrolLanes(),
-        patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING
+        patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING,
+        spawnBounds = spawn.nodes
     })
 
     EnemySystem.resetHunters(w, h, {
         hunterSize = cfg.hunterSize or DEFAULT_HUNTER_SIZE,
         hunterCount = scaled.hunterCount,
         hunterDamage = scaled.hunterDamage,
-        repairNodes = PowerNodeSystem.getNodes()
+        repairNodes = PowerNodeSystem.getNodes(),
+        hunterSpawnBounds = spawn.hunters
     })
+
+    return currentRoom
+end
+
+function RoomgenSystem.getCurrentRoom()
+    return currentRoom
+end
+
+function RoomgenSystem.getMap()
+    return activeMap
 end
 
 return RoomgenSystem
