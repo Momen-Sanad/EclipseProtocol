@@ -22,6 +22,7 @@ local Kinematics = require("src/utils/kinematics")
 local StateManager = require("src/core/state_manager")
 local World = require("src/world/world")
 local Events = require("src/core/events")
+local DoorTrigger = require("src/world/door_trigger")
 
 local PlayState = {}
 
@@ -84,9 +85,17 @@ local function syncWorldSnapshot(player, playWidth, playHeight)
     ProgressionSystem.syncWorld(world)
     EvacuationSystem.syncWorld(world)
 
-    world.room.index = (world.progression.roomsCleared or 0) + 1
-    local roomsToEscape = world.progression.roomsToEscape or 0
-    world.room.last = roomsToEscape > 0 and world.room.index >= roomsToEscape
+    local currentRoom = RoomgenSystem.getCurrentRoom()
+    if currentRoom then
+        world.room.index = currentRoom.index or ((world.progression.roomsCleared or 0) + 1)
+        world.room.bounds = currentRoom.bounds or world.room.bounds
+        world.room.last = (currentRoom.doors and currentRoom.doors.exit == nil) and true or false
+        world.room.data = currentRoom
+    else
+        world.room.index = (world.progression.roomsCleared or 0) + 1
+        local roomsToEscape = world.progression.roomsToEscape or 0
+        world.room.last = roomsToEscape > 0 and world.room.index >= roomsToEscape
+    end
 end
 
 local function queueStateChange(stateName, ...)
@@ -103,17 +112,13 @@ local function isCurrentRoomLast()
     return (ProgressionSystem.getRoomsCleared() + 1) >= ProgressionSystem.getRoomsToEscape()
 end
 
-local function configureRoomDoors(context, playWidth, playHeight, entryDoor)
-    local roomsCleared = ProgressionSystem.getRoomsCleared()
-    local roomsToEscape = ProgressionSystem.getRoomsToEscape()
-    local currentRoomNumber = roomsCleared + 1
-    local hasEntryDoor = currentRoomNumber > 1
-    local hasExitDoor = currentRoomNumber < roomsToEscape
-
+local function configureRoomDoors(context, playWidth, playHeight, room)
+    local roomDoors = (room and room.doors) or {}
     DoorSystem.setupRoom(playWidth, playHeight, {
-        hasEntryDoor = hasEntryDoor,
-        hasExitDoor = hasExitDoor,
-        entryDoor = entryDoor,
+        hasEntryDoor = roomDoors.entry ~= nil,
+        hasExitDoor = roomDoors.exit ~= nil,
+        entryDoor = roomDoors.entry,
+        exitDoor = roomDoors.exit,
         doorEdgeMargin = context and context.doorEdgeMargin,
         doorThickness = context and context.doorThickness,
         doorWidthFactor = context and context.doorWidthFactor,
@@ -138,9 +143,21 @@ local function handleQueuedEvents(context, playWidth, playHeight, player, player
 
         if event.name == "room_transition" then
             local payload = event.payload or {}
-            RoomgenSystem.setupRoom(context, playWidth, playHeight, ProgressionSystem.getDifficulty(), true)
-            configureRoomDoors(context, playWidth, playHeight, payload.entryDoor)
-            SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize)
+            local room = RoomgenSystem.setupRoom(
+                context,
+                playWidth,
+                playHeight,
+                ProgressionSystem.getDifficulty(),
+                true,
+                {
+                    entryDoor = payload.entryDoor,
+                    roomsCleared = ProgressionSystem.getRoomsCleared(),
+                    roomsToEscape = ProgressionSystem.getRoomsToEscape()
+                }
+            )
+            configureRoomDoors(context, playWidth, playHeight, room)
+            local spawnBounds = room and room.spawn and room.spawn.player or nil
+            SpawnSystem.placePlayerInSafeSpawn(player, playWidth, playHeight, playerSize, spawnBounds)
         end
     end
 
@@ -162,9 +179,21 @@ local function resetRun(context)
     ScreenFlashSystem.reset()
     EvacuationSystem.configureEscapeZone(w, h)
 
-    RoomgenSystem.setupRoom(context, w, h, difficulty, false)
-    configureRoomDoors(context, w, h, nil)
-    SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize)
+    local room = RoomgenSystem.setupRoom(
+        context,
+        w,
+        h,
+        difficulty,
+        false,
+        {
+            resetMap = true,
+            roomsCleared = ProgressionSystem.getRoomsCleared(),
+            roomsToEscape = ProgressionSystem.getRoomsToEscape()
+        }
+    )
+    configureRoomDoors(context, w, h, room)
+    local spawnBounds = room and room.spawn and room.spawn.player or nil
+    SpawnSystem.placePlayerInSafeSpawn(player, w, h, playerSize, spawnBounds)
     AbilitySystem.reset(ProgressionSystem.buildAbilityConfig(context, difficulty))
 
     syncWorldSnapshot(player, w, h)
@@ -232,18 +261,25 @@ function PlayState.update(dt, context)
     EnergySystem.update(player, dt, context.energyRegenRate or 0)
     Kinematics.capturePreviousPosition(player)
 
+    local activeRoom = RoomgenSystem.getCurrentRoom()
+    local roomBounds = activeRoom and activeRoom.bounds or nil
+    local roomMinX = roomBounds and roomBounds.minX or 8
+    local roomMinY = roomBounds and roomBounds.minY or 8
+    local roomMaxX = roomBounds and roomBounds.maxX or (w - 8)
+    local roomMaxY = roomBounds and roomBounds.maxY or (h - 8)
+
     local bounds = {
-        minX = 8,
-        minY = 8,
-        maxX = w - playerSize,
-        maxY = h - playerSize
+        minX = roomMinX,
+        minY = roomMinY,
+        maxX = math.max(roomMinX, roomMaxX - playerSize),
+        maxY = math.max(roomMinY, roomMaxY - playerSize)
     }
 
     local worldBounds = {
-        minX = 8,
-        minY = 8,
-        maxX = w - 8,
-        maxY = h - 8
+        minX = roomMinX,
+        minY = roomMinY,
+        maxX = roomMaxX,
+        maxY = roomMaxY
     }
 
     AbilitySystem.update(player, EnemySystem.getDrones(), EnemySystem.getHunters(), InputSystem, dt, playerSize)
@@ -307,9 +343,15 @@ function PlayState.update(dt, context)
             end
         else
             DoorSystem.setExitOpen(nodesRepaired)
-            if nodesRepaired and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
+            local room = RoomgenSystem.getCurrentRoom()
+            local exitTrigger = room and room.doorTriggers and room.doorTriggers.exit or nil
+            local touchedDoorTrigger = DoorTrigger.playerTouchesTrigger(exitTrigger, player, playerSize)
+            if nodesRepaired and touchedDoorTrigger and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
                 local nextEntryDoor = DoorSystem.getExitDoor()
 
+                world.events:push("door_touched", {
+                    door = nextEntryDoor
+                })
                 world.events:push("room_cleared", {
                     roomsCleared = ProgressionSystem.getRoomsCleared() + 1
                 })
