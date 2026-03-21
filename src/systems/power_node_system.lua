@@ -16,7 +16,9 @@ function PowerNodeSystem.reset(playWidth, playHeight, context)
         repairDuration = cfg.powerNodeRepairDuration or cfg.nodeRepairDuration,
         minSpacing = cfg.powerNodeMinSpacing or cfg.nodeMinSpacing,
         patrolLanes = cfg.patrolLanes,
-        patrolLanePadding = cfg.patrolLanePadding
+        patrolLanePadding = cfg.patrolLanePadding,
+        protectedZones = cfg.protectedZones,
+        protectedZonePadding = cfg.protectedZonePadding
     })
 end
 

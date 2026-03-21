@@ -10,6 +10,25 @@ PowerNode.DEFAULT_COUNT = 3
 PowerNode.DEFAULT_REPAIR_DURATION = 5.0
 PowerNode.DEFAULT_INTERACT_RANGE = 170
 
+local function overlapsProtectedZones(x, y, size, zones, padding)
+    if type(zones) ~= "table" or #zones == 0 then
+        return false
+    end
+
+    local pad = math.max(0, padding or 0)
+    for _, zone in ipairs(zones) do
+        local zx = (zone.x or 0) - pad
+        local zy = (zone.y or 0) - pad
+        local zw = (zone.width or zone.size or 0) + (pad * 2)
+        local zh = (zone.height or zone.size or 0) + (pad * 2)
+        if CollisionSystem.overlaps(x, y, size, size, zx, zy, zw, zh) then
+            return true
+        end
+    end
+
+    return false
+end
+
 function PowerNode.new(opts)
     -- Creates one repairable obstacle node with interaction/repair metadata.
     opts = opts or {}
@@ -40,6 +59,8 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     local rng = (love and love.math and love.math.random) or math.random
     local patrolLanes = opts.patrolLanes
     local lanePadding = math.max(0, opts.patrolLanePadding or math.floor(size * 0.15))
+    local protectedZones = opts.protectedZones
+    local protectedZonePadding = math.max(0, opts.protectedZonePadding or 0)
     local spawnBounds = opts.spawnBounds or {}
 
     local nodes = {}
@@ -101,7 +122,10 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     end
 
     local function isValidPlacement(x, y)
-        return isFarEnough(x, y) and (not intersectsPatrolLane(x, y))
+        return
+            isFarEnough(x, y)
+            and (not intersectsPatrolLane(x, y))
+            and (not overlapsProtectedZones(x, y, size, protectedZones, protectedZonePadding))
     end
 
     local maxDefaultX = math.max(0, w - size)
@@ -117,7 +141,10 @@ function PowerNode.buildRandom(playWidth, playHeight, opts)
     local scanStep = math.max(8, math.floor(size * 0.4))
     for y = minY, maxY, scanStep do
         for x = minX, maxX, scanStep do
-            if not intersectsPatrolLane(x, y) then
+            if
+                not intersectsPatrolLane(x, y)
+                and not overlapsProtectedZones(x, y, size, protectedZones, protectedZonePadding)
+            then
                 candidatePoints[#candidatePoints + 1] = { x = x, y = y }
             end
         end

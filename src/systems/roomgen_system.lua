@@ -55,6 +55,15 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
     local spawn = (currentRoom and currentRoom.spawn) or {}
     local entrySpawn = spawn.entryPoint
     local playerSpawnSize = (entrySpawn and entrySpawn.size) or cfg.playerSize or 35
+    local protectedSpawnZone = nil
+    if entrySpawn then
+        protectedSpawnZone = {
+            x = entrySpawn.x,
+            y = entrySpawn.y,
+            width = playerSpawnSize,
+            height = playerSpawnSize
+        }
+    end
 
     CellSystem.reset(w, h, {
         count = scaled.cellCount or cfg.cellCount or DEFAULT_CELL_COUNT,
@@ -83,7 +92,8 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         powerNodeMinSpacing = cfg.powerNodeMinSpacing,
         patrolLanes = EnemySystem.getPatrolLanes(),
         patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING,
-        spawnBounds = spawn.nodes
+        spawnBounds = spawn.nodes,
+        protectedZones = protectedSpawnZone and { protectedSpawnZone } or nil
     })
 
     EnemySystem.resetHunters(w, h, {
