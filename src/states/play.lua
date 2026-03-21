@@ -31,6 +31,7 @@ local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 
 local world = nil
+local unpackArgs = (table and table.unpack) or unpack
 
 local function getEvacuationStatus()
     return {
@@ -131,7 +132,7 @@ local function handleQueuedEvents(context, playWidth, playHeight, player, player
         if event.name == "state_change" then
             local payload = event.payload or {}
             local args = payload.args or {}
-            StateManager.change(payload.name, table.unpack(args))
+            StateManager.change(payload.name, unpackArgs(args))
             return true
         end
 
