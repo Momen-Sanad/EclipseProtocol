@@ -53,6 +53,8 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
     })
 
     local spawn = (currentRoom and currentRoom.spawn) or {}
+    local entrySpawn = spawn.entryPoint
+    local playerSpawnSize = (entrySpawn and entrySpawn.size) or cfg.playerSize or 35
 
     CellSystem.reset(w, h, {
         count = scaled.cellCount or cfg.cellCount or DEFAULT_CELL_COUNT,
@@ -68,7 +70,9 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         patrolCount = scaled.patrolCount,
         patrolDamage = scaled.patrolDamage,
         patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
-        patrolSpawnBounds = spawn.patrol
+        patrolSpawnBounds = spawn.patrol,
+        playerSpawn = entrySpawn,
+        playerSpawnSize = playerSpawnSize
     })
 
     PowerNodeSystem.reset(w, h, {
@@ -87,7 +91,9 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         hunterCount = scaled.hunterCount,
         hunterDamage = scaled.hunterDamage,
         repairNodes = PowerNodeSystem.getNodes(),
-        hunterSpawnBounds = spawn.hunters
+        hunterSpawnBounds = spawn.hunters,
+        playerSpawn = entrySpawn,
+        playerSpawnSize = playerSpawnSize
     })
 
     return currentRoom
