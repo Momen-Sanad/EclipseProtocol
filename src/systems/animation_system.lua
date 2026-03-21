@@ -568,6 +568,9 @@ function AnimationSystem.drawPlayer(player)
     end
 
     love.graphics.setColor(1, 1, 1)
+    local hitboxSize = math.max(1, player.hitboxSize or (player.animationConfig and player.animationConfig.size) or 35)
+    local anchorX = drawX + (hitboxSize * 0.5)
+    local anchorY = drawY + (hitboxSize * 0.5)
     if player.anim then
         local frame = player.anim:getFrame()
         local ox = 0
@@ -576,7 +579,7 @@ function AnimationSystem.drawPlayer(player)
             ox = frame.w / 2
             oy = frame.h / 2
         end
-        player.anim:draw(player.sprite, drawX, drawY, 0, player.scale, player.scale, ox, oy)
+        player.anim:draw(player.sprite, anchorX, anchorY, 0, player.scale, player.scale, ox, oy)
         return
     end
 
@@ -585,8 +588,8 @@ function AnimationSystem.drawPlayer(player)
         love.graphics.draw(
             player.sprite,
             frame.quad,
-            drawX,
-            drawY,
+            anchorX,
+            anchorY,
             0,
             player.scale,
             player.scale,

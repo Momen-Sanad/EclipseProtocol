@@ -188,8 +188,8 @@ local function resetRun(context)
     local difficulty = ProgressionSystem.beginRunWorld(world, context)
     EvacuationSystem.beginRun(difficulty)
 
-    local playerSize = (context and context.playerSize) or 35
     local player = PlayerSystem.reset(world, ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
+    local playerSize = (player and player.hitboxSize) or (context and context.playerSize) or 35
     ScreenFlashSystem.reset()
     EvacuationSystem.configureEscapeZone(w, h)
 
@@ -254,7 +254,7 @@ function PlayState.update(dt, context)
     -- Phase 0: ensure world + runtime context.
     PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
     local player, w, h = ensureRuntime(context)
-    local playerSize = context.playerSize or 35
+    local playerSize = (player and player.hitboxSize) or context.playerSize or 35
     EvacuationSystem.configureEscapeZone(w, h)
 
     -- Phase 1: global objectives/timers.
@@ -428,12 +428,19 @@ function PlayState.draw(context)
     -- Render world layers back-to-front: background, enemies, doors, player, pickups, HUD.
     PlayfieldSystem.drawBackground((context and context.backgroundPath) or "assets/ui/background.png")
     local player = PlayerSystem.get()
-    local playerSize = context.playerSize or 35
+    local playerSize = (player and player.hitboxSize) or context.playerSize or 35
 
     EnemySystem.draw(player, playerSize)
     DoorSystem.draw()
     EvacuationSystem.draw()
     PlayerSystem.draw()
+    if player then
+        love.graphics.setColor(1.0, 0.2, 0.2, 0.95)
+        love.graphics.setLineWidth(2)
+        love.graphics.rectangle("line", player.x or 0, player.y or 0, playerSize, playerSize)
+        love.graphics.setLineWidth(1)
+        love.graphics.setColor(1, 1, 1, 1)
+    end
     AbilitySystem.draw()
     PowerNodeSystem.draw()
     CellSystem.draw()

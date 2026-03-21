@@ -41,6 +41,7 @@ function Player.new(config)
         footstepSourcePath = nil,
 
         -- Health / energy.
+        hitboxSize = cfg.hitboxSize or cfg.size or 35,
         maxHealth = maxHealth,
         health = cfg.health or maxHealth,
         maxEnergy = maxEnergy,
