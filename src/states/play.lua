@@ -467,6 +467,15 @@ function PlayState.draw(context)
     love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
     love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, 20)
 
+    if EvacuationSystem.getState() == EvacuationSystem.STATES.ACTIVE then
+        ScreenFlashSystem.drawEvacuationWarning(
+            EvacuationSystem.getTimeRemaining(),
+            {
+                startSeconds = (context and context.evacuationWarningStartSeconds) or 60
+            }
+        )
+    end
+
     ScreenFlashSystem.draw()
 end
 
