@@ -62,6 +62,30 @@ local function chooseFallbackReroute(enemy, targetX, targetY)
     return "x", dirX, step
 end
 
+local function isPointInsideRect(px, py, rx, ry, rw, rh)
+    local x = px or 0
+    local y = py or 0
+    local left = rx or 0
+    local top = ry or 0
+    local width = rw or 0
+    local height = rh or 0
+    return x >= left and x <= (left + width) and y >= top and y <= (top + height)
+end
+
+local function computeRerouteStep(enemy, blockedNode)
+    local base = math.max(enemy.width or 0, enemy.height or 0, 36)
+    if not blockedNode then
+        return base
+    end
+
+    local span = math.max(blockedNode.width or 0, blockedNode.height or 0, base)
+    local cornerBuffer = enemy.rerouteCornerBuffer or 16
+    local clearance = math.max(26, math.floor(span * 0.55))
+    local failedCount = math.max(0, math.min(4, enemy.failedRerouteCount or 0))
+    local failureBoost = failedCount * math.max(12, math.floor(span * 0.18))
+    return span + clearance + cornerBuffer + failureBoost
+end
+
 local function isFailedRerouteCandidate(enemy, axis, dir)
     return
         (enemy.failedRerouteTimer or 0) > 0
@@ -69,8 +93,9 @@ local function isFailedRerouteCandidate(enemy, axis, dir)
         and enemy.failedRerouteDir == dir
 end
 
-local function chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
-    local axis, dir, step = chooseFallbackReroute(enemy, targetX, targetY)
+local function chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY, stepOverride)
+    local axis, dir, fallbackStep = chooseFallbackReroute(enemy, targetX, targetY)
+    local step = math.max(fallbackStep or 0, stepOverride or 0)
     if not isFailedRerouteCandidate(enemy, axis, dir) then
         return axis, dir, step
     end
@@ -94,7 +119,7 @@ end
 
 local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     if not blockedNode then
-        return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
+        return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY, computeRerouteStep(enemy, enemy.lastBlockedNode))
     end
 
     local ew = enemy.width or 0
@@ -109,10 +134,10 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
     local oh = blockedNode.height or 0
     local nodeCx = ox + (ow * 0.5)
     local nodeCy = oy + (oh * 0.5)
-    local cornerBuffer = enemy.rerouteCornerBuffer or 16
     local nodeSpan = math.max(ow, oh, ew, eh, 40)
-    local step = nodeSpan + math.max(18, math.floor(nodeSpan * 0.35)) + cornerBuffer
+    local step = computeRerouteStep(enemy, blockedNode)
     local rx, ry, rw, rh = getExpandedBlockedNodeBounds(enemy, blockedNode)
+    local startInsideBlocked = isPointInsideRect(cx, cy, rx, ry, rw, rh)
     local candidates = {
         { axis = "x", dir = 1, x = cx + step, y = cy },
         { axis = "x", dir = -1, x = cx - step, y = cy },
@@ -132,8 +157,10 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
                 local ex = candidate.x - halfW
                 local ey = candidate.y - halfH
                 local overlapsBlockedNode = CollisionSystem.overlaps(ex, ey, ew, eh, ox, oy, ow, oh)
-                local pathToCandidateBlocked = MathUtils.segmentIntersectsAabb(cx, cy, candidate.x, candidate.y, rx, ry, rw, rh)
-                if not overlapsBlockedNode and not pathToCandidateBlocked then
+                local candidateInsideBlocked = isPointInsideRect(candidate.x, candidate.y, rx, ry, rw, rh)
+                local pathToCandidateBlocked = (not startInsideBlocked)
+                    and MathUtils.segmentIntersectsAabb(cx, cy, candidate.x, candidate.y, rx, ry, rw, rh)
+                if not overlapsBlockedNode and not candidateInsideBlocked and not pathToCandidateBlocked then
                     local toTarget = MathUtils.distanceSquared(candidate.x, candidate.y, targetX, targetY)
                     local clearPathFromCandidate = not MathUtils.segmentIntersectsAabb(candidate.x, candidate.y, targetX, targetY, rx, ry, rw, rh)
                     local score = toTarget - (MathUtils.distanceSquared(candidate.x, candidate.y, nodeCx, nodeCy) * 0.05)
@@ -154,7 +181,7 @@ local function chooseNodeReroute(enemy, blockedNode, targetX, targetY)
         end
     end
 
-    return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY)
+    return chooseFallbackAvoidingRecentFailure(enemy, targetX, targetY, step)
 end
 
 local function getPatrolTarget(enemy)
@@ -233,6 +260,7 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     if enemy.failedRerouteTimer <= 0 then
         enemy.failedRerouteAxis = nil
         enemy.failedRerouteDir = nil
+        enemy.failedRerouteCount = math.max(0, (enemy.failedRerouteCount or 0) - 1)
     end
 
     enemy.chaseMemoryTimer = math.max(0, (enemy.chaseMemoryTimer or 0) - dt)
@@ -240,6 +268,10 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     enemy.blockedNodeTimer = math.max(0, (enemy.blockedNodeTimer or 0) - dt)
     if enemy.blockedNodeTimer <= 0 then
         enemy.lastBlockedNode = nil
+        enemy.failedRerouteAxis = nil
+        enemy.failedRerouteDir = nil
+        enemy.failedRerouteTimer = 0
+        enemy.failedRerouteCount = 0
     end
 
     enemy.state = enemy.state or AISystem.HUNTER_STATES.IDLE
@@ -282,6 +314,10 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
             enemy.rerouteAxis = nil
             enemy.rerouteDir = nil
             enemy.rerouteStep = nil
+            enemy.failedRerouteAxis = nil
+            enemy.failedRerouteDir = nil
+            enemy.failedRerouteTimer = 0
+            enemy.failedRerouteCount = 0
             usingReroute = false
         else
             local step = enemy.rerouteStep or math.max(enemy.width or 0, enemy.height or 0, 36)

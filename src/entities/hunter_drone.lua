@@ -53,6 +53,7 @@ function HunterDrone.new(opts)
     self.failedRerouteAxis = nil
     self.failedRerouteDir = nil
     self.failedRerouteTimer = 0
+    self.failedRerouteCount = 0
     self.failedRerouteMemory = opts.failedRerouteMemory or 1.4
     self.stuckTimer = 0
     self.stuckThreshold = opts.stuckThreshold or 0.4

@@ -277,6 +277,7 @@ function CollisionSystem.stopEnemiesOnObstacle(enemies, obstacle, pauseDuration)
                     if enemy.rerouteAxis ~= nil and enemy.rerouteDir ~= nil and (enemy.rerouteTimer or 0) > 0 then
                         enemy.failedRerouteAxis = enemy.rerouteAxis
                         enemy.failedRerouteDir = enemy.rerouteDir
+                        enemy.failedRerouteCount = math.min(6, (enemy.failedRerouteCount or 0) + 1)
                         local failureMemory = enemy.failedRerouteMemory or 1.4
                         enemy.failedRerouteTimer = math.max(enemy.failedRerouteTimer or 0, failureMemory)
                         enemy.rerouteTimer = 0
