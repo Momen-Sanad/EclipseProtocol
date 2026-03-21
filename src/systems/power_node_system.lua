@@ -75,4 +75,16 @@ function PowerNodeSystem.getNodes()
     return nodes
 end
 
+function PowerNodeSystem.syncWorld(world)
+    if not world or not world.entities then
+        return
+    end
+    world.entities.powerNodes = nodes
+end
+
+function PowerNodeSystem.resetWorld(world, playWidth, playHeight, context)
+    PowerNodeSystem.reset(playWidth, playHeight, context)
+    PowerNodeSystem.syncWorld(world)
+end
+
 return PowerNodeSystem

@@ -187,6 +187,16 @@ function EvacuationSystem.getPhaseLabel()
     return "STABILIZE"
 end
 
+function EvacuationSystem.syncWorld(world)
+    if not world then
+        return
+    end
+    world.flags = world.flags or {}
+    world.flags.evacuationActive = EvacuationSystem.isEvacuationActive()
+    world.flags.victory = state == EvacuationSystem.STATES.SUCCESS
+    world.flags.gameOver = state == EvacuationSystem.STATES.FAILED
+end
+
 function EvacuationSystem.getPrompt(player, playerSize)
     if not EvacuationSystem.isEvacuationActive() then
         return nil

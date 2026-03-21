@@ -103,4 +103,24 @@ function PlayerSystem.draw()
     AnimationSystem.drawPlayer(player)
 end
 
+function PlayerSystem.syncWorld(world)
+    if not world then
+        return nil
+    end
+    world.player = player
+    return player
+end
+
+function PlayerSystem.init(world, context, playWidth, playHeight)
+    local p = PlayerSystem.ensure(context, playWidth, playHeight)
+    PlayerSystem.syncWorld(world)
+    return p
+end
+
+function PlayerSystem.reset(world, context, playWidth, playHeight)
+    local p = PlayerSystem.resetForRun(context, playWidth, playHeight)
+    PlayerSystem.syncWorld(world)
+    return p
+end
+
 return PlayerSystem

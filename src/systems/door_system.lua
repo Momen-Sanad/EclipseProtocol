@@ -250,6 +250,20 @@ function DoorSystem.tryUseExit(player, playerSize, input)
     return false
 end
 
+function DoorSystem.getDoors()
+    return {
+        entry = cloneDoor(entryDoor),
+        exit = cloneDoor(exitDoor)
+    }
+end
+
+function DoorSystem.syncWorld(world)
+    if not world or not world.entities then
+        return
+    end
+    world.entities.doors = DoorSystem.getDoors()
+end
+
 function DoorSystem.getPrompt(player, playerSize)
     if overlapsDoor(player, playerSize, exitDoor) then
         if DoorSystem.isExitOpen() then

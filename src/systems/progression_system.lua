@@ -92,4 +92,25 @@ function ProgressionSystem.getStatusLine(evacuation)
         .. timerText
 end
 
+function ProgressionSystem.syncWorld(world)
+    if not world then
+        return
+    end
+
+    world.progression = world.progression or {}
+    world.metrics = world.metrics or {}
+    world.difficulty = activeDifficulty or {}
+
+    world.progression.roomsCleared = roomsCleared
+    world.progression.roomsToEscape = roomsToEscape
+    world.metrics.elapsedTime = elapsedTime
+    world.metrics.roomsCleared = roomsCleared
+end
+
+function ProgressionSystem.beginRunWorld(world, context)
+    local difficulty = ProgressionSystem.beginRun(context)
+    ProgressionSystem.syncWorld(world)
+    return difficulty
+end
+
 return ProgressionSystem

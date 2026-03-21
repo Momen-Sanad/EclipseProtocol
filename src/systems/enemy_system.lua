@@ -479,4 +479,17 @@ function EnemySystem.getHunters()
     return hunters
 end
 
+function EnemySystem.syncWorld(world)
+    if not world or not world.entities then
+        return
+    end
+    world.entities.drones = drones
+    world.entities.hunters = hunters
+end
+
+function EnemySystem.resetWorld(world, playWidth, playHeight, opts)
+    EnemySystem.reset(playWidth, playHeight, opts)
+    EnemySystem.syncWorld(world)
+end
+
 return EnemySystem

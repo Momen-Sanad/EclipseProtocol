@@ -129,6 +129,23 @@ function CellSystem.getCollectedTotal()
     return totalCollected
 end
 
+function CellSystem.getCells()
+    return cells
+end
+
+function CellSystem.syncWorld(world)
+    if not world or not world.entities or not world.metrics then
+        return
+    end
+    world.entities.cells = cells
+    world.metrics.cellsCollected = totalCollected
+end
+
+function CellSystem.resetWorld(world, playWidth, playHeight, opts)
+    CellSystem.reset(playWidth, playHeight, opts)
+    CellSystem.syncWorld(world)
+end
+
 function CellSystem.draw()
     -- Draws all live cells each frame.
     for _, cell in ipairs(cells) do
