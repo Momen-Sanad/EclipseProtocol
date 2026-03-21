@@ -284,10 +284,15 @@ function AISystem.updateHunter(enemy, player, dt, playerSize)
     end
 
     if enemy.chasing then
+        local blockedByNode =
+            enemy.lastBlockedNode ~= nil
+            and (not hasClearPathToPlayer(enemy, px, py, enemy.lastBlockedNode))
         local sampleX = enemy.stuckSampleX or enemy.x or 0
         local sampleY = enemy.stuckSampleY or enemy.y or 0
         local minMove = enemy.stuckMoveEpsilon or 4
-        if MathUtils.distanceSquared(enemy.x or 0, enemy.y or 0, sampleX, sampleY) <= (minMove * minMove) then
+        if blockedByNode and (not usingReroute) then
+            enemy.stuckTimer = (enemy.stuckTimer or 0) + dt
+        elseif MathUtils.distanceSquared(enemy.x or 0, enemy.y or 0, sampleX, sampleY) <= (minMove * minMove) then
             enemy.stuckTimer = (enemy.stuckTimer or 0) + dt
         else
             enemy.stuckTimer = 0
