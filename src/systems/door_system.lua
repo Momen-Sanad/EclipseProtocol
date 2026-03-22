@@ -1,120 +1,12 @@
 -- Handles room-transition door spawning, overlap checks, and rendering.
 local CollisionSystem = require("src/systems/collision_system")
+local DoorUtils = require("src/world/door_utils")
 
 local DoorSystem = {}
 
 local entryDoor = nil
 local exitDoor = nil
 local exitOpen = false
-local EDGES = { "top", "bottom", "left", "right" }
-
-local function randomInt(minValue, maxValue)
-    local rng = (love and love.math and love.math.random) or math.random
-    return rng(minValue, maxValue)
-end
-
-local function normalizeEdge(edge)
-    if edge == "top" or edge == "bottom" or edge == "left" or edge == "right" then
-        return edge
-    end
-    return nil
-end
-
-local function cloneDoor(door)
-    if not door then
-        return nil
-    end
-    return {
-        x = door.x,
-        y = door.y,
-        width = door.width,
-        height = door.height,
-        edge = door.edge
-    }
-end
-
-local function oppositeEdge(edge)
-    if edge == "top" then
-        return "bottom"
-    end
-    if edge == "bottom" then
-        return "top"
-    end
-    if edge == "left" then
-        return "right"
-    end
-    if edge == "right" then
-        return "left"
-    end
-    return nil
-end
-
-local function chooseRandomEdge(excluded)
-    local candidates = {}
-    for _, edge in ipairs(EDGES) do
-        if not (excluded and excluded[edge]) then
-            candidates[#candidates + 1] = edge
-        end
-    end
-    if #candidates == 0 then
-        return EDGES[randomInt(1, #EDGES)]
-    end
-    return candidates[randomInt(1, #candidates)]
-end
-
-local function buildDoorForEdge(edge, playWidth, playHeight, config)
-    local cfg = config or {}
-    local w = math.max(0, math.floor(playWidth or 0))
-    local h = math.max(0, math.floor(playHeight or 0))
-    local side = normalizeEdge(edge) or chooseRandomEdge(nil)
-    if w <= 0 or h <= 0 then
-        return nil
-    end
-
-    local margin = math.max(0, math.floor(cfg.doorEdgeMargin or 8))
-    local thickness = math.max(20, math.floor(cfg.doorThickness or 28))
-    local horizontalSize = math.max(90, math.floor(w * (cfg.doorWidthFactor or 0.18)))
-    local verticalSize = math.max(90, math.floor(h * (cfg.doorHeightFactor or 0.18)))
-
-    local x = 0
-    local y = 0
-    local width = thickness
-    local height = thickness
-
-    if side == "top" then
-        -- Top edge.
-        width = math.min(horizontalSize, math.max(thickness, w - margin * 2))
-        height = thickness
-        x = randomInt(margin, math.max(margin, w - width - margin))
-        y = 0
-    elseif side == "bottom" then
-        -- Bottom edge.
-        width = math.min(horizontalSize, math.max(thickness, w - margin * 2))
-        height = thickness
-        x = randomInt(margin, math.max(margin, w - width - margin))
-        y = math.max(0, h - height)
-    elseif side == "left" then
-        -- Left edge.
-        width = thickness
-        height = math.min(verticalSize, math.max(thickness, h - margin * 2))
-        x = 0
-        y = randomInt(margin, math.max(margin, h - height - margin))
-    else
-        -- Right edge.
-        width = thickness
-        height = math.min(verticalSize, math.max(thickness, h - margin * 2))
-        x = math.max(0, w - width)
-        y = randomInt(margin, math.max(margin, h - height - margin))
-    end
-
-    return {
-        x = x,
-        y = y,
-        width = width,
-        height = height,
-        edge = side
-    }
-end
 
 local function overlapsDoor(player, playerSize, door)
     if not door or not player then
@@ -155,8 +47,22 @@ local function drawDoor(door, isOpen)
     love.graphics.setLineWidth(1)
 end
 
+local function normalizeDoorSnapshot(door)
+    if type(door) ~= "table" then
+        return nil, nil
+    end
+    local snapshotEdge = DoorUtils.normalizeEdge(door.edge)
+    if not snapshotEdge then
+        return nil, nil
+    end
+
+    local normalized = DoorUtils.cloneDoor(door)
+    normalized.edge = snapshotEdge
+    return normalized, snapshotEdge
+end
+
 function DoorSystem.getOppositeEdge(edge)
-    return oppositeEdge(edge)
+    return DoorUtils.oppositeEdge(edge)
 end
 
 function DoorSystem.reset()
@@ -170,33 +76,24 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     local hasEntry = cfg.hasEntryDoor and true or false
     local hasExit = cfg.hasExitDoor and true or false
     local usedEdges = {}
-    local entryEdge = normalizeEdge(cfg.entryEdge)
-    local exitEdge = normalizeEdge(cfg.exitEdge)
+    local entryEdge = DoorUtils.normalizeEdge(cfg.entryEdge)
+    local exitEdge = DoorUtils.normalizeEdge(cfg.exitEdge)
     local entrySnapshot = cfg.entryDoor
     local exitSnapshot = cfg.exitDoor
     entryDoor = nil
     exitDoor = nil
 
     if hasEntry then
-        if type(entrySnapshot) == "table" then
-            local snapshotEdge = normalizeEdge(entrySnapshot.edge)
-            if snapshotEdge then
-                entryDoor = {
-                    x = entrySnapshot.x,
-                    y = entrySnapshot.y,
-                    width = entrySnapshot.width,
-                    height = entrySnapshot.height,
-                    edge = snapshotEdge
-                }
-                entryEdge = snapshotEdge
-            end
+        entryDoor, entryEdge = normalizeDoorSnapshot(entrySnapshot)
+        if not entryEdge then
+            entryEdge = DoorUtils.normalizeEdge(cfg.entryEdge)
         end
 
         if not entryDoor then
             if not entryEdge then
-                entryEdge = chooseRandomEdge(nil)
+                entryEdge = DoorUtils.chooseRandomEdge(nil, nil)
             end
-            entryDoor = buildDoorForEdge(entryEdge, playWidth, playHeight, cfg)
+            entryDoor = DoorUtils.buildDoorForEdge(entryEdge, playWidth, playHeight, cfg, nil)
         end
 
         if entryDoor then
@@ -207,25 +104,16 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     end
 
     if hasExit then
-        if type(exitSnapshot) == "table" then
-            local snapshotEdge = normalizeEdge(exitSnapshot.edge)
-            if snapshotEdge then
-                exitDoor = {
-                    x = exitSnapshot.x,
-                    y = exitSnapshot.y,
-                    width = exitSnapshot.width,
-                    height = exitSnapshot.height,
-                    edge = snapshotEdge
-                }
-                exitEdge = snapshotEdge
-            end
+        exitDoor, exitEdge = normalizeDoorSnapshot(exitSnapshot)
+        if not exitEdge then
+            exitEdge = DoorUtils.normalizeEdge(cfg.exitEdge)
         end
 
         if not exitDoor then
             if not exitEdge then
-                exitEdge = chooseRandomEdge(usedEdges)
+                exitEdge = DoorUtils.chooseRandomEdge(nil, usedEdges)
             end
-            exitDoor = buildDoorForEdge(exitEdge, playWidth, playHeight, cfg)
+            exitDoor = DoorUtils.buildDoorForEdge(exitEdge, playWidth, playHeight, cfg, nil)
         end
     else
         exitDoor = nil
@@ -251,7 +139,7 @@ function DoorSystem.getExitEdge()
 end
 
 function DoorSystem.getExitDoor()
-    return cloneDoor(exitDoor)
+    return DoorUtils.cloneDoor(exitDoor)
 end
 
 function DoorSystem.tryUseExit(player, playerSize, input)
@@ -269,8 +157,8 @@ end
 
 function DoorSystem.getDoors()
     return {
-        entry = cloneDoor(entryDoor),
-        exit = cloneDoor(exitDoor)
+        entry = DoorUtils.cloneDoor(entryDoor),
+        exit = DoorUtils.cloneDoor(exitDoor)
     }
 end
 

@@ -1,4 +1,6 @@
 -- Lightweight full-screen color flash used for damage and other impact events.
+local UrgencyUtils = require("src/utils/urgency_utils")
+
 local ScreenFlashSystem = {}
 
 local flashColor = { 1.0, 0.15, 0.15 }
@@ -15,18 +17,8 @@ local WARNING_MAX_ALPHA = 0.70
 local WARNING_BASE_THICKNESS = 6
 local WARNING_MAX_THICKNESS_FACTOR = 0.16
 
-local function clamp01(value)
-    if value <= 0 then
-        return 0
-    end
-    if value >= 1 then
-        return 1
-    end
-    return value
-end
-
 local function lerp(a, b, t)
-    return a + ((b - a) * clamp01(t))
+    return a + ((b - a) * UrgencyUtils.clamp01(t))
 end
 
 function ScreenFlashSystem.reset()
@@ -75,7 +67,7 @@ function ScreenFlashSystem.drawEvacuationWarning(timeRemaining, opts)
         return
     end
 
-    local urgency = clamp01(1 - (remaining / startSeconds))
+    local urgency = UrgencyUtils.windowProgress(remaining, startSeconds)
     local blinkHz = lerp(WARNING_MIN_BLINK_HZ, WARNING_MAX_BLINK_HZ, urgency)
     local pulse = 0.5 + (0.5 * math.sin((warningTimer * blinkHz) * math.pi * 2))
     local alpha = lerp(WARNING_MIN_ALPHA, WARNING_MAX_ALPHA, urgency) * (0.3 + (0.7 * pulse))

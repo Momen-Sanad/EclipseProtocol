@@ -1,4 +1,6 @@
 -- Centralized music/SFX helper for loading, caching, and runtime volume control.
+local MathUtils = require("src/utils/math_utils")
+
 local AudioSystem = {}
 
 -- Music is treated as a single active track, while SFX are cached and cloned per play.
@@ -10,17 +12,12 @@ local sfxCache = {}
 local globalPlaybackScale = 1.0
 local sourceBasePitches = setmetatable({}, { __mode = "k" })
 
-local function clamp(value, minValue, maxValue)
-    if value == nil then
-        return minValue
+local function clampOrDefault(value, defaultValue, minValue, maxValue)
+    local raw = value
+    if raw == nil then
+        raw = defaultValue
     end
-    if value < minValue then
-        return minValue
-    end
-    if value > maxValue then
-        return maxValue
-    end
-    return value
+    return MathUtils.clamp(raw, minValue, maxValue)
 end
 
 local function resetTrackedSourcePitches()
@@ -212,7 +209,7 @@ function AudioSystem.setCurrentMusicVolume(volume)
 end
 
 function AudioSystem.setGlobalPlaybackScale(scale)
-    local nextScale = clamp(scale or 1.0, 0.5, 2.0)
+    local nextScale = clampOrDefault(scale, 1.0, 0.5, 2.0)
     if math.abs(nextScale - globalPlaybackScale) <= 0.0001 then
         return
     end

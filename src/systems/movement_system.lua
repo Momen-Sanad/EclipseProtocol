@@ -29,10 +29,6 @@ local function randomUnit(rng)
     return ((rng() or 0) * 2) - 1
 end
 
-local function clamp01(value)
-    return math.max(0, math.min(1, value or 0))
-end
-
 local function getLowHealthImpairment(player)
     local maxHealth = math.max(1, player.maxHealth or 1)
     local health = MathUtils.clamp(player.health or maxHealth, 0, maxHealth)

@@ -1,17 +1,8 @@
 -- Door-trigger helpers for generated room transitions.
 local CollisionSystem = require("src/systems/collision_system")
+local MathUtils = require("src/utils/math_utils")
 
 local DoorTrigger = {}
-
-local function clamp(value, minValue, maxValue)
-    if value < minValue then
-        return minValue
-    end
-    if value > maxValue then
-        return maxValue
-    end
-    return value
-end
 
 function DoorTrigger.createFromDoor(door, roomBounds, opts)
     if not door then
@@ -46,8 +37,8 @@ function DoorTrigger.createFromDoor(door, roomBounds, opts)
         width = depth
     end
 
-    x = clamp(x, minX, maxX)
-    y = clamp(y, minY, maxY)
+    x = MathUtils.clamp(x, minX, maxX)
+    y = MathUtils.clamp(y, minY, maxY)
     width = math.max(1, math.min(width, maxX - x))
     height = math.max(1, math.min(height, maxY - y))
 

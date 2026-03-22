@@ -19,6 +19,7 @@ local DoorSystem = require("src/systems/door_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
+local UrgencyUtils = require("src/utils/urgency_utils")
 local StateManager = require("src/core/state_manager")
 local World = require("src/world/world")
 local Events = require("src/core/events")
@@ -36,30 +37,19 @@ local DEFAULT_EVAC_WARNING_MAX_PITCH_SCALE = 1.32
 local world = nil
 local unpackArgs = (table and table.unpack) or unpack
 
-local function clamp01(value)
-    if value <= 0 then
-        return 0
-    end
-    if value >= 1 then
-        return 1
-    end
-    return value
-end
-
 local function computeEvacuationAudioScale(context)
     if EvacuationSystem.getState() ~= EvacuationSystem.STATES.ACTIVE then
         return 1.0
     end
 
     local startSeconds = math.max(1, (context and context.evacuationWarningStartSeconds) or DEFAULT_EVAC_WARNING_START_SECONDS)
-    local timeRemaining = math.max(0, EvacuationSystem.getTimeRemaining() or 0)
-    if timeRemaining > startSeconds then
+    local progress, inWindow = UrgencyUtils.windowProgress(EvacuationSystem.getTimeRemaining(), startSeconds)
+    if not inWindow then
         return 1.0
     end
 
-    local progress = clamp01(1 - (timeRemaining / startSeconds))
     -- Smooth urgency ramp: subtle at first, stronger as timer approaches zero.
-    local eased = progress * progress * (3 - (2 * progress))
+    local eased = UrgencyUtils.smoothstep01(progress)
     local maxScale = math.max(1.0, (context and context.evacuationWarningMaxPitchScale) or DEFAULT_EVAC_WARNING_MAX_PITCH_SCALE)
     return 1.0 + ((maxScale - 1.0) * eased)
 end

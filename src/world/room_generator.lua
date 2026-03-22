@@ -1,15 +1,13 @@
 -- Procedural room generator with deterministic door + spawn-anchor output.
 local DoorTrigger = require("src/world/door_trigger")
+local DoorUtils = require("src/world/door_utils")
+local MathUtils = require("src/utils/math_utils")
 
 local RoomGenerator = {}
 
 local DEFAULT_ROOM_MARGIN = 8
 local DEFAULT_SPAWN_MARGIN = 18
-local DEFAULT_DOOR_THICKNESS = 28
-local DEFAULT_DOOR_WIDTH_FACTOR = 0.18
-local DEFAULT_DOOR_HEIGHT_FACTOR = 0.18
 local DEFAULT_PLAYER_SIZE = 35
-local EDGES = { "top", "bottom", "left", "right" }
 
 local function createRng(seed)
     local state = math.floor(seed or 1) % 2147483647
@@ -28,23 +26,6 @@ local function createRng(seed)
         end
         return value
     end
-end
-
-local function clamp(value, minValue, maxValue)
-    if value < minValue then
-        return minValue
-    end
-    if value > maxValue then
-        return maxValue
-    end
-    return value
-end
-
-local function normalizeEdge(edge)
-    if edge == "top" or edge == "bottom" or edge == "left" or edge == "right" then
-        return edge
-    end
-    return nil
 end
 
 local function copyBounds(bounds)
@@ -67,68 +48,12 @@ local function ensureBounds(bounds)
     return bounds
 end
 
-local function chooseEdge(rng, excluded)
-    local candidates = {}
-    for _, edge in ipairs(EDGES) do
-        if not (excluded and excluded[edge]) then
-            candidates[#candidates + 1] = edge
-        end
-    end
-    if #candidates == 0 then
-        return EDGES[rng(1, #EDGES)]
-    end
-    return candidates[rng(1, #candidates)]
-end
-
-local function buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
-    local margin = math.max(0, math.floor(cfg.doorEdgeMargin or DEFAULT_ROOM_MARGIN))
-    local thickness = math.max(20, math.floor(cfg.doorThickness or DEFAULT_DOOR_THICKNESS))
-    local horizontalSize = math.max(90, math.floor(roomWidth * (cfg.doorWidthFactor or DEFAULT_DOOR_WIDTH_FACTOR)))
-    local verticalSize = math.max(90, math.floor(roomHeight * (cfg.doorHeightFactor or DEFAULT_DOOR_HEIGHT_FACTOR)))
-    local side = normalizeEdge(edge) or chooseEdge(rng, nil)
-
-    local x = 0
-    local y = 0
-    local width = thickness
-    local height = thickness
-
-    if side == "top" then
-        width = math.min(horizontalSize, math.max(thickness, roomWidth - (margin * 2)))
-        height = thickness
-        x = rng(margin, math.max(margin, roomWidth - width - margin))
-        y = 0
-    elseif side == "bottom" then
-        width = math.min(horizontalSize, math.max(thickness, roomWidth - (margin * 2)))
-        height = thickness
-        x = rng(margin, math.max(margin, roomWidth - width - margin))
-        y = math.max(0, roomHeight - height)
-    elseif side == "left" then
-        width = thickness
-        height = math.min(verticalSize, math.max(thickness, roomHeight - (margin * 2)))
-        x = 0
-        y = rng(margin, math.max(margin, roomHeight - height - margin))
-    else
-        width = thickness
-        height = math.min(verticalSize, math.max(thickness, roomHeight - (margin * 2)))
-        x = math.max(0, roomWidth - width)
-        y = rng(margin, math.max(margin, roomHeight - height - margin))
-    end
-
-    return {
-        x = x,
-        y = y,
-        width = width,
-        height = height,
-        edge = side
-    }
-end
-
 local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
     if type(door) ~= "table" then
         return nil
     end
 
-    local edge = normalizeEdge(door.edge)
+    local edge = DoorUtils.normalizeEdge(door.edge)
     if not edge then
         return nil
     end
@@ -143,12 +68,12 @@ local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
     if edge == "top" or edge == "bottom" then
         width = math.min(width, math.max(1, roomWidth - (margin * 2)))
         height = math.min(height, math.max(1, roomHeight))
-        x = clamp(x, margin, math.max(margin, roomWidth - width - margin))
+        x = MathUtils.clamp(x, margin, math.max(margin, roomWidth - width - margin))
         y = (edge == "top") and 0 or math.max(0, roomHeight - height)
     else
         width = math.min(width, math.max(1, roomWidth))
         height = math.min(height, math.max(1, roomHeight - (margin * 2)))
-        y = clamp(y, margin, math.max(margin, roomHeight - height - margin))
+        y = MathUtils.clamp(y, margin, math.max(margin, roomHeight - height - margin))
         x = (edge == "left") and 0 or math.max(0, roomWidth - width)
     end
 
@@ -159,18 +84,6 @@ local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
         height = height,
         edge = edge
     }
-end
-
-local function doorsMatch(a, b)
-    if not a or not b then
-        return false
-    end
-    return
-        a.edge == b.edge
-        and a.x == b.x
-        and a.y == b.y
-        and a.width == b.width
-        and a.height == b.height
 end
 
 local function shrinkBounds(bounds, padding)
@@ -237,8 +150,8 @@ local function buildDoorEntrySpawn(door, roomBounds, playerSize)
         x = (door.x or 0) - size - inset
     end
 
-    x = clamp(math.floor(x), roomBounds.minX, math.max(roomBounds.minX, roomBounds.maxX - size))
-    y = clamp(math.floor(y), roomBounds.minY, math.max(roomBounds.minY, roomBounds.maxY - size))
+    x = MathUtils.clamp(math.floor(x), roomBounds.minX, math.max(roomBounds.minX, roomBounds.maxX - size))
+    y = MathUtils.clamp(math.floor(y), roomBounds.minY, math.max(roomBounds.minY, roomBounds.maxY - size))
     return {
         x = x,
         y = y,
@@ -291,7 +204,7 @@ function RoomGenerator.generate(opts)
     if hasEntryDoor then
         entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomWidth, roomHeight, context)
         if not entryDoor then
-            entryDoor = buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
+            entryDoor = DoorUtils.buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
         end
     end
 
@@ -303,10 +216,10 @@ function RoomGenerator.generate(opts)
         end
         local attempts = 0
         repeat
-            local exitEdge = chooseEdge(rng, excluded)
-            exitDoor = buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
+            local exitEdge = DoorUtils.chooseRandomEdge(rng, excluded)
+            exitDoor = DoorUtils.buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
             attempts = attempts + 1
-        until attempts >= 12 or not doorsMatch(exitDoor, entryDoor)
+        until attempts >= 12 or not DoorUtils.sameDoor(exitDoor, entryDoor)
     end
 
     local spawnBase = shrinkBounds(roomBounds, DEFAULT_SPAWN_MARGIN)
