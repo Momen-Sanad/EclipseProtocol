@@ -77,13 +77,13 @@ local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
         x = (edge == "left") and 0 or math.max(0, roomWidth - width)
     end
 
-    return {
+    return DoorUtils.clampDoorToSafeBounds({
         x = x,
         y = y,
         width = width,
         height = height,
         edge = edge
-    }
+    }, roomWidth, roomHeight, context)
 end
 
 local function shrinkBounds(bounds, padding)

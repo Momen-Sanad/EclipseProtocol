@@ -21,9 +21,19 @@ local escapeZoneWidthFactor = 0.5
 local escapeZoneHeight = 56
 local escapeZoneTop = 0
 local escapePrompt = "PRESS ENTER TO EVACUATE"
+local labelFont = nil
 
 local function clampToNonNegative(value)
     return math.max(0, value or 0)
+end
+
+local function ensureLabelFont()
+    if labelFont then
+        return
+    end
+
+    labelFont = love.graphics.newFont("assets/fonts/Minecraftia-Regular.ttf", 26)
+    labelFont:setFilter("nearest", "nearest")
 end
 
 local function rebuildEscapeZone(playWidth, playHeight)
@@ -226,10 +236,14 @@ function EvacuationSystem.draw()
     love.graphics.rectangle("line", escapeZone.x, escapeZone.y, escapeZone.width, escapeZone.height, 6, 6)
     love.graphics.setLineWidth(1)
 
-    local font = love.graphics.getFont()
-    local textW = font:getWidth(label)
+    ensureLabelFont()
+    local prevFont = love.graphics.getFont()
+    love.graphics.setFont(labelFont)
+    local textW = labelFont:getWidth(label)
+    local textY = escapeZone.y + math.floor((escapeZone.height - labelFont:getHeight()) * 0.5)
     love.graphics.setColor(0.92, 0.98, 1.0, 0.95)
-    love.graphics.print(label, escapeZone.x + (escapeZone.width - textW) * 0.5, escapeZone.y + 6)
+    love.graphics.print(label, escapeZone.x + (escapeZone.width - textW) * 0.5, textY)
+    love.graphics.setFont(prevFont)
 end
 
 return EvacuationSystem

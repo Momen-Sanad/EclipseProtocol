@@ -1,11 +1,36 @@
 -- Shared door geometry and edge helpers used by runtime and generation systems.
 local DoorUtils = {}
 
-local EDGES = { "top", "bottom", "left", "right" }
+local EDGES = { "left", "right" }
+local SAFE_LEFT_TOP = 150
+local SAFE_LEFT_BOTTOM = 360
+local SAFE_RIGHT_TOP = 84
+local SAFE_RIGHT_BOTTOM = 96
 
 local function defaultRandomInt(minValue, maxValue)
     local rng = (love and love.math and love.math.random) or math.random
     return rng(minValue, maxValue)
+end
+
+local function getSafeVerticalRange(side, roomHeight, doorHeight, margin)
+    local minY = math.max(0, math.floor(margin or 0))
+    local maxY = math.max(minY, math.floor((roomHeight or 0) - (doorHeight or 0) - minY))
+
+    if side == "left" then
+        minY = math.max(minY, SAFE_LEFT_TOP)
+        maxY = math.min(maxY, math.floor((roomHeight or 0) - (doorHeight or 0) - SAFE_LEFT_BOTTOM))
+    elseif side == "right" then
+        minY = math.max(minY, SAFE_RIGHT_TOP)
+        maxY = math.min(maxY, math.floor((roomHeight or 0) - (doorHeight or 0) - SAFE_RIGHT_BOTTOM))
+    end
+
+    if maxY < minY then
+        local centeredY = math.max(0, math.floor(((roomHeight or 0) - (doorHeight or 0)) * 0.5))
+        centeredY = math.max(math.floor(margin or 0), centeredY)
+        return centeredY, centeredY
+    end
+
+    return minY, maxY
 end
 
 function DoorUtils.getEdges()
@@ -13,7 +38,7 @@ function DoorUtils.getEdges()
 end
 
 function DoorUtils.normalizeEdge(edge)
-    if edge == "top" or edge == "bottom" or edge == "left" or edge == "right" then
+    if edge == "left" or edge == "right" then
         return edge
     end
     return nil
@@ -108,12 +133,14 @@ function DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
         doorWidth = thickness
         doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
         x = 0
-        y = randomInt(margin, math.max(margin, height - doorHeight - margin))
+        local minY, maxY = getSafeVerticalRange(side, height, doorHeight, margin)
+        y = randomInt(minY, maxY)
     else
         doorWidth = thickness
         doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
         x = math.max(0, width - doorWidth)
-        y = randomInt(margin, math.max(margin, height - doorHeight - margin))
+        local minY, maxY = getSafeVerticalRange(side, height, doorHeight, margin)
+        y = randomInt(minY, maxY)
     end
 
     return {
@@ -123,6 +150,32 @@ function DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
         height = doorHeight,
         edge = side
     }
+end
+
+function DoorUtils.clampDoorToSafeBounds(door, roomWidth, roomHeight, cfg)
+    if type(door) ~= "table" then
+        return nil
+    end
+
+    local context = cfg or {}
+    local edge = DoorUtils.normalizeEdge(door.edge)
+    if not edge then
+        return nil
+    end
+
+    local width = math.max(0, math.floor(roomWidth or 0))
+    local height = math.max(0, math.floor(roomHeight or 0))
+    local margin = math.max(0, math.floor(context.doorEdgeMargin or 8))
+    local clamped = DoorUtils.cloneDoor(door)
+
+    if edge == "left" or edge == "right" then
+        local minY, maxY = getSafeVerticalRange(edge, height, clamped.height or 0, margin)
+        clamped.y = math.max(minY, math.min(math.floor(clamped.y or 0), maxY))
+        clamped.x = (edge == "left") and 0 or math.max(0, width - (clamped.width or 0))
+    end
+
+    clamped.edge = edge
+    return clamped
 end
 
 return DoorUtils

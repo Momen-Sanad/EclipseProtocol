@@ -30,24 +30,41 @@ local function drawDoor(door, isOpen)
         return
     end
 
-    local baseFill = { 0.82, 0.12, 0.16, 0.30 }
-    local baseEdge = { 1.0, 0.30, 0.32, 0.92 }
+    local centerX = (door.x or 0) + ((door.width or 0) * 0.5)
+    local centerY = (door.y or 0) + ((door.height or 0) * 0.5)
+    local halfW = (door.width or 0) * 0.5
+    local halfH = (door.height or 0) * 0.5
+    local x1 = centerX
+    local y1 = centerY - halfH
+    local x2 = centerX
+    local y2 = centerY + halfH
+
+    if door.edge == "top" or door.edge == "bottom" then
+        x1 = centerX - halfW
+        y1 = centerY
+        x2 = centerX + halfW
+        y2 = centerY
+    end
+
+    local baseGlow = { 0.90, 0.18, 0.22, 0.18 }
+    local baseLine = { 1.0, 0.32, 0.34, 0.95 }
     if isOpen then
         local t = (love and love.timer and love.timer.getTime and love.timer.getTime()) or 0
         local pulse = 0.55 + (0.45 * math.abs(math.sin(t * 7.5)))
-        baseFill = { 1.0, 1.0, 1.0, 0.18 + (0.22 * pulse) }
-        baseEdge = { 1.0, 1.0, 1.0, 0.55 + (0.45 * pulse) }
+        baseGlow = { 0.60, 0.95, 1.0, 0.18 + (0.18 * pulse) }
+        baseLine = { 0.90, 1.0, 1.0, 0.70 + (0.30 * pulse) }
     end
 
-    love.graphics.setColor(baseFill)
-    love.graphics.rectangle("fill", door.x, door.y, door.width, door.height, 5, 5)
-    love.graphics.setColor(baseEdge)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", door.x, door.y, door.width, door.height, 5, 5)
+    love.graphics.setColor(baseGlow)
+    love.graphics.setLineWidth(isOpen and 12 or 10)
+    love.graphics.line(x1, y1, x2, y2)
+    love.graphics.setColor(baseLine)
+    love.graphics.setLineWidth(isOpen and 6 or 4)
+    love.graphics.line(x1, y1, x2, y2)
     love.graphics.setLineWidth(1)
 end
 
-local function normalizeDoorSnapshot(door)
+local function normalizeDoorSnapshot(door, playWidth, playHeight, cfg)
     if type(door) ~= "table" then
         return nil, nil
     end
@@ -56,7 +73,7 @@ local function normalizeDoorSnapshot(door)
         return nil, nil
     end
 
-    local normalized = DoorUtils.cloneDoor(door)
+    local normalized = DoorUtils.clampDoorToSafeBounds(door, playWidth, playHeight, cfg) or DoorUtils.cloneDoor(door)
     normalized.edge = snapshotEdge
     return normalized, snapshotEdge
 end
@@ -84,7 +101,7 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     exitDoor = nil
 
     if hasEntry then
-        entryDoor, entryEdge = normalizeDoorSnapshot(entrySnapshot)
+        entryDoor, entryEdge = normalizeDoorSnapshot(entrySnapshot, playWidth, playHeight, cfg)
         if not entryEdge then
             entryEdge = DoorUtils.normalizeEdge(cfg.entryEdge)
         end
@@ -104,7 +121,7 @@ function DoorSystem.setupRoom(playWidth, playHeight, config)
     end
 
     if hasExit then
-        exitDoor, exitEdge = normalizeDoorSnapshot(exitSnapshot)
+        exitDoor, exitEdge = normalizeDoorSnapshot(exitSnapshot, playWidth, playHeight, cfg)
         if not exitEdge then
             exitEdge = DoorUtils.normalizeEdge(cfg.exitEdge)
         end
@@ -172,7 +189,7 @@ end
 function DoorSystem.getPrompt(player, playerSize)
     if overlapsDoor(player, playerSize, exitDoor) then
         if DoorSystem.isExitOpen() then
-            return "PRESS ENTER TO USE THE DOOR"
+            return "PRESS ENTER TO GO TO THE NEXT ROOM"
         end
         return "DOOR LOCKED: REPAIR ALL POWER NODES"
     end

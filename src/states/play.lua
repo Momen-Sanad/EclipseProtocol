@@ -17,6 +17,7 @@ local ProgressionSystem = require("src/systems/progression_system")
 local EvacuationSystem = require("src/systems/evacuation_system")
 local DoorSystem = require("src/systems/door_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
+local RoomFrameSystem = require("src/systems/room_frame_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
 local UrgencyUtils = require("src/utils/urgency_utils")
@@ -475,6 +476,13 @@ function PlayState.draw(context)
     PlayfieldSystem.drawBackground((context and context.playfieldColor) or DEFAULT_PLAYFIELD_COLOR)
     local player = PlayerSystem.get()
     local playerSize = (player and player.hitboxSize) or context.playerSize or 35
+    local room = RoomgenSystem.getCurrentRoom()
+
+    RoomFrameSystem.draw(
+        room and room.bounds or nil,
+        DoorSystem.getDoors(),
+        context
+    )
 
     EnemySystem.draw(player, playerSize)
     DoorSystem.draw()
