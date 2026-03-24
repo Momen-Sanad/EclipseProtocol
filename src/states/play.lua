@@ -62,6 +62,26 @@ local function getEvacuationStatus()
     }
 end
 
+local function getTopOverlayBottom()
+    -- Keeps the centered run-status text below any top-edge door or evac zone.
+    local occupiedBottom = 0
+    local doors = DoorSystem.getDoors()
+    local doorList = { doors and doors.entry or nil, doors and doors.exit or nil }
+
+    for _, door in ipairs(doorList) do
+        if door and door.edge == "top" then
+            occupiedBottom = math.max(occupiedBottom, (door.y or 0) + (door.height or 0))
+        end
+    end
+
+    local zone = EvacuationSystem.getEscapeZone()
+    if zone and (zone.y or 0) <= 0 then
+        occupiedBottom = math.max(occupiedBottom, (zone.y or 0) + (zone.height or 0))
+    end
+
+    return occupiedBottom
+end
+
 local function getPlayAreaSize(context)
     -- Uses the live viewport size with context fallback.
     return PlayfieldSystem.getPlayAreaSize(
@@ -490,8 +510,9 @@ function PlayState.draw(context)
 
     local status = ProgressionSystem.getStatusLine(getEvacuationStatus())
     local statusW = love.graphics.getFont():getWidth(status)
+    local statusY = math.max(20, getTopOverlayBottom() + 12)
     love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
-    love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, 20)
+    love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, statusY)
 
     if EvacuationSystem.getState() == EvacuationSystem.STATES.ACTIVE then
         ScreenFlashSystem.drawEvacuationWarning(
