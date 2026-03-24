@@ -14,7 +14,7 @@ local hudFont = nil
 local loaded = false
 local view = "main"
 local menu = {
-    items = { "Resume", "Options", "Victory", "Game Over", "Main Menu" },
+    items = { "Resume", "Options", "Main Menu" },
     selected = 1
 }
 
@@ -125,10 +125,6 @@ function PauseState.keypressed(key)
                 StateManager.change("transition", "game")
             elseif choice == "Options" then
                 view = "options"
-            elseif choice == "Victory" then
-                StateManager.change("victory")
-            elseif choice == "Game Over" then
-                StateManager.change("gameover")
             elseif choice == "Main Menu" then
                 StateManager.change("transition", "menu")
             end
@@ -181,26 +177,33 @@ function PauseState.draw()
 
     if view == "main" then
         -- Main pause view: navigation/actions.
-        local startY = panelY + 90
         local gap = 58
+        local rowH = 44
+        local rowX = panelX + 30
+        local rowW = panelW - 60
         love.graphics.setFont(menuFont)
+        local totalH = rowH + ((#menu.items - 1) * gap)
+        local startY = math.floor(panelY + ((panelH - totalH) / 2))
 
         for i, item in ipairs(menu.items) do
-            local y = startY + (i - 1) * gap
+            local rowY = startY + (i - 1) * gap
+            local labelY = rowY + math.floor((rowH - menuFont:getHeight()) / 2)
             local labelColor = COL.textDim
+            local arrowPrefix = ""
+            local textX = math.floor((windowWidth - menuFont:getWidth(item)) / 2)
             if i == menu.selected then
                 local pulse = 0.5 + 0.5 * math.sin(anim.time * 4.2)
                 setColor({ 0.10, 0.45 + 0.25 * pulse, 0.50 + 0.25 * pulse, 0.25 })
-                love.graphics.rectangle("fill", panelX + 30, y - 18, panelW - 60, 44, 8, 8)
+                love.graphics.rectangle("fill", rowX, rowY, rowW, rowH, 8, 8)
                 setColor(COL.accent)
-                love.graphics.rectangle("line", panelX + 30, y - 18, panelW - 60, 44, 8, 8)
-                setColor(COL.text)
-                love.graphics.print(">", panelX + 44, y - 10)
+                love.graphics.rectangle("line", rowX, rowY, rowW, rowH, 8, 8)
+                arrowPrefix = "> "
+                textX = math.floor((windowWidth - menuFont:getWidth(arrowPrefix .. item)) / 2)
                 labelColor = COL.text
             end
 
             setColor(labelColor)
-            love.graphics.print(item, panelX + 80, y - 10)
+            love.graphics.print(arrowPrefix .. item, textX, labelY)
         end
 
         return

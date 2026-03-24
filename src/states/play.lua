@@ -33,6 +33,7 @@ local DEFAULT_DAMAGE_FLASH_ALPHA = 0.35
 local DEFAULT_DAMAGE_FLASH_DURATION = 0.12
 local DEFAULT_EVAC_WARNING_START_SECONDS = 60
 local DEFAULT_EVAC_WARNING_MAX_PITCH_SCALE = 1.32
+local DEFAULT_PLAYFIELD_COLOR = { 0.12, 0.20, 0.36, 1.0 }
 
 local world = nil
 local unpackArgs = (table and table.unpack) or unpack
@@ -62,7 +63,7 @@ local function getEvacuationStatus()
 end
 
 local function getPlayAreaSize(context)
-    -- Uses live background-scaled viewport size with context fallback.
+    -- Uses the live viewport size with context fallback.
     return PlayfieldSystem.getPlayAreaSize(
         (context and context.windowWidth) or 1280,
         (context and context.windowHeight) or 720
@@ -244,13 +245,13 @@ end
 
 function PlayState.preload(context)
     -- Used by transition.lua so destination can preload assets off-screen.
-    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    PlayfieldSystem.ensureBackground()
     ensureRuntime(context)
 end
 
 function PlayState.enter(context, prevName)
     -- Reset transient gameplay state unless we are resuming from pause.
-    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    PlayfieldSystem.ensureBackground()
     ensureRuntime(context)
 
     if prevName ~= "pause" then
@@ -273,7 +274,7 @@ end
 
 function PlayState.update(dt, context)
     -- Phase 0: ensure world + runtime context.
-    PlayfieldSystem.ensureBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    PlayfieldSystem.ensureBackground()
     local player, w, h = ensureRuntime(context)
     local playerSize = (player and player.hitboxSize) or context.playerSize or 35
     EvacuationSystem.configureEscapeZone(w, h)
@@ -451,7 +452,7 @@ end
 
 function PlayState.draw(context)
     -- Render world layers back-to-front: background, enemies, doors, player, pickups, HUD.
-    PlayfieldSystem.drawBackground((context and context.backgroundPath) or "assets/ui/background.png")
+    PlayfieldSystem.drawBackground((context and context.playfieldColor) or DEFAULT_PLAYFIELD_COLOR)
     local player = PlayerSystem.get()
     local playerSize = (player and player.hitboxSize) or context.playerSize or 35
 

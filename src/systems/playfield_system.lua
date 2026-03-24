@@ -1,20 +1,12 @@
--- Handles playfield background loading/scaling and play-area sizing.
+-- Handles playfield background fill and play-area sizing.
 local PlayfieldSystem = {}
 
-local bg = nil
-local bgPath = nil
-local bgScale = 1
-local bgOffsetX = 0
-local bgOffsetY = 0
 local windowWidth = 0
 local windowHeight = 0
+local DEFAULT_PLAYFIELD_COLOR = { 0.12, 0.20, 0.36, 1.0 }
 
-local function refreshBackground()
-    -- Recomputes "cover" scaling whenever window dimensions change.
-    if not bg then
-        return
-    end
-
+local function refreshViewport()
+    -- Recomputes the cached viewport size whenever window dimensions change.
     local w, h = love.graphics.getDimensions()
     if w == windowWidth and h == windowHeight then
         return
@@ -22,29 +14,16 @@ local function refreshBackground()
 
     windowWidth = w
     windowHeight = h
-
-    local bgW = bg:getWidth()
-    local bgH = bg:getHeight()
-    bgScale = math.max(windowWidth / bgW, windowHeight / bgH)
-    bgOffsetX = (windowWidth - bgW * bgScale) / 2
-    bgOffsetY = (windowHeight - bgH * bgScale) / 2
 end
 
-function PlayfieldSystem.ensureBackground(path)
-    -- Loads/reloads the playfield texture only when path changes.
-    local nextPath = path or "assets/ui/background.png"
-    if not bg or bgPath ~= nextPath then
-        bg = love.graphics.newImage(nextPath)
-        bgPath = nextPath
-        windowWidth = 0
-        windowHeight = 0
-    end
-    refreshBackground()
+function PlayfieldSystem.ensureBackground()
+    -- Keeps cached viewport dimensions current for gameplay sizing.
+    refreshViewport()
 end
 
 function PlayfieldSystem.getPlayAreaSize(fallbackWidth, fallbackHeight)
     -- Returns current render size; falls back when window info is not ready.
-    refreshBackground()
+    refreshViewport()
 
     local w = windowWidth
     local h = windowHeight
@@ -57,14 +36,14 @@ function PlayfieldSystem.getPlayAreaSize(fallbackWidth, fallbackHeight)
     return w, h
 end
 
-function PlayfieldSystem.drawBackground(path)
-    -- Draws pre-scaled background behind all gameplay layers.
-    PlayfieldSystem.ensureBackground(path)
-    if not bg then
-        return
-    end
+function PlayfieldSystem.drawBackground(color)
+    -- Draws a flat playfield color behind all gameplay layers.
+    PlayfieldSystem.ensureBackground()
+
+    local fill = color or DEFAULT_PLAYFIELD_COLOR
+    love.graphics.setColor(fill[1] or DEFAULT_PLAYFIELD_COLOR[1], fill[2] or DEFAULT_PLAYFIELD_COLOR[2], fill[3] or DEFAULT_PLAYFIELD_COLOR[3], fill[4] or 1)
+    love.graphics.rectangle("fill", 0, 0, windowWidth, windowHeight)
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(bg, bgOffsetX, bgOffsetY, 0, bgScale, bgScale)
 end
 
 return PlayfieldSystem

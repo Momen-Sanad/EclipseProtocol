@@ -46,7 +46,7 @@ function love.load()
     StateManager.init({
         windowWidth = WINDOW_WIDTH,
         windowHeight = WINDOW_HEIGHT,
-        backgroundPath = "assets/ui/background.png",
+        playfieldColor = { 0.12, 0.20, 0.36, 1.0 },
         patrolDroneSpritePath = "assets/sprites/player/Patrol Drone.png",
         hunterDroneSpritePath = "assets/sprites/player/Hunter Drone.png",
         playerSpritePath = "assets/sprites/player/Robot.png",

@@ -195,26 +195,35 @@ function LevelSelectState.draw()
     love.graphics.print(title, math.floor((windowWidth - titleFont:getWidth(title)) / 2), panelY + 30)
 
     local listX = panelX + 46
-    local listY = panelY + 120
-    local rowH = 72
+    local rowW = panelW - 92
+    local rowStep = 72
+    local rowH = 52
+    local descY = panelY + panelH - 160
+    local listTop = panelY + 120
+    local listBottom = descY - 30
+    local totalListH = rowH + ((math.max(#difficultyItems, 1) - 1) * rowStep)
+    local listY = math.floor(listTop + math.max(0, (listBottom - listTop - totalListH) / 2))
 
     love.graphics.setFont(menuFont)
     for i, item in ipairs(difficultyItems) do
-        local y = listY + (i - 1) * rowH
-        local rowW = panelW - 92
+        local rowY = listY + (i - 1) * rowStep
+        local label = item.label or ("Difficulty " .. tostring(i))
+        local labelY = rowY + math.floor((rowH - menuFont:getHeight()) / 2)
+        local arrowPrefix = ""
+        local textX = math.floor((windowWidth - menuFont:getWidth(label)) / 2)
         if i == selected then
             local pulse = 0.5 + 0.5 * math.sin(animTime * 4.0)
             setColor({ 0.10, 0.45 + 0.22 * pulse, 0.50 + 0.22 * pulse, 0.25 })
-            love.graphics.rectangle("fill", listX, y - 10, rowW, 52, 8, 8)
+            love.graphics.rectangle("fill", listX, rowY, rowW, rowH, 8, 8)
             setColor(COL.accent)
-            love.graphics.rectangle("line", listX, y - 10, rowW, 52, 8, 8)
+            love.graphics.rectangle("line", listX, rowY, rowW, rowH, 8, 8)
+            arrowPrefix = "> "
+            textX = math.floor((windowWidth - menuFont:getWidth(arrowPrefix .. label)) / 2)
             setColor(COL.text)
-            love.graphics.print(">", listX + 14, y + 2)
-            love.graphics.print(item.label or ("Difficulty " .. tostring(i)), listX + 48, y + 2)
         else
             setColor(COL.textDim)
-            love.graphics.print(item.label or ("Difficulty " .. tostring(i)), listX + 48, y + 2)
         end
+        love.graphics.print(arrowPrefix .. label, textX, labelY)
     end
 
     local chosen = difficultyItems[selected]
@@ -223,7 +232,6 @@ function LevelSelectState.draw()
         desc = chosen.description
     end
 
-    local descY = panelY + panelH - 160
     love.graphics.setFont(bodyFont)
     setColor(COL.text)
     love.graphics.print("THREAT BRIEF", listX, descY)
