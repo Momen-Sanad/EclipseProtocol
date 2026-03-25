@@ -33,7 +33,6 @@ function Map.nextRoom(map, opts)
         index = map.index,
         width = cfg.width or map.width,
         height = cfg.height or map.height,
-        entryDoor = cfg.entryDoor,
         roomsCleared = cfg.roomsCleared or 0,
         roomsToEscape = cfg.roomsToEscape or 1,
         context = cfg.context

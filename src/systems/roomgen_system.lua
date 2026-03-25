@@ -46,7 +46,6 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
     currentRoom = Map.nextRoom(map, {
         width = w,
         height = h,
-        entryDoor = options.entryDoor,
         roomsCleared = options.roomsCleared or 0,
         roomsToEscape = options.roomsToEscape or 1,
         context = cfg

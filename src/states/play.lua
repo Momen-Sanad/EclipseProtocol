@@ -84,6 +84,39 @@ local function getTopOverlayBottom()
     return occupiedBottom
 end
 
+local function drawCenteredChip(text, y, palette)
+    if not text or text == "" then
+        return
+    end
+
+    local w = love.graphics.getWidth()
+    local font = love.graphics.getFont()
+    local padX = 18
+    local boxH = font:getHeight() + 16
+    local boxW = math.min(w - 120, font:getWidth(text) + (padX * 2))
+    local boxX = math.floor((w - boxW) * 0.5)
+    local boxY = math.floor(y)
+    local col = palette or {}
+    local fill = col.fill or { 0.08, 0.12, 0.18, 0.82 }
+    local edge = col.edge or { 0.48, 0.60, 0.78, 0.92 }
+    local glow = col.glow or { 0.52, 0.74, 0.98, 0.12 }
+    local textCol = col.text or { 0.88, 0.94, 1.0, 0.96 }
+
+    love.graphics.setColor(fill)
+    love.graphics.rectangle("fill", boxX, boxY, boxW, boxH, 8, 8)
+    love.graphics.setColor(glow)
+    love.graphics.rectangle("fill", boxX + 12, boxY + 7, boxW - 24, 3, 2, 2)
+    love.graphics.setColor(edge)
+    love.graphics.rectangle("line", boxX, boxY, boxW, boxH, 8, 8)
+
+    local textX = math.floor(boxX + ((boxW - font:getWidth(text)) * 0.5))
+    local textY = math.floor(boxY + ((boxH - font:getHeight()) * 0.5))
+    love.graphics.setColor(0.02, 0.04, 0.08, 0.95)
+    love.graphics.print(text, textX + 1, textY + 1)
+    love.graphics.setColor(textCol)
+    love.graphics.print(text, textX, textY)
+end
+
 local function getPlayAreaSize(context)
     -- Uses the live viewport size with context fallback.
     return PlayfieldSystem.getPlayAreaSize(
@@ -192,8 +225,7 @@ local function placePlayerForRoom(player, room, playWidth, playHeight, playerSiz
         playerSize,
         spawn.player,
         {
-            preferredSpawn = spawn.entryPoint or spawn.playerAnchor,
-            entryDoor = room and room.doors and room.doors.entry or nil
+            preferredSpawn = spawn.playerAnchor
         }
     )
 end
@@ -221,7 +253,6 @@ local function handleQueuedEvents(context, playWidth, playHeight, player, player
                 ProgressionSystem.getDifficulty(),
                 true,
                 {
-                    entryDoor = payload.entryDoor,
                     roomsCleared = ProgressionSystem.getRoomsCleared(),
                     roomsToEscape = ProgressionSystem.getRoomsToEscape()
                 }
@@ -424,10 +455,8 @@ function PlayState.update(dt, context)
             local exitTrigger = room and room.doorTriggers and room.doorTriggers.exit or nil
             local touchedDoorTrigger = DoorTrigger.playerTouchesTrigger(exitTrigger, player, playerSize)
             if nodesRepaired and touchedDoorTrigger and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
-                local nextEntryDoor = DoorSystem.getExitDoor()
-
                 world.events:push("door_touched", {
-                    door = nextEntryDoor
+                    door = DoorSystem.getExitDoor()
                 })
                 world.events:push("room_cleared", {
                     roomsCleared = ProgressionSystem.getRoomsCleared() + 1
@@ -441,9 +470,7 @@ function PlayState.update(dt, context)
                         timeRemaining = EvacuationSystem.getTimeRemaining()
                     })
                 else
-                    world.events:push("room_transition", {
-                        entryDoor = nextEntryDoor
-                    })
+                    world.events:push("room_transition", {})
                 end
 
                 InputSystem.update()
@@ -508,7 +535,7 @@ function PlayState.draw(context)
     DoorSystem.draw()
     EvacuationSystem.draw()
     PlayerSystem.draw()
-    if player then
+    if player and context and context.showHudDebug then
         love.graphics.setColor(1.0, 0.2, 0.2, 0.95)
         love.graphics.setLineWidth(2)
         love.graphics.rectangle("line", player.x or 0, player.y or 0, playerSize, playerSize)
@@ -527,20 +554,45 @@ function PlayState.draw(context)
         promptText = PowerNodeSystem.getPrompt(player, playerSize)
     end
     if promptText then
-        local drawW = love.graphics.getWidth()
         local drawH = love.graphics.getHeight()
-        love.graphics.setColor(0.9, 0.96, 1.0, 0.95)
-        local textW = love.graphics.getFont():getWidth(promptText)
-        love.graphics.print(promptText, (drawW - textW) / 2, drawH - 56)
+        drawCenteredChip(
+            promptText,
+            drawH - 62,
+            {
+                fill = { 0.08, 0.12, 0.18, 0.86 },
+                edge = { 0.48, 0.80, 0.96, 0.92 },
+                glow = { 0.45, 0.82, 0.98, 0.14 },
+                text = { 0.90, 0.97, 1.0, 0.98 }
+            }
+        )
     end
 
-    Hud.draw(player, ProgressionSystem.getElapsedTime(), CellSystem.getCollectedTotal())
+    local evacuation = getEvacuationStatus()
+    Hud.draw(
+        player,
+        ProgressionSystem.getElapsedTime(),
+        CellSystem.getCollectedTotal(),
+        {
+            timeRemaining = evacuation.timeRemaining,
+            timerLabel = EvacuationSystem.isEvacuationActive() and "EVAC" or "TIMER",
+            timerColor = EvacuationSystem.isEvacuationActive()
+                and { 0.84, 0.96, 1.0, 1.0 }
+                or { 0.78, 0.86, 0.94, 1.0 },
+            showDebug = context and context.showHudDebug
+        }
+    )
 
-    local status = ProgressionSystem.getStatusLine(getEvacuationStatus())
-    local statusW = love.graphics.getFont():getWidth(status)
-    local statusY = math.max(20, getTopOverlayBottom() + 12)
-    love.graphics.setColor(0.86, 0.93, 0.98, 0.95)
-    love.graphics.print(status, (love.graphics.getWidth() - statusW) / 2, statusY)
+    local statusY = math.max(74, getTopOverlayBottom() + 18)
+    drawCenteredChip(
+        ProgressionSystem.getStatusLine(evacuation),
+        statusY,
+        {
+            fill = { 0.08, 0.12, 0.18, 0.78 },
+            edge = { 0.42, 0.56, 0.74, 0.9 },
+            glow = { 0.40, 0.64, 0.90, 0.10 },
+            text = { 0.84, 0.92, 0.98, 0.96 }
+        }
+    )
 
     if EvacuationSystem.getState() == EvacuationSystem.STATES.ACTIVE then
         ScreenFlashSystem.drawEvacuationWarning(

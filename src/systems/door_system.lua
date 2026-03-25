@@ -25,43 +25,131 @@ local function overlapsDoor(player, playerSize, door)
     )
 end
 
-local function drawDoor(door, isOpen)
+local function getDoorPalette(style, pulse)
+    if style == "open" then
+        return {
+            frameFill = { 0.08, 0.16, 0.22, 0.88 },
+            frameEdge = { 0.58, 0.92, 1.0, 0.95 },
+            frameGlow = { 0.28, 0.86, 1.0, 0.16 + (0.12 * pulse) },
+            recess = { 0.03, 0.07, 0.10, 0.82 },
+            barrier = { 0.28, 0.90, 1.0, 0.18 + (0.18 * pulse) },
+            beam = { 0.85, 1.0, 1.0, 0.88 },
+            detail = { 0.62, 0.96, 1.0, 0.55 + (0.25 * pulse) }
+        }
+    end
+
+    if style == "locked" then
+        return {
+            frameFill = { 0.16, 0.10, 0.12, 0.9 },
+            frameEdge = { 0.96, 0.34, 0.38, 0.96 },
+            frameGlow = { 1.0, 0.22, 0.26, 0.14 + (0.06 * pulse) },
+            recess = { 0.08, 0.04, 0.05, 0.84 },
+            barrier = { 0.88, 0.18, 0.22, 0.26 + (0.10 * pulse) },
+            beam = { 1.0, 0.66, 0.66, 0.92 },
+            detail = { 1.0, 0.48, 0.50, 0.48 + (0.18 * pulse) }
+        }
+    end
+
+    return {
+        frameFill = { 0.10, 0.12, 0.18, 0.84 },
+        frameEdge = { 0.58, 0.66, 0.82, 0.9 },
+        frameGlow = { 0.42, 0.56, 0.90, 0.08 + (0.04 * pulse) },
+        recess = { 0.04, 0.06, 0.10, 0.8 },
+        barrier = { 0.54, 0.68, 0.92, 0.16 },
+        beam = { 0.86, 0.92, 1.0, 0.75 },
+        detail = { 0.70, 0.82, 0.98, 0.32 }
+    }
+end
+
+local function drawDoorSegments(x, y, w, h, isVertical, color, pulse)
+    local alpha = (color[4] or 1) * pulse
+    love.graphics.setColor(color[1], color[2], color[3], alpha)
+
+    if isVertical then
+        local segmentH = math.max(16, math.floor(h * 0.16))
+        love.graphics.rectangle("fill", x, y + 6, w, segmentH, 3, 3)
+        love.graphics.rectangle("fill", x, y + h - segmentH - 6, w, segmentH, 3, 3)
+        love.graphics.rectangle("fill", x, y + math.floor((h - segmentH) * 0.5), w, segmentH, 3, 3)
+    else
+        local segmentW = math.max(16, math.floor(w * 0.16))
+        love.graphics.rectangle("fill", x + 6, y, segmentW, h, 3, 3)
+        love.graphics.rectangle("fill", x + w - segmentW - 6, y, segmentW, h, 3, 3)
+        love.graphics.rectangle("fill", x + math.floor((w - segmentW) * 0.5), y, segmentW, h, 3, 3)
+    end
+end
+
+local function drawDoor(door, style)
     if not door then
         return
     end
 
-    local centerX = (door.x or 0) + ((door.width or 0) * 0.5)
-    local centerY = (door.y or 0) + ((door.height or 0) * 0.5)
-    local halfW = (door.width or 0) * 0.5
-    local halfH = (door.height or 0) * 0.5
-    local x1 = centerX
-    local y1 = centerY - halfH
-    local x2 = centerX
-    local y2 = centerY + halfH
+    local x = door.x or 0
+    local y = door.y or 0
+    local w = door.width or 0
+    local h = door.height or 0
+    local isVertical = not (door.edge == "top" or door.edge == "bottom")
+    local t = (love and love.timer and love.timer.getTime and love.timer.getTime()) or 0
+    local pulse = 0.55 + (0.45 * math.abs(math.sin(t * 4.8)))
+    local palette = getDoorPalette(style, pulse)
 
-    if door.edge == "top" or door.edge == "bottom" then
-        x1 = centerX - halfW
-        y1 = centerY
-        x2 = centerX + halfW
-        y2 = centerY
+    local framePad = 7
+    local frameX = x - framePad
+    local frameY = y - framePad
+    local frameW = w + (framePad * 2)
+    local frameH = h + (framePad * 2)
+    local innerX = x + 2
+    local innerY = y + 2
+    local innerW = math.max(8, w - 4)
+    local innerH = math.max(8, h - 4)
+
+    love.graphics.setColor(palette.frameFill)
+    love.graphics.rectangle("fill", frameX, frameY, frameW, frameH, 5, 5)
+    love.graphics.setColor(palette.frameGlow)
+    if isVertical then
+        love.graphics.rectangle("fill", frameX + 3, frameY + 8, frameW - 6, 4, 2, 2)
+        love.graphics.rectangle("fill", frameX + 3, frameY + frameH - 12, frameW - 6, 4, 2, 2)
+    else
+        love.graphics.rectangle("fill", frameX + 8, frameY + 3, frameW - 16, 4, 2, 2)
+        love.graphics.rectangle("fill", frameX + 8, frameY + frameH - 7, frameW - 16, 4, 2, 2)
     end
-
-    local baseGlow = { 0.90, 0.18, 0.22, 0.18 }
-    local baseLine = { 1.0, 0.32, 0.34, 0.95 }
-    if isOpen then
-        local t = (love and love.timer and love.timer.getTime and love.timer.getTime()) or 0
-        local pulse = 0.55 + (0.45 * math.abs(math.sin(t * 7.5)))
-        baseGlow = { 0.60, 0.95, 1.0, 0.18 + (0.18 * pulse) }
-        baseLine = { 0.90, 1.0, 1.0, 0.70 + (0.30 * pulse) }
-    end
-
-    love.graphics.setColor(baseGlow)
-    love.graphics.setLineWidth(isOpen and 12 or 10)
-    love.graphics.line(x1, y1, x2, y2)
-    love.graphics.setColor(baseLine)
-    love.graphics.setLineWidth(isOpen and 6 or 4)
-    love.graphics.line(x1, y1, x2, y2)
+    love.graphics.setColor(palette.frameEdge)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", frameX, frameY, frameW, frameH, 5, 5)
     love.graphics.setLineWidth(1)
+
+    love.graphics.setColor(palette.recess)
+    love.graphics.rectangle("fill", innerX, innerY, innerW, innerH, 3, 3)
+
+    if style == "open" then
+        if isVertical then
+            local railW = math.max(4, math.floor(innerW * 0.28))
+            love.graphics.setColor(palette.barrier)
+            love.graphics.rectangle("fill", innerX, innerY, railW, innerH, 3, 3)
+            love.graphics.rectangle("fill", innerX + innerW - railW, innerY, railW, innerH, 3, 3)
+            drawDoorSegments(innerX + 1, innerY + 2, railW - 2, innerH - 4, true, palette.detail, pulse)
+            drawDoorSegments(innerX + innerW - railW + 1, innerY + 2, railW - 2, innerH - 4, true, palette.detail, pulse)
+        else
+            local railH = math.max(4, math.floor(innerH * 0.28))
+            love.graphics.setColor(palette.barrier)
+            love.graphics.rectangle("fill", innerX, innerY, innerW, railH, 3, 3)
+            love.graphics.rectangle("fill", innerX, innerY + innerH - railH, innerW, railH, 3, 3)
+            drawDoorSegments(innerX + 2, innerY + 1, innerW - 4, railH - 2, false, palette.detail, pulse)
+            drawDoorSegments(innerX + 2, innerY + innerH - railH + 1, innerW - 4, railH - 2, false, palette.detail, pulse)
+        end
+    else
+        love.graphics.setColor(palette.barrier)
+        love.graphics.rectangle("fill", innerX, innerY, innerW, innerH, 3, 3)
+        drawDoorSegments(innerX + 2, innerY + 2, innerW - 4, innerH - 4, isVertical, palette.detail, 0.9)
+
+        love.graphics.setColor(palette.beam)
+        if isVertical then
+            local beamX = innerX + math.floor((innerW - 4) * 0.5)
+            love.graphics.rectangle("fill", beamX, innerY + 3, 4, innerH - 6, 2, 2)
+        else
+            local beamY = innerY + math.floor((innerH - 4) * 0.5)
+            love.graphics.rectangle("fill", innerX + 3, beamY, innerW - 6, 4, 2, 2)
+        end
+    end
 end
 
 local function normalizeDoorSnapshot(door, playWidth, playHeight, cfg)
@@ -200,8 +288,8 @@ function DoorSystem.getPrompt(player, playerSize)
 end
 
 function DoorSystem.draw()
-    drawDoor(entryDoor, false)
-    drawDoor(exitDoor, DoorSystem.isExitOpen())
+    drawDoor(entryDoor, "entry")
+    drawDoor(exitDoor, DoorSystem.isExitOpen() and "open" or "locked")
 end
 
 return DoorSystem

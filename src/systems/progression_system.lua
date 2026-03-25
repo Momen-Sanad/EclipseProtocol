@@ -78,18 +78,15 @@ function ProgressionSystem.buildAbilityConfig(context, difficulty)
 end
 
 function ProgressionSystem.getStatusLine(evacuation)
-    local roomProgress = ("ROOMS STABILIZED %d/%d"):format(roomsCleared, roomsToEscape)
+    local roomProgress = ("%d/%d ROOMS STABILIZED"):format(roomsCleared, roomsToEscape)
     local diffLabel = (activeDifficulty and activeDifficulty.profileLabel) or "Medium"
-    local timeRemaining = evacuation and evacuation.timeRemaining or 0
     local phase = (evacuation and evacuation.phaseLabel) or "STABILIZE"
-    local timerText = "TIME " .. formatTime(timeRemaining)
     return roomProgress
-        .. "  |  PHASE "
-        .. string.upper(phase)
-        .. "  |  DIFFICULTY "
-        .. string.upper(diffLabel)
         .. "  |  "
-        .. timerText
+        .. string.upper(phase)
+        .. " PHASE"
+        .. "  |  "
+        .. string.upper(diffLabel)
 end
 
 function ProgressionSystem.syncWorld(world)

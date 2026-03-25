@@ -36,6 +36,13 @@ local function ensureLabelFont()
     labelFont:setFilter("nearest", "nearest")
 end
 
+local function drawDoorIndicator(x, y, radius, color)
+    love.graphics.setColor(color[1], color[2], color[3], (color[4] or 1) * 0.22)
+    love.graphics.circle("fill", x, y, radius + 5)
+    love.graphics.setColor(color[1], color[2], color[3], color[4] or 1)
+    love.graphics.circle("fill", x, y, radius)
+end
+
 local function rebuildEscapeZone(playWidth, playHeight)
     local w = math.max(0, math.floor(playWidth or 0))
     local h = math.max(0, math.floor(playHeight or 0))
@@ -225,24 +232,78 @@ function EvacuationSystem.draw()
     end
 
     local isActive = EvacuationSystem.isEvacuationActive()
-    local fill = isActive and { 0.23, 0.72, 0.96, 0.33 } or { 0.30, 0.33, 0.38, 0.3 }
-    local edge = isActive and { 0.45, 0.92, 1.0, 0.95 } or { 0.72, 0.75, 0.8, 0.85 }
-    local label = isActive and "EVAC ZONE" or "EVAC LOCKED"
+    local t = (love and love.timer and love.timer.getTime and love.timer.getTime()) or 0
+    local pulse = 0.55 + (0.45 * math.abs(math.sin(t * 4.8)))
+    local x = escapeZone.x
+    local y = escapeZone.y
+    local w = escapeZone.width
+    local h = escapeZone.height
+    local jambW = math.max(16, math.floor(w * 0.04))
+    local headerH = math.max(14, math.floor(h * 0.26))
+    local innerX = x + jambW + 8
+    local innerY = y + headerH
+    local innerW = math.max(24, w - ((jambW + 8) * 2))
+    local innerH = math.max(12, h - headerH - 6)
 
-    love.graphics.setColor(fill)
-    love.graphics.rectangle("fill", escapeZone.x, escapeZone.y, escapeZone.width, escapeZone.height, 6, 6)
-    love.graphics.setColor(edge)
+    local frameFill = isActive and { 0.08, 0.16, 0.22, 0.9 } or { 0.16, 0.12, 0.14, 0.92 }
+    local frameEdge = isActive and { 0.56, 0.94, 1.0, 0.95 } or { 0.98, 0.54, 0.58, 0.94 }
+    local frameGlow = isActive
+        and { 0.28, 0.88, 1.0, 0.12 + (0.12 * pulse) }
+        or { 1.0, 0.30, 0.34, 0.08 + (0.08 * pulse) }
+    local recess = isActive and { 0.03, 0.07, 0.10, 0.88 } or { 0.08, 0.05, 0.06, 0.88 }
+    local barrier = isActive
+        and { 0.28, 0.90, 1.0, 0.18 + (0.18 * pulse) }
+        or { 0.92, 0.18, 0.22, 0.28 + (0.08 * pulse) }
+    local detail = isActive
+        and { 0.84, 1.0, 1.0, 0.85 }
+        or { 1.0, 0.74, 0.74, 0.9 }
+    local label = isActive and "EVAC DOOR OPEN" or "EVAC DOOR LOCKED"
+
+    love.graphics.setColor(frameFill)
+    love.graphics.rectangle("fill", x, y, w, h, 8, 8)
+    love.graphics.setColor(frameGlow)
+    love.graphics.rectangle("fill", x + 12, y + 7, w - 24, 4, 3, 3)
+    love.graphics.setColor(frameFill)
+    love.graphics.rectangle("fill", x + 6, y + 6, jambW, h - 12, 4, 4)
+    love.graphics.rectangle("fill", x + w - jambW - 6, y + 6, jambW, h - 12, 4, 4)
+    love.graphics.rectangle("fill", innerX - 2, y + 6, innerW + 4, headerH - 4, 4, 4)
+    love.graphics.setColor(frameEdge)
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", escapeZone.x, escapeZone.y, escapeZone.width, escapeZone.height, 6, 6)
+    love.graphics.rectangle("line", x, y, w, h, 8, 8)
     love.graphics.setLineWidth(1)
+
+    love.graphics.setColor(recess)
+    love.graphics.rectangle("fill", innerX, innerY, innerW, innerH, 4, 4)
+    if isActive then
+        local railH = math.max(4, math.floor(innerH * 0.3))
+        love.graphics.setColor(barrier)
+        love.graphics.rectangle("fill", innerX, innerY, innerW, railH, 3, 3)
+        love.graphics.rectangle("fill", innerX, innerY + innerH - railH, innerW, railH, 3, 3)
+        love.graphics.setColor(detail[1], detail[2], detail[3], 0.35 + (0.25 * pulse))
+        for cx = innerX + 18, innerX + innerW - 18, math.max(26, math.floor(innerW * 0.14)) do
+            love.graphics.rectangle("fill", cx, innerY + 4, 4, innerH - 8, 2, 2)
+        end
+    else
+        love.graphics.setColor(barrier)
+        love.graphics.rectangle("fill", innerX, innerY, innerW, innerH, 4, 4)
+        love.graphics.setColor(detail)
+        for slatY = innerY + 5, innerY + innerH - 8, 10 do
+            love.graphics.rectangle("fill", innerX + 8, slatY, innerW - 16, 4, 2, 2)
+        end
+        love.graphics.setColor(1.0, 0.82, 0.82, 0.92)
+        love.graphics.rectangle("fill", innerX + math.floor((innerW - 6) * 0.5), innerY + 4, 6, innerH - 8, 2, 2)
+    end
+
+    drawDoorIndicator(x + 18, y + 18, 5, detail)
+    drawDoorIndicator(x + w - 18, y + 18, 5, detail)
 
     ensureLabelFont()
     local prevFont = love.graphics.getFont()
     love.graphics.setFont(labelFont)
     local textW = labelFont:getWidth(label)
-    local textY = escapeZone.y + math.floor((escapeZone.height - labelFont:getHeight()) * 0.5)
+    local textY = y + math.max(2, math.floor((headerH - labelFont:getHeight()) * 0.5))
     love.graphics.setColor(0.92, 0.98, 1.0, 0.95)
-    love.graphics.print(label, escapeZone.x + (escapeZone.width - textW) * 0.5, textY)
+    love.graphics.print(label, x + (w - textW) * 0.5, textY)
     love.graphics.setFont(prevFont)
 end
 

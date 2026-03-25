@@ -188,7 +188,6 @@ function RoomGenerator.generate(opts)
     local roomIndex = math.max(1, math.floor(cfg.index or 1))
     local roomsCleared = math.max(0, math.floor(cfg.roomsCleared or 0))
     local roomsToEscape = math.max(1, math.floor(cfg.roomsToEscape or 1))
-    local hasEntryDoor = roomIndex > 1
     local hasExitDoor = roomIndex < roomsToEscape
     local playerSize = math.max(1, math.floor(context.playerSize or DEFAULT_PLAYER_SIZE))
     local rng = createRng(cfg.seed or ((os.time() or 1) + roomIndex))
@@ -201,22 +200,12 @@ function RoomGenerator.generate(opts)
     }
 
     local entryDoor = nil
-    if hasEntryDoor then
-        entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomWidth, roomHeight, context)
-        if not entryDoor then
-            entryDoor = DoorUtils.buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
-        end
-    end
 
     local exitDoor = nil
     if hasExitDoor then
-        local excluded = {}
-        if entryDoor and entryDoor.edge then
-            excluded[entryDoor.edge] = true
-        end
         local attempts = 0
         repeat
-            local exitEdge = DoorUtils.chooseRandomEdge(rng, excluded)
+            local exitEdge = DoorUtils.chooseRandomEdge(rng, nil)
             exitDoor = DoorUtils.buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
             attempts = attempts + 1
         until attempts >= 12 or not DoorUtils.sameDoor(exitDoor, entryDoor)
@@ -224,7 +213,6 @@ function RoomGenerator.generate(opts)
 
     local spawnBase = shrinkBounds(roomBounds, DEFAULT_SPAWN_MARGIN)
     local doorSpawnPad = math.max(30, math.floor(math.min(roomWidth, roomHeight) * 0.08))
-    spawnBase = applyDoorExclusion(spawnBase, entryDoor, doorSpawnPad, roomBounds)
     spawnBase = applyDoorExclusion(spawnBase, exitDoor, doorSpawnPad, roomBounds)
 
     local nodeArea = shrinkBounds(spawnBase, 16)

@@ -90,6 +90,7 @@ function love.load()
         victorySoundPath = "assets/audio/sfx/Victory.mp3",
         gameOverMusicFadeDuration = 1.0,
         gameOverTextFadeDuration = 1.0,
+        showHudDebug = false,
         transitionDuration = TRANSITION_DURATION,
         fadeDuration = FADE_DURATION,
         selectedDifficultyIndex = 2,
