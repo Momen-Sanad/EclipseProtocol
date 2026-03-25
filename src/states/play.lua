@@ -11,6 +11,7 @@ local EnemySystem = require("src/systems/enemy_system")
 local CellSystem = require("src/systems/cell_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
 local EnergySystem = require("src/systems/energy_system")
+local ScoreSystem = require("src/systems/score_system")
 local SpawnSystem = require("src/systems/spawn_system")
 local RoomgenSystem = require("src/systems/roomgen_system")
 local ProgressionSystem = require("src/systems/progression_system")
@@ -150,6 +151,19 @@ local function queueStateChange(stateName, ...)
     })
 end
 
+local function storeRunSummary(context, result)
+    if not context then
+        return
+    end
+
+    context.runSummary = ScoreSystem.buildRunSummary(result, {
+        elapsedTime = ProgressionSystem.getElapsedTime(),
+        cellsCollected = CellSystem.getCollectedTotal(),
+        roomsCleared = ProgressionSystem.getRoomsCleared(),
+        roomsToEscape = ProgressionSystem.getRoomsToEscape()
+    }, context)
+end
+
 local function isCurrentRoomLast()
     return (ProgressionSystem.getRoomsCleared() + 1) >= ProgressionSystem.getRoomsToEscape()
 end
@@ -222,6 +236,9 @@ end
 
 local function resetRun(context)
     -- Full run reset: player, pickups, enemies, objectives, abilities, and timers.
+    if context then
+        context.runSummary = nil
+    end
     local _, w, h = ensureWorld(context)
     if world and world.events then
         world.events:clear()
@@ -304,6 +321,7 @@ function PlayState.update(dt, context)
     local evacuationResult = EvacuationSystem.update(dt)
     AudioSystem.setGlobalPlaybackScale(computeEvacuationAudioScale(context))
     if evacuationResult == EvacuationSystem.STATES.FAILED then
+        storeRunSummary(context, "gameover")
         queueStateChange("transition", "gameover")
         if handleQueuedEvents(context, w, h, player, playerSize) then
             return
@@ -361,6 +379,7 @@ function PlayState.update(dt, context)
     Kinematics.clampPosition(player, bounds)
 
     if HealthSystem.isDead(player) then
+        storeRunSummary(context, "gameover")
         queueStateChange("transition", "gameover")
         if handleQueuedEvents(context, w, h, player, playerSize) then
             return
@@ -368,6 +387,7 @@ function PlayState.update(dt, context)
     end
 
     if EvacuationSystem.tryComplete(player, playerSize, InputSystem) then
+        storeRunSummary(context, "victory")
         queueStateChange("transition", "victory")
         if handleQueuedEvents(context, w, h, player, playerSize) then
             return

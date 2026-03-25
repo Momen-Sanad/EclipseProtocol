@@ -1,5 +1,8 @@
 -- Pause overlay that draws on top of gameplay and exposes quick navigation/options.
 local AudioSystem = require("src/systems/audio_system")
+local CellSystem = require("src/systems/cell_system")
+local ProgressionSystem = require("src/systems/progression_system")
+local ScoreSystem = require("src/systems/score_system")
 local StateManager = require("src/core/state_manager")
 
 local PauseState = {}
@@ -14,7 +17,7 @@ local hudFont = nil
 local loaded = false
 local view = "main"
 local menu = {
-    items = { "Resume", "Options", "Main Menu" },
+    items = { "Resume", "Options", "Victory", "Game Over", "Main Menu" },
     selected = 1
 }
 
@@ -65,6 +68,19 @@ local function setMusicVolume(value)
     AudioSystem.setMusicVolume(musicVolume)
 end
 
+local function storeDebugRunSummary(context, result)
+    if not context then
+        return
+    end
+
+    context.runSummary = ScoreSystem.buildRunSummary(result, {
+        elapsedTime = ProgressionSystem.getElapsedTime(),
+        cellsCollected = CellSystem.getCollectedTotal(),
+        roomsCleared = ProgressionSystem.getRoomsCleared(),
+        roomsToEscape = ProgressionSystem.getRoomsToEscape()
+    }, context)
+end
+
 local function ensureLoaded()
     -- Pause UI assets are tiny, so they are cached after first construction.
     if loaded then
@@ -102,7 +118,7 @@ function PauseState.update(dt)
     anim.time = anim.time + dt
 end
 
-function PauseState.keypressed(key)
+function PauseState.keypressed(key, context)
     -- Pause input either navigates the pause menu or returns directly to gameplay.
     if view == "main" then
         if key == "escape" then
@@ -125,6 +141,12 @@ function PauseState.keypressed(key)
                 StateManager.change("transition", "game")
             elseif choice == "Options" then
                 view = "options"
+            elseif choice == "Victory" then
+                storeDebugRunSummary(context, "victory")
+                StateManager.change("transition", "victory")
+            elseif choice == "Game Over" then
+                storeDebugRunSummary(context, "gameover")
+                StateManager.change("transition", "gameover")
             elseif choice == "Main Menu" then
                 StateManager.change("transition", "menu")
             end
