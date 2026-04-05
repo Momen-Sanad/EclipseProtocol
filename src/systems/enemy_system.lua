@@ -163,6 +163,31 @@ local function hunterCanImmediatelyDetectPlayerSpawn(x, y, hunterSize, visionRan
     return MathUtils.distanceSquared(hx, hy, px, py) <= rangeSq
 end
 
+local function hunterVisionThreatensProtectedZones(x, y, hunterSize, visionRange, zones, padding)
+    if type(zones) ~= "table" or #zones == 0 then
+        return false
+    end
+
+    local hx, hy = MathUtils.rectCenter(x or 0, y or 0, hunterSize or 0, hunterSize or 0)
+    local pad = math.max(0, padding or 0)
+    local range = math.max(0, visionRange or DEFAULT_HUNTER_VISION)
+    local rangeSq = range * range
+
+    for _, zone in ipairs(zones) do
+        local zx = (zone.x or 0) - pad
+        local zy = (zone.y or 0) - pad
+        local zw = (zone.width or zone.size or 0) + (pad * 2)
+        local zh = (zone.height or zone.size or 0) + (pad * 2)
+        local closestX = MathUtils.clamp(hx, zx, zx + zw)
+        local closestY = MathUtils.clamp(hy, zy, zy + zh)
+        if MathUtils.distanceSquared(hx, hy, closestX, closestY) <= rangeSq then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function resolveLookAwayFromPlayerSpawn(x, y, bodySize, playerSpawn, playerSize)
     if type(playerSpawn) ~= "table" then
         return 1, 0
@@ -434,6 +459,14 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
             and not overlapsExistingHunters(candidateX, candidateY, hunterSize, hunterSize, hunterPadding)
             and not overlapsExistingPatrols(candidateX, candidateY, hunterSize, hunterSize, crossPadding)
             and not overlapsProtectedZones(candidateX, candidateY, hunterSize, hunterSize, protectedZones, protectedZonePadding)
+            and not hunterVisionThreatensProtectedZones(
+                candidateX,
+                candidateY,
+                hunterSize,
+                hunterVisionRange,
+                protectedZones,
+                protectedZonePadding
+            )
             and not hunterCanImmediatelyDetectPlayerSpawn(
                 candidateX,
                 candidateY,
