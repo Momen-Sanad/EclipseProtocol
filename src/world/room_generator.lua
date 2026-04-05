@@ -65,32 +65,13 @@ local function normalizeDoorSnapshot(door, roomWidth, roomHeight, cfg)
         return nil
     end
 
-    local context = cfg or {}
-    local margin = math.max(0, math.floor(context.doorEdgeMargin or DEFAULT_ROOM_MARGIN))
-    local x = math.floor(door.x or 0)
-    local y = math.floor(door.y or 0)
-    local width = math.max(1, math.floor(door.width or 1))
-    local height = math.max(1, math.floor(door.height or 1))
-
-    if edge == "top" or edge == "bottom" then
-        width = math.min(width, math.max(1, roomWidth - (margin * 2)))
-        height = math.min(height, math.max(1, roomHeight))
-        x = MathUtils.clamp(x, margin, math.max(margin, roomWidth - width - margin))
-        y = (edge == "top") and 0 or math.max(0, roomHeight - height)
-    else
-        width = math.min(width, math.max(1, roomWidth))
-        height = math.min(height, math.max(1, roomHeight - (margin * 2)))
-        y = MathUtils.clamp(y, margin, math.max(margin, roomHeight - height - margin))
-        x = (edge == "left") and 0 or math.max(0, roomWidth - width)
-    end
-
     return DoorUtils.clampDoorToSafeBounds({
-        x = x,
-        y = y,
-        width = width,
-        height = height,
+        x = math.floor(door.x or 0),
+        y = math.floor(door.y or 0),
+        width = math.max(1, math.floor(door.width or 1)),
+        height = math.max(1, math.floor(door.height or 1)),
         edge = edge
-    }, roomWidth, roomHeight, context)
+    }, roomWidth, roomHeight, cfg)
 end
 
 local function shrinkBounds(bounds, padding)

@@ -70,6 +70,25 @@ local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, pl
     })
 end
 
+local function buildProtectedZones(spawn, entrySpawn, playerSpawnSize)
+    if spawn and spawn.entrySafeZone then
+        return { spawn.entrySafeZone }
+    end
+
+    if entrySpawn then
+        return {
+            {
+                x = entrySpawn.x,
+                y = entrySpawn.y,
+                width = playerSpawnSize,
+                height = playerSpawnSize
+            }
+        }
+    end
+
+    return nil
+end
+
 function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, preserveCells, opts)
     -- Rebuild entities/objectives for the generated room using difficulty-scaled values.
     local options = opts or {}
@@ -91,19 +110,7 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
     local spawn = (currentRoom and currentRoom.spawn) or {}
     local entrySpawn = spawn.entryPoint
     local playerSpawnSize = (entrySpawn and entrySpawn.size) or cfg.playerSize or 35
-    local protectedZones = nil
-    if spawn.entrySafeZone then
-        protectedZones = { spawn.entrySafeZone }
-    elseif entrySpawn then
-        protectedZones = {
-            {
-                x = entrySpawn.x,
-                y = entrySpawn.y,
-                width = playerSpawnSize,
-                height = playerSpawnSize
-            }
-        }
-    end
+    local protectedZones = buildProtectedZones(spawn, entrySpawn, playerSpawnSize)
 
     CellSystem.reset(w, h, {
         count = scaled.cellCount or cfg.cellCount or DEFAULT_CELL_COUNT,
