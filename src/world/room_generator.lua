@@ -227,26 +227,28 @@ function RoomGenerator.generate(opts)
     }
 
     local entryDoor = nil
-    local previousEntryDoor = nil
     if hasEntryDoor then
         entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomWidth, roomHeight, context)
         if not entryDoor then
             entryDoor = DoorUtils.buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
         end
-
-        previousEntryDoor = normalizeDoorSnapshot(cfg.previousEntryDoor, roomWidth, roomHeight, context)
     end
 
     local exitDoor = nil
     if hasExitDoor then
+        local excludedEdges = {}
+        if entryDoor and entryDoor.edge then
+            excludedEdges[entryDoor.edge] = true
+        end
+
         local function canUseExitDoor(candidate)
             if not candidate then
                 return false
             end
-            if DoorUtils.sameDoor(candidate, entryDoor) then
+            if entryDoor and candidate.edge == entryDoor.edge then
                 return false
             end
-            if previousEntryDoor and DoorUtils.sameDoor(candidate, previousEntryDoor) then
+            if DoorUtils.sameDoor(candidate, entryDoor) then
                 return false
             end
             return true
@@ -254,7 +256,7 @@ function RoomGenerator.generate(opts)
 
         local attempts = 0
         repeat
-            local exitEdge = DoorUtils.chooseRandomEdge(rng, nil)
+            local exitEdge = DoorUtils.chooseRandomEdge(rng, excludedEdges)
             exitDoor = DoorUtils.buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
             attempts = attempts + 1
         until attempts >= 24 or canUseExitDoor(exitDoor)
@@ -262,6 +264,21 @@ function RoomGenerator.generate(opts)
         if not canUseExitDoor(exitDoor) then
             local edges = DoorUtils.getEdges()
             for _, edge in ipairs(edges) do
+                if not excludedEdges[edge] then
+                    local edgeAttempts = 0
+                    repeat
+                        exitDoor = DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, context, rng)
+                        edgeAttempts = edgeAttempts + 1
+                    until edgeAttempts >= 6 or canUseExitDoor(exitDoor)
+                    if canUseExitDoor(exitDoor) then
+                        break
+                    end
+                end
+            end
+        end
+
+        if not canUseExitDoor(exitDoor) then
+            for _, edge in ipairs(DoorUtils.getEdges()) do
                 local edgeAttempts = 0
                 repeat
                     exitDoor = DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, context, rng)
