@@ -15,9 +15,16 @@ local function createRng(seed)
         state = state + 2147483646
     end
 
-    return function(minValue, maxValue)
+    local function nextFloat()
         state = (state * 16807) % 2147483647
-        local value = state / 2147483647
+        return state / 2147483647
+    end
+
+    -- Warm up once to avoid low-seed first-draw bias (room-1 door edge sticking to top).
+    nextFloat()
+
+    return function(minValue, maxValue)
+        local value = nextFloat()
         if minValue ~= nil and maxValue ~= nil then
             if maxValue <= minValue then
                 return minValue
