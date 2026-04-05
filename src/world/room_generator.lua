@@ -160,6 +160,32 @@ local function buildDoorEntrySpawn(door, roomBounds, playerSize)
     }
 end
 
+local function buildEntrySafeZone(entrySpawn, roomBounds, context)
+    if not entrySpawn then
+        return nil
+    end
+
+    local cfg = context or {}
+    local size = math.max(1, math.floor(entrySpawn.size or cfg.playerSize or DEFAULT_PLAYER_SIZE))
+    local padding = math.max(0, math.floor(cfg.entrySpawnSafePadding or math.max(10, size * 0.45)))
+    local x0 = (entrySpawn.x or 0) - padding
+    local y0 = (entrySpawn.y or 0) - padding
+    local x1 = (entrySpawn.x or 0) + size + padding
+    local y1 = (entrySpawn.y or 0) + size + padding
+
+    local minX = MathUtils.clamp(x0, roomBounds.minX, roomBounds.maxX)
+    local minY = MathUtils.clamp(y0, roomBounds.minY, roomBounds.maxY)
+    local maxX = MathUtils.clamp(x1, roomBounds.minX, roomBounds.maxX)
+    local maxY = MathUtils.clamp(y1, roomBounds.minY, roomBounds.maxY)
+
+    return {
+        x = math.floor(minX),
+        y = math.floor(minY),
+        width = math.max(1, math.floor(maxX - minX)),
+        height = math.max(1, math.floor(maxY - minY))
+    }
+end
+
 local function buildObstacles(rng, bounds)
     local obstacles = {}
     local spanX = math.max(0, bounds.maxX - bounds.minX)
@@ -231,6 +257,7 @@ function RoomGenerator.generate(opts)
     local hunterArea = shrinkBounds(spawnBase, 6)
     local playerArea = shrinkBounds(spawnBase, 12)
     local entrySpawn = buildDoorEntrySpawn(entryDoor, roomBounds, playerSize)
+    local entrySafeZone = buildEntrySafeZone(entrySpawn, roomBounds, context)
     local playerAnchor = entrySpawn or buildPlayerAnchor(playerArea)
 
     local doors = {
@@ -253,6 +280,7 @@ function RoomGenerator.generate(opts)
             player = playerArea,
             playerAnchor = playerAnchor,
             entryPoint = entrySpawn,
+            entrySafeZone = entrySafeZone,
             cells = spawnBase,
             patrol = spawnBase,
             hunters = hunterArea,

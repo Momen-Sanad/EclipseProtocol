@@ -47,8 +47,29 @@ local function buildConfig(opts)
         crossSpawnPadding = math.max(0, raw.crossSpawnPadding or raw.enemySpawnPadding or DEFAULT_ENEMY_SPAWN_PADDING),
         playerSpawn = raw.playerSpawn,
         playerSpawnSize = math.max(1, math.floor(raw.playerSpawnSize or raw.playerSize or 35)),
-        playerSpawnSafetyPadding = math.max(0, raw.playerSpawnSafetyPadding or 0)
+        playerSpawnSafetyPadding = math.max(0, raw.playerSpawnSafetyPadding or 0),
+        protectedZones = raw.protectedZones,
+        protectedZonePadding = math.max(0, raw.protectedZonePadding or 0)
     }
+end
+
+local function overlapsProtectedZones(x, y, w, h, zones, padding)
+    if type(zones) ~= "table" or #zones == 0 then
+        return false
+    end
+
+    local pad = math.max(0, padding or 0)
+    for _, zone in ipairs(zones) do
+        local zx = (zone.x or 0) - pad
+        local zy = (zone.y or 0) - pad
+        local zw = (zone.width or zone.size or 0) + (pad * 2)
+        local zh = (zone.height or zone.size or 0) + (pad * 2)
+        if CollisionSystem.overlaps(x, y, w, h, zx, zy, zw, zh) then
+            return true
+        end
+    end
+
+    return false
 end
 
 local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
@@ -294,6 +315,8 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
     local patrolPadding = math.max(0, opts.patrolSpawnPadding or 2)
     local playerSpawn = opts.playerSpawn
     local playerSpawnSize = opts.playerSpawnSize or 35
+    local protectedZones = opts.protectedZones
+    local protectedZonePadding = opts.protectedZonePadding or 0
     local y = math.max(minY, math.min(maxY, laneBaseY))
     local function isRouteSafeAtY(candidateY)
         return
@@ -301,6 +324,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
             and not doesPatrolLineCrossNodes(candidateY, droneSize, repairNodes, opts.patrolLineNodeClearance)
             and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
             and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
+            and not overlapsProtectedZones(x1, candidateY, droneSize, droneSize, protectedZones, protectedZonePadding)
             and not doesPatrolRouteThreatenPlayerSpawn(x1, x2, candidateY, droneSize, playerSpawn, playerSpawnSize)
     end
 
@@ -309,6 +333,7 @@ local function spawnPatrolDrone(w, h, droneSize, index, total, opts)
             not isPatrolSpawnTooCloseToNodes(x1, candidateY, repairNodes, minDistance)
             and not overlapsRepairNodes(x1, candidateY, droneSize, droneSize, repairNodes, 4)
             and not overlapsExistingPatrols(x1, candidateY, droneSize, droneSize, patrolPadding)
+            and not overlapsProtectedZones(x1, candidateY, droneSize, droneSize, protectedZones, protectedZonePadding)
             and not doesPatrolRouteThreatenPlayerSpawn(x1, x2, candidateY, droneSize, playerSpawn, playerSpawnSize)
     end
 
@@ -385,6 +410,8 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
     local playerSpawn = opts.playerSpawn
     local playerSpawnSize = opts.playerSpawnSize or 35
     local playerSpawnSafetyPadding = opts.playerSpawnSafetyPadding or 0
+    local protectedZones = opts.protectedZones
+    local protectedZonePadding = opts.protectedZonePadding or 0
     local hunterVisionRange = opts.hunterVisionRange or DEFAULT_HUNTER_VISION
     local lane = index / (total + 1)
     local hunterBounds = opts.hunterSpawnBounds or opts.spawnBounds or {}
@@ -406,6 +433,7 @@ local function spawnHunterDrone(w, h, hunterSize, index, total, opts)
             not overlapsRepairNodes(candidateX, candidateY, hunterSize, hunterSize, repairNodes, 6)
             and not overlapsExistingHunters(candidateX, candidateY, hunterSize, hunterSize, hunterPadding)
             and not overlapsExistingPatrols(candidateX, candidateY, hunterSize, hunterSize, crossPadding)
+            and not overlapsProtectedZones(candidateX, candidateY, hunterSize, hunterSize, protectedZones, protectedZonePadding)
             and not hunterCanImmediatelyDetectPlayerSpawn(
                 candidateX,
                 candidateY,

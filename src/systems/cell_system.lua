@@ -12,6 +12,8 @@ local cellSize = 300
 local cellSpritePath = "assets/ui/Cell.png"
 local cellMinGap = 20
 local cellSpawnBounds = nil
+local cellProtectedZones = nil
+local cellProtectedZonePadding = 0
 
 local function getSpawnBounds(playWidth, playHeight)
     local maxDefaultX = math.max(0, (playWidth or 0) - cellSize)
@@ -54,6 +56,28 @@ local function overlapsWithGap(a, b, gap)
 end
 
 local function hasSpawnConflict(candidate)
+    if type(cellProtectedZones) == "table" and #cellProtectedZones > 0 then
+        local pad = math.max(0, cellProtectedZonePadding or 0)
+        for _, zone in ipairs(cellProtectedZones) do
+            local zx = (zone.x or 0) - pad
+            local zy = (zone.y or 0) - pad
+            local zw = (zone.width or zone.size or 0) + (pad * 2)
+            local zh = (zone.height or zone.size or 0) + (pad * 2)
+            if CollisionSystem.overlaps(
+                candidate.x or 0,
+                candidate.y or 0,
+                candidate.width or 0,
+                candidate.height or 0,
+                zx,
+                zy,
+                zw,
+                zh
+            ) then
+                return true
+            end
+        end
+    end
+
     for _, existing in ipairs(cells) do
         if overlapsWithGap(candidate, existing, cellMinGap) then
             return true
@@ -138,6 +162,8 @@ function CellSystem.reset(playWidth, playHeight, opts)
     cellSpritePath = opts.spritePath or "assets/ui/Cell.png"
     cellMinGap = math.max(0, math.floor(opts.minGap or opts.minDistance or 20))
     cellSpawnBounds = opts.spawnBounds
+    cellProtectedZones = opts.protectedZones
+    cellProtectedZonePadding = math.max(0, math.floor(opts.protectedZonePadding or 0))
     if not opts.preserveCollectedTotal then
         totalCollected = 0
     end

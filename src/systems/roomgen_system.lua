@@ -2,7 +2,6 @@
 local CellSystem = require("src/systems/cell_system")
 local EnemySystem = require("src/systems/enemy_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
-local SpawnSystem = require("src/systems/spawn_system")
 local Map = require("src/world/map")
 
 local RoomgenSystem = {}
@@ -35,7 +34,7 @@ local function ensureMap(context, playWidth, playHeight, opts)
     return activeMap
 end
 
-local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
+local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedZones)
     EnemySystem.resetPatrols(w, h, {
         droneSize = cfg.droneSize or DEFAULT_DRONE_SIZE,
         patrolCount = scaled.patrolCount,
@@ -43,7 +42,8 @@ local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, pl
         patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
         patrolSpawnBounds = spawn.patrol,
         playerSpawn = entrySpawn,
-        playerSpawnSize = playerSpawnSize
+        playerSpawnSize = playerSpawnSize,
+        protectedZones = protectedZones
     })
 
     PowerNodeSystem.reset(w, h, {
@@ -55,7 +55,7 @@ local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, pl
         patrolLanes = EnemySystem.getPatrolLanes(),
         patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING,
         spawnBounds = spawn.nodes,
-        protectedZones = protectedSpawnZone and { protectedSpawnZone } or nil
+        protectedZones = protectedZones
     })
 
     EnemySystem.resetHunters(w, h, {
@@ -65,7 +65,8 @@ local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, pl
         repairNodes = PowerNodeSystem.getNodes(),
         hunterSpawnBounds = spawn.hunters,
         playerSpawn = entrySpawn,
-        playerSpawnSize = playerSpawnSize
+        playerSpawnSize = playerSpawnSize,
+        protectedZones = protectedZones
     })
 end
 
@@ -90,13 +91,17 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
     local spawn = (currentRoom and currentRoom.spawn) or {}
     local entrySpawn = spawn.entryPoint
     local playerSpawnSize = (entrySpawn and entrySpawn.size) or cfg.playerSize or 35
-    local protectedSpawnZone = nil
-    if entrySpawn then
-        protectedSpawnZone = {
-            x = entrySpawn.x,
-            y = entrySpawn.y,
-            width = playerSpawnSize,
-            height = playerSpawnSize
+    local protectedZones = nil
+    if spawn.entrySafeZone then
+        protectedZones = { spawn.entrySafeZone }
+    elseif entrySpawn then
+        protectedZones = {
+            {
+                x = entrySpawn.x,
+                y = entrySpawn.y,
+                width = playerSpawnSize,
+                height = playerSpawnSize
+            }
         }
     end
 
@@ -106,20 +111,11 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         spritePath = cfg.cellSpritePath or "assets/ui/Cell.png",
         minGap = cfg.cellMinGap,
         preserveCollectedTotal = preserveCells and true or false,
-        spawnBounds = spawn.cells
+        spawnBounds = spawn.cells,
+        protectedZones = protectedZones
     })
 
-    if entrySpawn then
-        -- Keep retrying until this exact transition entry spawn remains safe.
-        while true do
-            populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
-            if SpawnSystem.isSafePlayerSpawn(entrySpawn.x, entrySpawn.y, playerSpawnSize) then
-                break
-            end
-        end
-    else
-        populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
-    end
+    populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedZones)
 
     return currentRoom
 end
