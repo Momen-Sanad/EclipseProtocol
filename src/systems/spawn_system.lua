@@ -12,17 +12,6 @@ local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
 local DEFAULT_PLAYER_SIZE = 35
 
-local function normalizeVector(x, y)
-    local vx = x or 0
-    local vy = y or 0
-    local lengthSq = (vx * vx) + (vy * vy)
-    if lengthSq <= 0 then
-        return 1, 0, 0
-    end
-    local length = math.sqrt(lengthSq)
-    return vx / length, vy / length, length
-end
-
 local function clampSpawnPoint(x, y, playerSize, playWidth, playHeight)
     local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
     local maxX = math.max(0, math.floor((playWidth or 0) - size))
@@ -103,14 +92,7 @@ local function inHunterDetectionRange(x, y, playerSize, hunter)
     local hx, hy = MathUtils.rectCenter(hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0)
     local distSq = MathUtils.distanceSquared(px, py, hx, hy)
     local range = math.max(0, hunter.visionRange or 0) + (playerSize * 0.35)
-    if distSq > (range * range) then
-        return false
-    end
-
-    local toPlayerX, toPlayerY = normalizeVector(px - hx, py - hy)
-    local lookX, lookY = normalizeVector(hunter.lookX or 1, hunter.lookY or 0)
-    local dot = MathUtils.dot(lookX, lookY, toPlayerX, toPlayerY)
-    return dot >= (hunter.dotThreshold or 0.5)
+    return distSq <= (range * range)
 end
 
 local function inPatrolLine(x, y, playerSize, patrol)
