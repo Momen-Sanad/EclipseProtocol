@@ -4,6 +4,7 @@ local PatrolDrone = require("src/entities/patrol_drone")
 local HunterDrone = require("src/entities/hunter_drone")
 local MathUtils = require("src/utils/math_utils")
 local SearchUtils = require("src/utils/search_utils")
+local ZoneUtils = require("src/utils/zone_utils")
 
 local EnemySystem = {}
 
@@ -54,22 +55,7 @@ local function buildConfig(opts)
 end
 
 local function overlapsProtectedZones(x, y, w, h, zones, padding)
-    if type(zones) ~= "table" or #zones == 0 then
-        return false
-    end
-
-    local pad = math.max(0, padding or 0)
-    for _, zone in ipairs(zones) do
-        local zx = (zone.x or 0) - pad
-        local zy = (zone.y or 0) - pad
-        local zw = (zone.width or zone.size or 0) + (pad * 2)
-        local zh = (zone.height or zone.size or 0) + (pad * 2)
-        if CollisionSystem.overlaps(x, y, w, h, zx, zy, zw, zh) then
-            return true
-        end
-    end
-
-    return false
+    return ZoneUtils.overlapsRectWithZones(x, y, w, h, zones, padding)
 end
 
 local function overlapsRepairNodes(x, y, w, h, repairNodes, padding)
@@ -164,28 +150,9 @@ local function hunterCanImmediatelyDetectPlayerSpawn(x, y, hunterSize, visionRan
 end
 
 local function hunterVisionThreatensProtectedZones(x, y, hunterSize, visionRange, zones, padding)
-    if type(zones) ~= "table" or #zones == 0 then
-        return false
-    end
-
     local hx, hy = MathUtils.rectCenter(x or 0, y or 0, hunterSize or 0, hunterSize or 0)
-    local pad = math.max(0, padding or 0)
     local range = math.max(0, visionRange or DEFAULT_HUNTER_VISION)
-    local rangeSq = range * range
-
-    for _, zone in ipairs(zones) do
-        local zx = (zone.x or 0) - pad
-        local zy = (zone.y or 0) - pad
-        local zw = (zone.width or zone.size or 0) + (pad * 2)
-        local zh = (zone.height or zone.size or 0) + (pad * 2)
-        local closestX = MathUtils.clamp(hx, zx, zx + zw)
-        local closestY = MathUtils.clamp(hy, zy, zy + zh)
-        if MathUtils.distanceSquared(hx, hy, closestX, closestY) <= rangeSq then
-            return true
-        end
-    end
-
-    return false
+    return ZoneUtils.circleIntersectsZones(hx, hy, range, zones, padding)
 end
 
 local function resolveLookAwayFromPlayerSpawn(x, y, bodySize, playerSpawn, playerSize)

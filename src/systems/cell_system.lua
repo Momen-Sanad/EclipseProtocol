@@ -2,6 +2,7 @@
 local CollisionSystem = require("src/systems/collision_system")
 local EnergyCell = require("src/entities/energy_cell")
 local SearchUtils = require("src/utils/search_utils")
+local ZoneUtils = require("src/utils/zone_utils")
 
 local CellSystem = {}
 
@@ -56,26 +57,15 @@ local function overlapsWithGap(a, b, gap)
 end
 
 local function hasSpawnConflict(candidate)
-    if type(cellProtectedZones) == "table" and #cellProtectedZones > 0 then
-        local pad = math.max(0, cellProtectedZonePadding or 0)
-        for _, zone in ipairs(cellProtectedZones) do
-            local zx = (zone.x or 0) - pad
-            local zy = (zone.y or 0) - pad
-            local zw = (zone.width or zone.size or 0) + (pad * 2)
-            local zh = (zone.height or zone.size or 0) + (pad * 2)
-            if CollisionSystem.overlaps(
-                candidate.x or 0,
-                candidate.y or 0,
-                candidate.width or 0,
-                candidate.height or 0,
-                zx,
-                zy,
-                zw,
-                zh
-            ) then
-                return true
-            end
-        end
+    if ZoneUtils.overlapsRectWithZones(
+        candidate.x or 0,
+        candidate.y or 0,
+        candidate.width or 0,
+        candidate.height or 0,
+        cellProtectedZones,
+        cellProtectedZonePadding
+    ) then
+        return true
     end
 
     for _, existing in ipairs(cells) do

@@ -12,6 +12,24 @@ local SAFE_SPAWN_PADDING = 12
 local SAFE_SPAWN_RANDOM_ATTEMPTS = 140
 local DEFAULT_PLAYER_SIZE = 35
 
+local function overlapsAnyRectEntity(x, y, size, entities)
+    for _, entity in ipairs(entities or {}) do
+        if CollisionSystem.overlaps(
+            x,
+            y,
+            size,
+            size,
+            entity.x or 0,
+            entity.y or 0,
+            entity.width or 0,
+            entity.height or 0
+        ) then
+            return true
+        end
+    end
+    return false
+end
+
 local function clampSpawnPoint(x, y, playerSize, playWidth, playHeight)
     local size = math.max(1, math.floor(playerSize or DEFAULT_PLAYER_SIZE))
     local maxX = math.max(0, math.floor((playWidth or 0) - size))
@@ -129,20 +147,14 @@ function SpawnSystem.isSafePlayerSpawn(x, y, playerSize)
     end
 
     -- Also avoid immediate overlap with solid power nodes and enemy bodies.
-    for _, node in ipairs(nodes) do
-        if CollisionSystem.overlaps(x, y, playerSize, playerSize, node.x or 0, node.y or 0, node.width or 0, node.height or 0) then
-            return false
-        end
+    if overlapsAnyRectEntity(x, y, playerSize, nodes) then
+        return false
     end
-    for _, drone in ipairs(drones) do
-        if CollisionSystem.overlaps(x, y, playerSize, playerSize, drone.x or 0, drone.y or 0, drone.width or 0, drone.height or 0) then
-            return false
-        end
+    if overlapsAnyRectEntity(x, y, playerSize, drones) then
+        return false
     end
-    for _, hunter in ipairs(hunters) do
-        if CollisionSystem.overlaps(x, y, playerSize, playerSize, hunter.x or 0, hunter.y or 0, hunter.width or 0, hunter.height or 0) then
-            return false
-        end
+    if overlapsAnyRectEntity(x, y, playerSize, hunters) then
+        return false
     end
 
     return true
