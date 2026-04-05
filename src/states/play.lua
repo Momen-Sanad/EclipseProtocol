@@ -225,7 +225,8 @@ local function placePlayerForRoom(player, room, playWidth, playHeight, playerSiz
         playerSize,
         spawn.player,
         {
-            preferredSpawn = spawn.playerAnchor
+            preferredSpawn = spawn.entryPoint or spawn.playerAnchor,
+            entryDoor = room and room.doors and room.doors.entry or nil
         }
     )
 end
@@ -253,6 +254,7 @@ local function handleQueuedEvents(context, playWidth, playHeight, player, player
                 ProgressionSystem.getDifficulty(),
                 true,
                 {
+                    entryDoor = payload.entryDoor,
                     roomsCleared = ProgressionSystem.getRoomsCleared(),
                     roomsToEscape = ProgressionSystem.getRoomsToEscape()
                 }
@@ -455,8 +457,9 @@ function PlayState.update(dt, context)
             local exitTrigger = room and room.doorTriggers and room.doorTriggers.exit or nil
             local touchedDoorTrigger = DoorTrigger.playerTouchesTrigger(exitTrigger, player, playerSize)
             if nodesRepaired and touchedDoorTrigger and DoorSystem.tryUseExit(player, playerSize, InputSystem) then
+                local nextEntryDoor = DoorSystem.getExitDoor()
                 world.events:push("door_touched", {
-                    door = DoorSystem.getExitDoor()
+                    door = nextEntryDoor
                 })
                 world.events:push("room_cleared", {
                     roomsCleared = ProgressionSystem.getRoomsCleared() + 1
@@ -470,7 +473,9 @@ function PlayState.update(dt, context)
                         timeRemaining = EvacuationSystem.getTimeRemaining()
                     })
                 else
-                    world.events:push("room_transition", {})
+                    world.events:push("room_transition", {
+                        entryDoor = nextEntryDoor
+                    })
                 end
 
                 InputSystem.update()
