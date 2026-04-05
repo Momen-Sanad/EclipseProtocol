@@ -162,70 +162,108 @@ function DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
     local evacX1 = (evacZone.x or 0) + (evacZone.width or 0) + evacPad
     local evacY0 = (evacZone.y or 0) - evacPad
     local evacY1 = (evacZone.y or 0) + (evacZone.height or 0) + evacPad
-    local side = DoorUtils.normalizeEdge(edge) or DoorUtils.chooseRandomEdge(randomInt, nil)
+    local preferredSide = DoorUtils.normalizeEdge(edge) or DoorUtils.chooseRandomEdge(randomInt, nil)
 
-    local x = 0
-    local y = 0
-    local doorWidth = thickness
-    local doorHeight = thickness
+    local function buildForSide(side, enforceEvacExclusion)
+        local x = 0
+        local y = 0
+        local doorWidth = thickness
+        local doorHeight = thickness
 
-    if side == "top" then
-        doorWidth = math.min(horizontalSize, math.max(thickness, width - (margin * 2)))
-        doorHeight = thickness
-        y = 0
-        local minX = margin
-        local maxX = math.max(margin, width - doorWidth - margin)
-        if rangesOverlap(y, y + doorHeight, evacY0, evacY1) then
-            local safeX = chooseCoordinateOutsideBlocked(minX, maxX, doorWidth, evacX0, evacX1, randomInt)
-            x = safeX or randomInt(minX, maxX)
+        if side == "top" then
+            doorWidth = math.min(horizontalSize, math.max(thickness, width - (margin * 2)))
+            doorHeight = thickness
+            y = 0
+            local minX = margin
+            local maxX = math.max(margin, width - doorWidth - margin)
+            if enforceEvacExclusion and rangesOverlap(y, y + doorHeight, evacY0, evacY1) then
+                local safeX = chooseCoordinateOutsideBlocked(minX, maxX, doorWidth, evacX0, evacX1, randomInt)
+                if safeX == nil then
+                    return nil
+                end
+                x = safeX
+            else
+                x = randomInt(minX, maxX)
+            end
+        elseif side == "bottom" then
+            doorWidth = math.min(horizontalSize, math.max(thickness, width - (margin * 2)))
+            doorHeight = thickness
+            y = math.max(0, height - doorHeight)
+            local minX = margin
+            local maxX = math.max(margin, width - doorWidth - margin)
+            if enforceEvacExclusion and rangesOverlap(y, y + doorHeight, evacY0, evacY1) then
+                local safeX = chooseCoordinateOutsideBlocked(minX, maxX, doorWidth, evacX0, evacX1, randomInt)
+                if safeX == nil then
+                    return nil
+                end
+                x = safeX
+            else
+                x = randomInt(minX, maxX)
+            end
+        elseif side == "left" then
+            doorWidth = thickness
+            doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
+            x = 0
+            local minY = margin
+            local maxY = math.max(margin, height - doorHeight - margin)
+            if enforceEvacExclusion and rangesOverlap(x, x + doorWidth, evacX0, evacX1) then
+                local safeY = chooseCoordinateOutsideBlocked(minY, maxY, doorHeight, evacY0, evacY1, randomInt)
+                if safeY == nil then
+                    return nil
+                end
+                y = safeY
+            else
+                y = randomInt(minY, maxY)
+            end
         else
-            x = randomInt(minX, maxX)
+            doorWidth = thickness
+            doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
+            x = math.max(0, width - doorWidth)
+            local minY = margin
+            local maxY = math.max(margin, height - doorHeight - margin)
+            if enforceEvacExclusion and rangesOverlap(x, x + doorWidth, evacX0, evacX1) then
+                local safeY = chooseCoordinateOutsideBlocked(minY, maxY, doorHeight, evacY0, evacY1, randomInt)
+                if safeY == nil then
+                    return nil
+                end
+                y = safeY
+            else
+                y = randomInt(minY, maxY)
+            end
         end
-    elseif side == "bottom" then
-        doorWidth = math.min(horizontalSize, math.max(thickness, width - (margin * 2)))
-        doorHeight = thickness
-        y = math.max(0, height - doorHeight)
-        local minX = margin
-        local maxX = math.max(margin, width - doorWidth - margin)
-        if rangesOverlap(y, y + doorHeight, evacY0, evacY1) then
-            local safeX = chooseCoordinateOutsideBlocked(minX, maxX, doorWidth, evacX0, evacX1, randomInt)
-            x = safeX or randomInt(minX, maxX)
-        else
-            x = randomInt(minX, maxX)
+
+        return {
+            x = x,
+            y = y,
+            width = doorWidth,
+            height = doorHeight,
+            edge = side
+        }
+    end
+
+    local candidateSides = { preferredSide }
+    local alternatives = {}
+    for _, candidate in ipairs(EDGES) do
+        if candidate ~= preferredSide then
+            alternatives[#alternatives + 1] = candidate
         end
-    elseif side == "left" then
-        doorWidth = thickness
-        doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
-        x = 0
-        local minY = margin
-        local maxY = math.max(margin, height - doorHeight - margin)
-        if rangesOverlap(x, x + doorWidth, evacX0, evacX1) then
-            local safeY = chooseCoordinateOutsideBlocked(minY, maxY, doorHeight, evacY0, evacY1, randomInt)
-            y = safeY or randomInt(minY, maxY)
-        else
-            y = randomInt(minY, maxY)
-        end
-    else
-        doorWidth = thickness
-        doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
-        x = math.max(0, width - doorWidth)
-        local minY = margin
-        local maxY = math.max(margin, height - doorHeight - margin)
-        if rangesOverlap(x, x + doorWidth, evacX0, evacX1) then
-            local safeY = chooseCoordinateOutsideBlocked(minY, maxY, doorHeight, evacY0, evacY1, randomInt)
-            y = safeY or randomInt(minY, maxY)
-        else
-            y = randomInt(minY, maxY)
+    end
+    for i = #alternatives, 2, -1 do
+        local j = randomInt(1, i)
+        alternatives[i], alternatives[j] = alternatives[j], alternatives[i]
+    end
+    for _, candidate in ipairs(alternatives) do
+        candidateSides[#candidateSides + 1] = candidate
+    end
+
+    for _, side in ipairs(candidateSides) do
+        local door = buildForSide(side, true)
+        if door then
+            return door
         end
     end
 
-    return {
-        x = x,
-        y = y,
-        width = doorWidth,
-        height = doorHeight,
-        edge = side
-    }
+    return buildForSide(preferredSide, false)
 end
 
 function DoorUtils.clampDoorToSafeBounds(door, roomWidth, roomHeight, cfg)
