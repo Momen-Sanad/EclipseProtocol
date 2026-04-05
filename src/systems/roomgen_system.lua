@@ -2,6 +2,7 @@
 local CellSystem = require("src/systems/cell_system")
 local EnemySystem = require("src/systems/enemy_system")
 local PowerNodeSystem = require("src/systems/power_node_system")
+local SpawnSystem = require("src/systems/spawn_system")
 local Map = require("src/world/map")
 
 local RoomgenSystem = {}
@@ -32,6 +33,40 @@ local function ensureMap(context, playWidth, playHeight, opts)
         currentRoom = nil
     end
     return activeMap
+end
+
+local function populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
+    EnemySystem.resetPatrols(w, h, {
+        droneSize = cfg.droneSize or DEFAULT_DRONE_SIZE,
+        patrolCount = scaled.patrolCount,
+        patrolDamage = scaled.patrolDamage,
+        patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
+        patrolSpawnBounds = spawn.patrol,
+        playerSpawn = entrySpawn,
+        playerSpawnSize = playerSpawnSize
+    })
+
+    PowerNodeSystem.reset(w, h, {
+        powerNodeSize = cfg.powerNodeSize,
+        powerNodeCount = scaled.powerNodeCount or cfg.powerNodeCount,
+        powerNodeInteractRange = cfg.powerNodeInteractRange,
+        powerNodeRepairDuration = cfg.powerNodeRepairDuration,
+        powerNodeMinSpacing = cfg.powerNodeMinSpacing,
+        patrolLanes = EnemySystem.getPatrolLanes(),
+        patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING,
+        spawnBounds = spawn.nodes,
+        protectedZones = protectedSpawnZone and { protectedSpawnZone } or nil
+    })
+
+    EnemySystem.resetHunters(w, h, {
+        hunterSize = cfg.hunterSize or DEFAULT_HUNTER_SIZE,
+        hunterCount = scaled.hunterCount,
+        hunterDamage = scaled.hunterDamage,
+        repairNodes = PowerNodeSystem.getNodes(),
+        hunterSpawnBounds = spawn.hunters,
+        playerSpawn = entrySpawn,
+        playerSpawnSize = playerSpawnSize
+    })
 end
 
 function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, preserveCells, opts)
@@ -74,37 +109,17 @@ function RoomgenSystem.setupRoom(context, playWidth, playHeight, difficulty, pre
         spawnBounds = spawn.cells
     })
 
-    EnemySystem.resetPatrols(w, h, {
-        droneSize = cfg.droneSize or DEFAULT_DRONE_SIZE,
-        patrolCount = scaled.patrolCount,
-        patrolDamage = scaled.patrolDamage,
-        patrolMinDistanceToNode = cfg.patrolMinDistanceToNode or DEFAULT_PATROL_NODE_MIN_DISTANCE,
-        patrolSpawnBounds = spawn.patrol,
-        playerSpawn = entrySpawn,
-        playerSpawnSize = playerSpawnSize
-    })
-
-    PowerNodeSystem.reset(w, h, {
-        powerNodeSize = cfg.powerNodeSize,
-        powerNodeCount = scaled.powerNodeCount or cfg.powerNodeCount,
-        powerNodeInteractRange = cfg.powerNodeInteractRange,
-        powerNodeRepairDuration = cfg.powerNodeRepairDuration,
-        powerNodeMinSpacing = cfg.powerNodeMinSpacing,
-        patrolLanes = EnemySystem.getPatrolLanes(),
-        patrolLanePadding = cfg.powerNodePatrolPadding or DEFAULT_POWER_NODE_PATROL_PADDING,
-        spawnBounds = spawn.nodes,
-        protectedZones = protectedSpawnZone and { protectedSpawnZone } or nil
-    })
-
-    EnemySystem.resetHunters(w, h, {
-        hunterSize = cfg.hunterSize or DEFAULT_HUNTER_SIZE,
-        hunterCount = scaled.hunterCount,
-        hunterDamage = scaled.hunterDamage,
-        repairNodes = PowerNodeSystem.getNodes(),
-        hunterSpawnBounds = spawn.hunters,
-        playerSpawn = entrySpawn,
-        playerSpawnSize = playerSpawnSize
-    })
+    if entrySpawn then
+        -- Keep retrying until this exact transition entry spawn remains safe.
+        while true do
+            populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
+            if SpawnSystem.isSafePlayerSpawn(entrySpawn.x, entrySpawn.y, playerSpawnSize) then
+                break
+            end
+        end
+    else
+        populateHostilesAndNodes(cfg, scaled, w, h, spawn, entrySpawn, playerSpawnSize, protectedSpawnZone)
+    end
 
     return currentRoom
 end
