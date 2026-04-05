@@ -211,7 +211,11 @@ local function configureRoomDoors(context, playWidth, playHeight, room)
         doorEdgeMargin = context and context.doorEdgeMargin,
         doorThickness = context and context.doorThickness,
         doorWidthFactor = context and context.doorWidthFactor,
-        doorHeightFactor = context and context.doorHeightFactor
+        doorHeightFactor = context and context.doorHeightFactor,
+        doorEvacZonePadding = context and context.doorEvacZonePadding,
+        evacuationZoneWidthFactor = context and context.evacuationZoneWidthFactor,
+        evacuationZoneHeight = context and context.evacuationZoneHeight,
+        evacuationZoneTop = context and context.evacuationZoneTop
     })
     DoorSystem.setExitOpen(false)
 end
