@@ -1,36 +1,21 @@
 -- Shared door geometry and edge helpers used by runtime and generation systems.
 local DoorUtils = {}
 
-local EDGES = { "left", "right" }
-local SAFE_LEFT_TOP = 150
-local SAFE_LEFT_BOTTOM = 360
-local SAFE_RIGHT_TOP = 84
-local SAFE_RIGHT_BOTTOM = 96
+local EDGES = { "top", "bottom", "left", "right" }
+
+local function clamp(value, minValue, maxValue)
+    if value < minValue then
+        return minValue
+    end
+    if value > maxValue then
+        return maxValue
+    end
+    return value
+end
 
 local function defaultRandomInt(minValue, maxValue)
     local rng = (love and love.math and love.math.random) or math.random
     return rng(minValue, maxValue)
-end
-
-local function getSafeVerticalRange(side, roomHeight, doorHeight, margin)
-    local minY = math.max(0, math.floor(margin or 0))
-    local maxY = math.max(minY, math.floor((roomHeight or 0) - (doorHeight or 0) - minY))
-
-    if side == "left" then
-        minY = math.max(minY, SAFE_LEFT_TOP)
-        maxY = math.min(maxY, math.floor((roomHeight or 0) - (doorHeight or 0) - SAFE_LEFT_BOTTOM))
-    elseif side == "right" then
-        minY = math.max(minY, SAFE_RIGHT_TOP)
-        maxY = math.min(maxY, math.floor((roomHeight or 0) - (doorHeight or 0) - SAFE_RIGHT_BOTTOM))
-    end
-
-    if maxY < minY then
-        local centeredY = math.max(0, math.floor(((roomHeight or 0) - (doorHeight or 0)) * 0.5))
-        centeredY = math.max(math.floor(margin or 0), centeredY)
-        return centeredY, centeredY
-    end
-
-    return minY, maxY
 end
 
 function DoorUtils.getEdges()
@@ -38,7 +23,7 @@ function DoorUtils.getEdges()
 end
 
 function DoorUtils.normalizeEdge(edge)
-    if edge == "left" or edge == "right" then
+    if edge == "top" or edge == "bottom" or edge == "left" or edge == "right" then
         return edge
     end
     return nil
@@ -133,14 +118,12 @@ function DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, cfg, rng)
         doorWidth = thickness
         doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
         x = 0
-        local minY, maxY = getSafeVerticalRange(side, height, doorHeight, margin)
-        y = randomInt(minY, maxY)
+        y = randomInt(margin, math.max(margin, height - doorHeight - margin))
     else
         doorWidth = thickness
         doorHeight = math.min(verticalSize, math.max(thickness, height - (margin * 2)))
         x = math.max(0, width - doorWidth)
-        local minY, maxY = getSafeVerticalRange(side, height, doorHeight, margin)
-        y = randomInt(minY, maxY)
+        y = randomInt(margin, math.max(margin, height - doorHeight - margin))
     end
 
     return {
@@ -163,18 +146,29 @@ function DoorUtils.clampDoorToSafeBounds(door, roomWidth, roomHeight, cfg)
         return nil
     end
 
-    local width = math.max(0, math.floor(roomWidth or 0))
-    local height = math.max(0, math.floor(roomHeight or 0))
+    local width = math.max(1, math.floor(roomWidth or 1))
+    local height = math.max(1, math.floor(roomHeight or 1))
     local margin = math.max(0, math.floor(context.doorEdgeMargin or 8))
-    local clamped = DoorUtils.cloneDoor(door)
+    local clamped = {
+        x = math.floor(door.x or 0),
+        y = math.floor(door.y or 0),
+        width = math.max(1, math.floor(door.width or 1)),
+        height = math.max(1, math.floor(door.height or 1)),
+        edge = edge
+    }
 
-    if edge == "left" or edge == "right" then
-        local minY, maxY = getSafeVerticalRange(edge, height, clamped.height or 0, margin)
-        clamped.y = math.max(minY, math.min(math.floor(clamped.y or 0), maxY))
-        clamped.x = (edge == "left") and 0 or math.max(0, width - (clamped.width or 0))
+    if edge == "top" or edge == "bottom" then
+        clamped.width = math.min(clamped.width, math.max(1, width - (margin * 2)))
+        clamped.height = math.min(clamped.height, math.max(1, height))
+        clamped.x = clamp(clamped.x, margin, math.max(margin, width - clamped.width - margin))
+        clamped.y = (edge == "top") and 0 or math.max(0, height - clamped.height)
+    else
+        clamped.width = math.min(clamped.width, math.max(1, width))
+        clamped.height = math.min(clamped.height, math.max(1, height - (margin * 2)))
+        clamped.y = clamp(clamped.y, margin, math.max(margin, height - clamped.height - margin))
+        clamped.x = (edge == "left") and 0 or math.max(0, width - clamped.width)
     end
 
-    clamped.edge = edge
     return clamped
 end
 
