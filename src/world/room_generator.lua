@@ -227,25 +227,51 @@ function RoomGenerator.generate(opts)
     }
 
     local entryDoor = nil
+    local previousEntryDoor = nil
     if hasEntryDoor then
         entryDoor = normalizeDoorSnapshot(cfg.entryDoor, roomWidth, roomHeight, context)
         if not entryDoor then
             entryDoor = DoorUtils.buildDoorForEdge(nil, roomWidth, roomHeight, context, rng)
         end
+
+        previousEntryDoor = normalizeDoorSnapshot(cfg.previousEntryDoor, roomWidth, roomHeight, context)
     end
 
     local exitDoor = nil
     if hasExitDoor then
-        local excluded = {}
-        if entryDoor and entryDoor.edge then
-            excluded[entryDoor.edge] = true
+        local function canUseExitDoor(candidate)
+            if not candidate then
+                return false
+            end
+            if DoorUtils.sameDoor(candidate, entryDoor) then
+                return false
+            end
+            if previousEntryDoor and DoorUtils.sameDoor(candidate, previousEntryDoor) then
+                return false
+            end
+            return true
         end
+
         local attempts = 0
         repeat
-            local exitEdge = DoorUtils.chooseRandomEdge(rng, excluded)
+            local exitEdge = DoorUtils.chooseRandomEdge(rng, nil)
             exitDoor = DoorUtils.buildDoorForEdge(exitEdge, roomWidth, roomHeight, context, rng)
             attempts = attempts + 1
-        until attempts >= 12 or not DoorUtils.sameDoor(exitDoor, entryDoor)
+        until attempts >= 24 or canUseExitDoor(exitDoor)
+
+        if not canUseExitDoor(exitDoor) then
+            local edges = DoorUtils.getEdges()
+            for _, edge in ipairs(edges) do
+                local edgeAttempts = 0
+                repeat
+                    exitDoor = DoorUtils.buildDoorForEdge(edge, roomWidth, roomHeight, context, rng)
+                    edgeAttempts = edgeAttempts + 1
+                until edgeAttempts >= 6 or canUseExitDoor(exitDoor)
+                if canUseExitDoor(exitDoor) then
+                    break
+                end
+            end
+        end
     end
 
     local spawnBase = shrinkBounds(roomBounds, DEFAULT_SPAWN_MARGIN)

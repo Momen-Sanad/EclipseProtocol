@@ -26,6 +26,12 @@ function Map.nextRoom(map, opts)
         return nil
     end
 
+    local previousRoom = map.currentRoom
+    local previousEntryDoor = cfg.previousEntryDoor
+    if previousEntryDoor == nil and previousRoom and previousRoom.doors then
+        previousEntryDoor = previousRoom.doors.entry
+    end
+
     map.index = map.index + 1
     local roomSeed = (map.seed or 1) + (map.index * 7919)
     local room = RoomGenerator.generate({
@@ -34,6 +40,7 @@ function Map.nextRoom(map, opts)
         width = cfg.width or map.width,
         height = cfg.height or map.height,
         entryDoor = cfg.entryDoor,
+        previousEntryDoor = previousEntryDoor,
         roomsCleared = cfg.roomsCleared or 0,
         roomsToEscape = cfg.roomsToEscape or 1,
         context = cfg.context
