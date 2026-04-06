@@ -9,7 +9,7 @@ local CellSystem = {}
 local cells = {}
 local totalCollected = 0
 local cellCount = 10
-local cellSize = 300
+local cellSize = 150
 local cellSpritePath = "assets/ui/Cell.png"
 local cellMinGap = 20
 local cellSpawnBounds = nil
@@ -148,7 +148,7 @@ function CellSystem.reset(playWidth, playHeight, opts)
     -- Clears previous run cells and spawns a fresh batch.
     opts = opts or {}
     cellCount = math.max(0, math.floor(opts.count or 10))
-    cellSize = math.max(1, math.floor(opts.size or 300))
+    cellSize = math.max(1, math.floor(opts.size or 150))
     cellSpritePath = opts.spritePath or "assets/ui/Cell.png"
     cellMinGap = math.max(0, math.floor(opts.minGap or opts.minDistance or 20))
     cellSpawnBounds = opts.spawnBounds

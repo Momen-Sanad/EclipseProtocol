@@ -7,7 +7,7 @@ local Map = require("src/world/map")
 local RoomgenSystem = {}
 
 local DEFAULT_CELL_COUNT = 10
-local DEFAULT_CELL_SIZE = 300
+local DEFAULT_CELL_SIZE = 150
 local DEFAULT_DRONE_SIZE = 90
 local DEFAULT_HUNTER_SIZE = 90
 local DEFAULT_PATROL_NODE_MIN_DISTANCE = 260
