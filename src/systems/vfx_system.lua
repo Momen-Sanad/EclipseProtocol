@@ -3,18 +3,19 @@ local VfxSystem = {}
 
 local effects = {}
 
-local function drawOutlinedText(text, x, y, color, shadow)
+local function drawOutlinedText(text, x, y, color, shadow, scale)
     local fg = color or { 1.0, 1.0, 1.0, 1.0 }
     local bg = shadow or { 0.05, 0.06, 0.08, fg[4] or 1.0 }
+    local s = scale or 1.0
 
     love.graphics.setColor(bg)
-    love.graphics.print(text, x - 1, y)
-    love.graphics.print(text, x + 1, y)
-    love.graphics.print(text, x, y - 1)
-    love.graphics.print(text, x, y + 1)
+    love.graphics.print(text, x - 1, y, 0, s, s)
+    love.graphics.print(text, x + 1, y, 0, s, s)
+    love.graphics.print(text, x, y - 1, 0, s, s)
+    love.graphics.print(text, x, y + 1, 0, s, s)
 
     love.graphics.setColor(fg)
-    love.graphics.print(text, x, y)
+    love.graphics.print(text, x, y, 0, s, s)
 end
 
 function VfxSystem.reset()
@@ -38,6 +39,7 @@ function VfxSystem.spawnFloatingText(text, x, y, opts)
         wobbleAmp = cfg.wobbleAmp or 2,
         wobbleSpeed = cfg.wobbleSpeed or 8,
         phase = cfg.phase or 0,
+        scale = cfg.scale or 1.0,
         elapsed = 0,
         color = cfg.color or { 1.0, 0.95, 0.9, 1.0 }
     }
@@ -55,16 +57,18 @@ function VfxSystem.spawnRepairFailHint(player, playerSize)
         wobbleAmp = 2.5,
         wobbleSpeed = 10,
         phase = 0.2,
+        scale = 1.25,
         color = { 1.0, 0.86, 0.78, 1.0 }
     })
 
     VfxSystem.spawnFloatingText("STILL", baseX, baseY - 10, {
-        delay = 0.14,
+        delay = 0.64,
         duration = 0.78,
         rise = 28,
         wobbleAmp = 2.2,
         wobbleSpeed = 9.5,
         phase = 1.1,
+        scale = 1.25,
         color = { 1.0, 0.92, 0.84, 1.0 }
     })
 end
@@ -88,7 +92,9 @@ function VfxSystem.draw()
             local t = math.max(0, math.min(1, liveTime / fx.duration))
             local fade = 1 - t
             local wobble = math.sin((liveTime * fx.wobbleSpeed) + fx.phase) * fx.wobbleAmp * fade
-            local drawX = math.floor((fx.x + (fx.driftX * t) + wobble) - ((love.graphics.getFont():getWidth(fx.text)) * 0.5))
+            local scale = fx.scale or 1.0
+            local textWidth = (love.graphics.getFont():getWidth(fx.text)) * scale
+            local drawX = math.floor((fx.x + (fx.driftX * t) + wobble) - (textWidth * 0.5))
             local drawY = math.floor(fx.y - (fx.rise * t))
             local color = {
                 fx.color[1] or 1.0,
@@ -97,7 +103,7 @@ function VfxSystem.draw()
                 (fx.color[4] or 1.0) * fade
             }
 
-            drawOutlinedText(fx.text, drawX, drawY, color, { 0.08, 0.08, 0.1, 0.9 * fade })
+            drawOutlinedText(fx.text, drawX, drawY, color, { 0.08, 0.08, 0.1, 0.9 * fade }, scale)
         end
     end
 
