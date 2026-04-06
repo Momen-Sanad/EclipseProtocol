@@ -14,7 +14,7 @@ local hudFont = nil
 local loaded = false
 local view = "main"
 local menu = {
-    items = { "Resume", "Options", "Main Menu" },
+    items = { "Resume", "Retry", "Options", "Main Menu" },
     selected = 1
 }
 
@@ -123,6 +123,9 @@ function PauseState.keypressed(key, context)
             local choice = menu.items[menu.selected]
             if choice == "Resume" then
                 StateManager.change("game")
+            elseif choice == "Retry" then
+                -- Retry intentionally routes through transition so gameplay re-enters with a fresh run.
+                StateManager.change("transition", "game")
             elseif choice == "Options" then
                 view = "options"
             elseif choice == "Main Menu" then
