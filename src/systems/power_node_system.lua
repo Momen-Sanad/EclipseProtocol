@@ -35,11 +35,12 @@ function PowerNodeSystem.update(player, playerSize, input, dt)
     -- Handles repair start/cancel/progress and reports win condition.
     if not nodes or #nodes == 0 then
         -- Fail-safe: strict spawn constraints can produce no valid nodes for a room.
-        return true
+        return true, false
     end
 
     local playerStill = PowerNode.isPlayerStationarySinceLastFrame(player)
     local activeNode = PowerNode.getActive(nodes)
+    local canceledByMovement = false
 
     if not activeNode and playerStill and input and input.interactPressed and input.interactPressed() then
         local candidateNode = PowerNode.getNearestInRange(player, nodes, playerSize)
@@ -52,12 +53,13 @@ function PowerNodeSystem.update(player, playerSize, input, dt)
     if activeNode then
         if not playerStill then
             PowerNode.cancelRepair(activeNode)
+            canceledByMovement = true
         else
             PowerNode.updateRepair(activeNode, dt)
         end
     end
 
-    return PowerNode.allRepaired(nodes)
+    return PowerNode.allRepaired(nodes), canceledByMovement
 end
 
 function PowerNodeSystem.getPrompt(player, playerSize)

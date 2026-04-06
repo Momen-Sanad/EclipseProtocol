@@ -18,6 +18,7 @@ local ProgressionSystem = require("src/systems/progression_system")
 local EvacuationSystem = require("src/systems/evacuation_system")
 local DoorSystem = require("src/systems/door_system")
 local ScreenFlashSystem = require("src/systems/screen_flash_system")
+local VfxSystem = require("src/systems/vfx_system")
 local RoomFrameSystem = require("src/systems/room_frame_system")
 local Hud = require("src/ui/hud")
 local Kinematics = require("src/utils/kinematics")
@@ -287,6 +288,7 @@ local function resetRun(context)
     local player = PlayerSystem.reset(world, ProgressionSystem.buildPlayerResetConfig(context, difficulty), w, h)
     local playerSize = (player and player.hitboxSize) or (context and context.playerSize) or 35
     ScreenFlashSystem.reset()
+    VfxSystem.reset()
     AudioSystem.setGlobalPlaybackScale(1.0)
     EvacuationSystem.configureEscapeZone(w, h)
 
@@ -367,6 +369,7 @@ function PlayState.update(dt, context)
 
     -- Phase 2: input -> ability -> movement -> AI intent application.
     ScreenFlashSystem.update(dt)
+    VfxSystem.update(dt)
     player.hitThisFrame = false
     HealthSystem.ensureValid(player)
     DamageSystem.updatePlayerInvulnerability(player, dt)
@@ -433,7 +436,10 @@ function PlayState.update(dt, context)
 
     -- Phase 4: progression/room flow.
     if not EvacuationSystem.isEvacuationActive() then
-        local nodesRepaired = PowerNodeSystem.update(player, playerSize, InputSystem, dt)
+        local nodesRepaired, repairCanceled = PowerNodeSystem.update(player, playerSize, InputSystem, dt)
+        if repairCanceled then
+            VfxSystem.spawnRepairFailHint(player, playerSize)
+        end
         local lastRoom = isCurrentRoomLast()
 
         if lastRoom then
@@ -554,6 +560,7 @@ function PlayState.draw(context)
     AbilitySystem.draw()
     PowerNodeSystem.draw()
     CellSystem.draw()
+    VfxSystem.draw()
 
     local promptText = EvacuationSystem.getPrompt(player, playerSize)
     if not promptText then
