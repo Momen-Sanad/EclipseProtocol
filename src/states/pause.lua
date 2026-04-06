@@ -106,7 +106,7 @@ function PauseState.keypressed(key, context)
     -- Pause input either navigates the pause menu or returns directly to gameplay.
     if view == "main" then
         if key == "escape" then
-            StateManager.change("transition", "game")
+            StateManager.change("game")
             return nil
         end
         if key == "up" or key == "w" then
@@ -122,7 +122,7 @@ function PauseState.keypressed(key, context)
         elseif key == "return" or key == "kpenter" then
             local choice = menu.items[menu.selected]
             if choice == "Resume" then
-                StateManager.change("transition", "game")
+                StateManager.change("game")
             elseif choice == "Options" then
                 view = "options"
             elseif choice == "Main Menu" then
