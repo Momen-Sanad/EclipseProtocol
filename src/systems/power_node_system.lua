@@ -67,6 +67,30 @@ function PowerNodeSystem.getPrompt(player, playerSize)
     return PowerNode.getPrompt(player, nodes, playerSize)
 end
 
+function PowerNodeSystem.getObjectivePrompt()
+    -- UI helper for room objective reminder when no context-specific prompt is active.
+    if not nodes or #nodes == 0 then
+        return nil
+    end
+
+    local remaining = 0
+    for _, node in ipairs(nodes) do
+        if not node.isRepaired then
+            remaining = remaining + 1
+        end
+    end
+
+    if remaining <= 0 then
+        return nil
+    end
+
+    if remaining == 1 then
+        return "Repair the final power node to open the exit"
+    end
+
+    return ("Repair all power nodes (%d remaining) to open the exit"):format(remaining)
+end
+
 function PowerNodeSystem.draw()
     -- Draws all node visuals, including interaction radii and repair bars.
     for _, node in ipairs(nodes) do

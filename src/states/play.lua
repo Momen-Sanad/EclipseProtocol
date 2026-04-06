@@ -569,6 +569,9 @@ function PlayState.draw(context)
     if not promptText then
         promptText = PowerNodeSystem.getPrompt(player, playerSize)
     end
+    if not promptText and not EvacuationSystem.isEvacuationActive() then
+        promptText = PowerNodeSystem.getObjectivePrompt()
+    end
     if promptText then
         local drawH = love.graphics.getHeight()
         drawCenteredChip(
